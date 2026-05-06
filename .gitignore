@@ -1,0 +1,55 @@
+# Environment files
+.env
+.env.*
+!.env.example
+frontend/.env.local
+frontend/.env
+backend/.env
+
+# Frontend generated files
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/dist/
+frontend/.turbo/
+node_modules/
+.next/
+out/
+dist/
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Backend generated files
+backend/venv/
+backend/env/
+backend/__pycache__/
+backend/app/**/__pycache__/
+backend/.pytest_cache/
+backend/uploads/
+backend/*.log
+venv/
+env/
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+*.pyc
+*.pyo
+*.pyd
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Secrets
+*.pem
+*.key
+*.crt
+secrets.*
+database_password*
+jwt_secret*

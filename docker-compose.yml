@@ -1,0 +1,22 @@
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: jobswipe-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: jobswipe
+      MYSQL_USER: jobswipe_user
+      MYSQL_PASSWORD: jobswipe_password
+      MYSQL_ROOT_PASSWORD: root_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - jobswipe_mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-proot_password"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  jobswipe_mysql_data:
