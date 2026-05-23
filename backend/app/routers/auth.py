@@ -9,9 +9,11 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.security import create_access_token, get_current_user, hash_password, verify_password
+from app.models.company import Company
 from app.models.company_profile import CompanyProfile
 from app.models.enums import UserRole
 from app.models.job_seeker_profile import JobSeekerProfile
+from app.models.recruiter_profile import RecruiterProfile
 from app.models.password_reset_token import PasswordResetToken
 from app.models.user import User
 from app.schemas.auth import (
@@ -49,6 +51,10 @@ def register(payload: RegisterRequest, db: Annotated[Session, Depends(get_db)]) 
     if payload.role == UserRole.JOB_SEEKER:
         db.add(JobSeekerProfile(user_id=user.id))
     elif payload.role == UserRole.RECRUITER:
+        company = Company(company_name=f"{user.name}'s Company", verification_status="PENDING")
+        db.add(company)
+        db.flush()
+        db.add(RecruiterProfile(user_id=user.id, company_id=company.id, official_email=user.email))
         db.add(CompanyProfile(recruiter_id=user.id))
 
     db.commit()
@@ -62,6 +68,8 @@ def login(payload: LoginRequest, db: Annotated[Session, Depends(get_db)]) -> Tok
     user = db.scalar(select(User).where(User.email == payload.email.lower()))
     if user is None or not verify_password(payload.password, user.password_hash):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password")
+    if user.role != payload.selected_role.value:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="No account found for selected role.")
     access_token = create_access_token(str(user.id), user.role)
     return TokenResponse(access_token=access_token, user=user)
 

@@ -4,17 +4,35 @@ import { Loader2, Upload } from "lucide-react";
 import { FormEvent, useEffect, useState } from "react";
 import toast from "react-hot-toast";
 
+import BlueTick from "@/components/BlueTick";
 import PageHeader from "@/components/PageHeader";
 import VerificationStatusBadge from "@/components/VerificationStatusBadge";
 import { apiFetch, assetUrl } from "@/lib/api";
+import { companyTypes } from "@/lib/options";
 import { useAuth } from "@/hooks/useAuth";
-import type { CompanyProfile } from "@/types";
+import type { CompanyProfile, CompanyType } from "@/types";
+
+const emptyForm = {
+  company_name: "",
+  company_type: "Other" as CompanyType,
+  industry: "",
+  website: "",
+  official_email_domain: "",
+  description: "",
+  headquarters_location: "",
+  founded_year: "",
+  company_size: "",
+  registration_number: "",
+  designation: "",
+  department: "",
+  official_email: ""
+};
 
 export default function CompanyProfilePage() {
   const { loading } = useAuth(["RECRUITER"]);
   const [company, setCompany] = useState<CompanyProfile | null>(null);
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({ company_name: "", website: "", description: "", location: "" });
+  const [form, setForm] = useState(emptyForm);
 
   const load = () => {
     apiFetch<CompanyProfile>("/recruiter/company-profile")
@@ -22,9 +40,18 @@ export default function CompanyProfilePage() {
         setCompany(data);
         setForm({
           company_name: data.company_name || "",
+          company_type: data.company_type || "Other",
+          industry: data.industry || "",
           website: data.website || "",
+          official_email_domain: data.official_email_domain || "",
           description: data.description || "",
-          location: data.location || ""
+          headquarters_location: data.headquarters_location || data.location || "",
+          founded_year: data.founded_year ? String(data.founded_year) : "",
+          company_size: data.company_size || "",
+          registration_number: data.registration_number || "",
+          designation: data.designation || "",
+          department: data.department || "",
+          official_email: data.official_email || ""
         });
       })
       .catch((error) => toast.error(error instanceof Error ? error.message : "Company profile failed"));
@@ -40,7 +67,10 @@ export default function CompanyProfilePage() {
     try {
       const updated = await apiFetch<CompanyProfile>("/recruiter/company-profile", {
         method: "PUT",
-        body: JSON.stringify(form)
+        body: JSON.stringify({
+          ...form,
+          founded_year: form.founded_year ? Number(form.founded_year) : null
+        })
       });
       setCompany(updated);
       toast.success("Company profile saved");
@@ -84,10 +114,14 @@ export default function CompanyProfilePage() {
             )}
           </div>
           <h2 className="mt-4 text-xl font-black">{company.company_name || "Your company"}</h2>
-          <div className="mt-3">
+          <div className="mt-3 flex flex-wrap justify-center gap-2">
+            {company.verification_status === "VERIFIED" && <BlueTick label="Verified Company" />}
+            <VerificationStatusBadge status={company.verification_status} />
             <VerificationStatusBadge status={company.recruiter_verification_status} />
           </div>
-          {company.verification_note && <p className="mt-3 text-sm font-bold leading-6 text-[#6b767d]">{company.verification_note}</p>}
+          {(company.company_verification_note || company.verification_note) && (
+            <p className="mt-3 text-sm font-bold leading-6 text-[#6b767d]">{company.company_verification_note || company.verification_note}</p>
+          )}
           <label className="btn-secondary mt-5 w-full cursor-pointer">
             Upload company logo
             <input className="hidden" type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => uploadLogo(event.target.files?.[0])} />
@@ -103,23 +137,38 @@ export default function CompanyProfilePage() {
           </div>
           <div className="grid gap-4 md:grid-cols-2">
             <div>
+              <label className="label" htmlFor="company_type">
+                Company type
+              </label>
+              <select id="company_type" className="field" value={form.company_type} onChange={(event) => setForm({ ...form, company_type: event.target.value as CompanyType })}>
+                {companyTypes.map((type) => (
+                  <option key={type}>{type}</option>
+                ))}
+              </select>
+            </div>
+            <Input label="Industry" value={form.industry} onChange={(value) => setForm({ ...form, industry: value })} />
+            <div>
               <label className="label" htmlFor="website">
                 Website
               </label>
               <input id="website" className="field" value={form.website} onChange={(event) => setForm({ ...form, website: event.target.value })} />
             </div>
-            <div>
-              <label className="label" htmlFor="location">
-                Location
-              </label>
-              <input id="location" className="field" value={form.location} onChange={(event) => setForm({ ...form, location: event.target.value })} />
-            </div>
+            <Input label="Official email domain" value={form.official_email_domain} onChange={(value) => setForm({ ...form, official_email_domain: value })} />
+            <Input label="Headquarters location" value={form.headquarters_location} onChange={(value) => setForm({ ...form, headquarters_location: value })} />
+            <Input label="Founded year" type="number" value={form.founded_year} onChange={(value) => setForm({ ...form, founded_year: value })} />
+            <Input label="Company size" value={form.company_size} onChange={(value) => setForm({ ...form, company_size: value })} />
+            <Input label="Registration number" value={form.registration_number} onChange={(value) => setForm({ ...form, registration_number: value })} />
           </div>
           <div>
             <label className="label" htmlFor="description">
               Description
             </label>
             <textarea id="description" className="field min-h-36" value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} />
+          </div>
+          <div className="grid gap-4 md:grid-cols-3">
+            <Input label="Designation" value={form.designation} onChange={(value) => setForm({ ...form, designation: value })} />
+            <Input label="Department" value={form.department} onChange={(value) => setForm({ ...form, department: value })} />
+            <Input label="Official email" type="email" value={form.official_email} onChange={(value) => setForm({ ...form, official_email: value })} />
           </div>
           <button className="btn-primary" disabled={saving} type="submit">
             {saving && <Loader2 className="animate-spin" size={18} />}
@@ -128,5 +177,17 @@ export default function CompanyProfilePage() {
         </form>
       </div>
     </main>
+  );
+}
+
+function Input({ label, value, onChange, type = "text" }: { label: string; value: string; onChange: (value: string) => void; type?: string }) {
+  const id = label.toLowerCase().replaceAll(" ", "-");
+  return (
+    <div>
+      <label className="label" htmlFor={id}>
+        {label}
+      </label>
+      <input id={id} className="field" type={type} value={value} onChange={(event) => onChange(event.target.value)} />
+    </div>
   );
 }

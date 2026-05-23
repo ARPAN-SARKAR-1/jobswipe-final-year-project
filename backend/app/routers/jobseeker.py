@@ -8,9 +8,11 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.security import require_roles
 from app.models.application import Application
-from app.models.enums import JobModerationStatus, UserRole
+from app.models.company import Company
+from app.models.enums import AccountStatus, CompanyVerificationStatus, JobModerationStatus, RecruiterVerificationStatus, UserRole
 from app.models.job import Job
 from app.models.job_seeker_profile import JobSeekerProfile
+from app.models.recruiter_profile import RecruiterProfile
 from app.models.swipe import Swipe
 from app.models.user import User
 from app.schemas.profile import JobSeekerProfileRead, JobSeekerProfileUpdate, UploadResponse
@@ -77,9 +79,16 @@ def dashboard(
     viewed_jobs = select(Swipe.job_id).where(Swipe.job_seeker_id == current_user.id)
     recommended_count = db.scalar(
         select(func.count(Job.id))
+        .join(RecruiterProfile, Job.recruiter_id == RecruiterProfile.user_id)
+        .join(Company, Job.company_id == Company.id)
+        .join(User, Job.recruiter_id == User.id)
         .where(Job.is_active.is_(True))
         .where(Job.deadline >= date.today())
         .where(Job.moderation_status == JobModerationStatus.ACTIVE.value)
+        .where(Job.company_id == RecruiterProfile.company_id)
+        .where(RecruiterProfile.recruiter_verification_status == RecruiterVerificationStatus.VERIFIED.value)
+        .where(Company.verification_status == CompanyVerificationStatus.VERIFIED.value)
+        .where(User.account_status == AccountStatus.ACTIVE.value)
         .where(Job.id.not_in(viewed_jobs))
     )
     saved_count = db.scalar(

@@ -3,7 +3,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator
 
-from app.models.enums import RecruiterVerificationStatus
+from app.models.enums import CompanyType, CompanyVerificationStatus, RecruiterVerificationStatus
 from app.utils.skills import normalize_skills, split_skills
 
 
@@ -48,15 +48,33 @@ class JobSeekerProfileRead(JobSeekerProfileUpdate):
 
 class CompanyProfileUpdate(BaseModel):
     company_name: str | None = Field(default=None, max_length=160)
+    company_type: CompanyType | None = None
+    industry: str | None = Field(default=None, max_length=160)
     website: str | None = Field(default=None, max_length=255)
+    official_email_domain: str | None = Field(default=None, max_length=160)
     description: str | None = None
+    headquarters_location: str | None = Field(default=None, max_length=160)
     location: str | None = Field(default=None, max_length=160)
+    founded_year: int | None = Field(default=None, ge=1800, le=2100)
+    company_size: str | None = Field(default=None, max_length=80)
+    registration_number: str | None = Field(default=None, max_length=120)
+    company_id: int | None = None
+    designation: str | None = Field(default=None, max_length=120)
+    department: str | None = Field(default=None, max_length=120)
+    official_email: str | None = Field(default=None, max_length=255)
 
 
 class CompanyProfileRead(CompanyProfileUpdate):
     id: int
     recruiter_id: int
+    company_id: int | None = None
     company_logo_url: str | None = None
+    verification_status: CompanyVerificationStatus = CompanyVerificationStatus.PENDING
+    company_verification_note: str | None = None
+    company_verified_at: datetime | None = None
+    company_verified_by_admin_id: int | None = None
+    average_rating: float = 0
+    total_reviews: int = 0
     recruiter_verification_status: RecruiterVerificationStatus = RecruiterVerificationStatus.PENDING
     verification_note: str | None = None
     verified_at: datetime | None = None

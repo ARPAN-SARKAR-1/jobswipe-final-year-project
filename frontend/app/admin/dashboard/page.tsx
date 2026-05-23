@@ -2,14 +2,18 @@
 
 import {
   Ban,
+  Building2,
   BriefcaseBusiness,
   CheckCircle2,
   ClipboardList,
+  Eye,
+  EyeOff,
   MessageCircle,
   PauseCircle,
   PlusCircle,
   Radio,
   ShieldAlert,
+  Star,
   UserRound,
   UsersRound
 } from "lucide-react";
@@ -23,7 +27,7 @@ import VerificationStatusBadge from "@/components/VerificationStatusBadge";
 import { apiFetch } from "@/lib/api";
 import { formatDate } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
-import type { AdminActionLog, AdminRecruiterVerification, Application, ChatThread, Job, Report, Swipe, User } from "@/types";
+import type { AdminActionLog, AdminRecruiterVerification, Application, ChatThread, Company, CompanyReview, Job, Report, Swipe, User } from "@/types";
 
 type AdminStats = {
   total_users: number;
@@ -57,7 +61,9 @@ export default function AdminDashboardPage() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [applications, setApplications] = useState<Application[]>([]);
   const [chats, setChats] = useState<ChatThread[]>([]);
+  const [companies, setCompanies] = useState<Company[]>([]);
   const [verifications, setVerifications] = useState<AdminRecruiterVerification[]>([]);
+  const [companyReviews, setCompanyReviews] = useState<CompanyReview[]>([]);
   const [reports, setReports] = useState<Report[]>([]);
   const [swipes, setSwipes] = useState<Swipe[]>([]);
   const [logs, setLogs] = useState<AdminActionLog[]>([]);
@@ -74,19 +80,23 @@ export default function AdminDashboardPage() {
       apiFetch<Job[]>("/admin/jobs"),
       apiFetch<Application[]>("/admin/applications"),
       apiFetch<ChatThread[]>("/admin/chats"),
-      apiFetch<AdminRecruiterVerification[]>("/admin/recruiter-verifications"),
+      apiFetch<Company[]>("/admin/companies"),
+      apiFetch<AdminRecruiterVerification[]>("/admin/recruiters"),
+      apiFetch<CompanyReview[]>("/admin/company-reviews"),
       apiFetch<Report[]>("/admin/reports"),
       apiFetch<Swipe[]>("/admin/swipes"),
       isOwner ? apiFetch<User[]>("/admin/admins") : Promise.resolve([]),
       isOwner ? apiFetch<AdminActionLog[]>("/admin/action-logs") : Promise.resolve([])
     ])
-      .then(([dashboard, userRows, jobRows, applicationRows, chatRows, verificationRows, reportRows, swipeRows, adminRows, logRows]) => {
+      .then(([dashboard, userRows, jobRows, applicationRows, chatRows, companyRows, verificationRows, reviewRows, reportRows, swipeRows, adminRows, logRows]) => {
         setStats(dashboard);
         setUsers(userRows);
         setJobs(jobRows);
         setApplications(applicationRows);
         setChats(chatRows);
+        setCompanies(companyRows);
         setVerifications(verificationRows);
+        setCompanyReviews(reviewRows);
         setReports(reportRows);
         setSwipes(swipeRows);
         setAdmins(adminRows);
@@ -364,7 +374,9 @@ export default function AdminDashboardPage() {
         <ModerationJobsTable jobs={jobs} openAction={openAction} />
         <ModerationApplicationsTable applications={applications} openAction={openAction} />
         <ModerationChatsTable chats={chats} openAction={openAction} />
+        <CompanyVerificationTable companies={companies} openAction={openAction} />
         <RecruiterVerificationTable verifications={verifications} openAction={openAction} />
+        <CompanyReviewsTable reviews={companyReviews} openAction={openAction} />
         <ReportsTable reports={reports} openAction={openAction} />
         <Table title="Swipes" headers={["ID", "Job seeker", "Job", "Action"]} rows={swipes.map((swipe) => [swipe.id, swipe.job_seeker_id, swipe.job?.title || swipe.job_id, swipe.action])} />
 
@@ -446,6 +458,86 @@ function Input({ label, value, onChange, required, type = "text" }: { label: str
   );
 }
 
+function CompanyVerificationTable({ companies, openAction }: { companies: Company[]; openAction: (action: ConfirmAction) => void }) {
+  return (
+    <div className="panel overflow-hidden">
+      <div className="flex items-center gap-2 p-5">
+        <Building2 size={19} />
+        <h2 className="text-xl font-black">Company Verification</h2>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[1180px] text-left text-sm">
+          <thead className="bg-[#fbfaf7] text-xs font-black uppercase text-[#526069]">
+            <tr>
+              <th className="p-4">Company</th>
+              <th className="p-4">Industry</th>
+              <th className="p-4">Type</th>
+              <th className="p-4">Website</th>
+              <th className="p-4">Status</th>
+              <th className="p-4">Note</th>
+              <th className="p-4">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {companies.map((company) => (
+              <tr key={company.id} className="border-t border-black/5 align-top">
+                <td className="p-4">
+                  <p className="font-black text-[#172026]">{company.company_name}</p>
+                  <p className="font-bold text-[#6b767d]">{company.headquarters_location || "-"}</p>
+                  <p className="mt-1 text-xs font-black text-[#8a949a]">{company.recruiter_count} recruiters / {company.active_jobs_count} active jobs</p>
+                </td>
+                <td className="p-4 font-bold text-[#526069]">{company.industry || "-"}</td>
+                <td className="p-4 font-bold text-[#526069]">{company.company_type}</td>
+                <td className="p-4 font-bold text-[#526069]">{company.website || "-"}</td>
+                <td className="p-4"><VerificationStatusBadge status={company.verification_status} /></td>
+                <td className="p-4 max-w-xs font-bold leading-6 text-[#6b767d]">{company.verification_note || "-"}</td>
+                <td className="p-4">
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      className="btn-secondary !px-3 !py-2 border-emerald-200 bg-emerald-50 text-emerald-700"
+                      type="button"
+                      onClick={() =>
+                        openAction({
+                          title: "Verify company",
+                          message: `Verify ${company.company_name}?`,
+                          endpoint: `/admin/companies/${company.id}/verify`,
+                          success: "Company verified successfully",
+                          bodyKey: "admin_note",
+                          label: "Verification note"
+                        })
+                      }
+                    >
+                      <CheckCircle2 size={15} />
+                      Verify
+                    </button>
+                    <button
+                      className="btn-secondary !px-3 !py-2 border-rose-200 bg-rose-50 text-rose-700"
+                      type="button"
+                      onClick={() =>
+                        openAction({
+                          title: "Reject company",
+                          message: `Reject ${company.company_name}?`,
+                          endpoint: `/admin/companies/${company.id}/reject`,
+                          success: "Company rejected successfully",
+                          bodyKey: "admin_note",
+                          label: "Rejection note"
+                        })
+                      }
+                    >
+                      <Ban size={15} />
+                      Reject
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 function RecruiterVerificationTable({ verifications, openAction }: { verifications: AdminRecruiterVerification[]; openAction: (action: ConfirmAction) => void }) {
   return (
     <div className="panel overflow-hidden">
@@ -457,6 +549,7 @@ function RecruiterVerificationTable({ verifications, openAction }: { verificatio
               <th className="p-4">Recruiter</th>
               <th className="p-4">Company</th>
               <th className="p-4">Website</th>
+              <th className="p-4">Company status</th>
               <th className="p-4">Verification</th>
               <th className="p-4">Note</th>
               <th className="p-4">Actions</th>
@@ -471,6 +564,7 @@ function RecruiterVerificationTable({ verifications, openAction }: { verificatio
                 </td>
                 <td className="p-4 font-bold text-[#526069]">{item.company_name || "-"}</td>
                 <td className="p-4 font-bold text-[#526069]">{item.website || "-"}</td>
+                <td className="p-4"><VerificationStatusBadge status={item.verification_status} /></td>
                 <td className="p-4"><VerificationStatusBadge status={item.recruiter_verification_status} /></td>
                 <td className="p-4 font-bold text-[#6b767d]">{item.verification_note || "-"}</td>
                 <td className="p-4">
@@ -508,6 +602,79 @@ function RecruiterVerificationTable({ verifications, openAction }: { verificatio
                     >
                       <Ban size={15} />
                       Reject
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function CompanyReviewsTable({ reviews, openAction }: { reviews: CompanyReview[]; openAction: (action: ConfirmAction) => void }) {
+  return (
+    <div className="panel overflow-hidden">
+      <div className="flex items-center gap-2 p-5">
+        <Star size={19} />
+        <h2 className="text-xl font-black">Company Reviews</h2>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[1100px] text-left text-sm">
+          <thead className="bg-[#fbfaf7] text-xs font-black uppercase text-[#526069]">
+            <tr>
+              <th className="p-4">Company</th>
+              <th className="p-4">Reviewer</th>
+              <th className="p-4">Rating</th>
+              <th className="p-4">Review</th>
+              <th className="p-4">Visibility</th>
+              <th className="p-4">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {reviews.map((review) => (
+              <tr key={review.id} className="border-t border-black/5 align-top">
+                <td className="p-4 font-bold text-[#526069]">{review.company_name || review.company_id}</td>
+                <td className="p-4">
+                  <p className="font-black text-[#172026]">{review.reviewer_name || review.job_seeker_id}</p>
+                  <p className="font-bold text-[#6b767d]">{review.reviewer_email || ""}</p>
+                </td>
+                <td className="p-4 font-black text-amber-700">{review.rating} / 5</td>
+                <td className="p-4 max-w-sm font-bold leading-6 text-[#6b767d]">{review.review_text || "-"}</td>
+                <td className="p-4"><StatusBadge status={review.is_visible ? "ACTIVE" : "HIDDEN"} /></td>
+                <td className="p-4">
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      className="btn-secondary !px-3 !py-2 border-rose-200 bg-rose-50 text-rose-700"
+                      type="button"
+                      onClick={() =>
+                        openAction({
+                          title: "Hide review",
+                          message: "Hide this company review from public company profiles?",
+                          endpoint: `/admin/company-reviews/${review.id}/hide`,
+                          success: "Review hidden successfully"
+                        })
+                      }
+                    >
+                      <EyeOff size={15} />
+                      Hide
+                    </button>
+                    <button
+                      className="btn-secondary !px-3 !py-2 border-emerald-200 bg-emerald-50 text-emerald-700"
+                      type="button"
+                      onClick={() =>
+                        openAction({
+                          title: "Show review",
+                          message: "Show this company review publicly again?",
+                          endpoint: `/admin/company-reviews/${review.id}/show`,
+                          success: "Review shown successfully"
+                        })
+                      }
+                    >
+                      <Eye size={15} />
+                      Show
                     </button>
                   </div>
                 </td>

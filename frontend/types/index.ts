@@ -19,6 +19,7 @@ export type User = {
 export type Job = {
   id: number;
   recruiter_id: number;
+  company_id?: number | null;
   title: string;
   company_name: string;
   company_logo_url?: string | null;
@@ -43,6 +44,11 @@ export type Job = {
   bond_details?: string | null;
   moderation_status: "ACTIVE" | "PAUSED" | "REMOVED";
   moderation_reason?: string | null;
+  company_verification_status?: VerificationStatus | null;
+  recruiter_verification_status?: VerificationStatus | null;
+  company_average_rating?: number | null;
+  company_total_reviews?: number | null;
+  trusted_job: boolean;
   created_at: string;
   updated_at: string;
 };
@@ -73,12 +79,29 @@ export type JobSeekerProfile = {
 export type CompanyProfile = {
   id: number;
   recruiter_id: number;
+  company_id?: number | null;
   company_name?: string | null;
   company_logo_url?: string | null;
+  company_type?: CompanyType | null;
+  industry?: string | null;
   website?: string | null;
+  official_email_domain?: string | null;
   description?: string | null;
+  headquarters_location?: string | null;
   location?: string | null;
-  recruiter_verification_status: "PENDING" | "VERIFIED" | "REJECTED";
+  founded_year?: number | null;
+  company_size?: string | null;
+  registration_number?: string | null;
+  verification_status: VerificationStatus;
+  company_verification_note?: string | null;
+  company_verified_at?: string | null;
+  company_verified_by_admin_id?: number | null;
+  average_rating: number;
+  total_reviews: number;
+  designation?: string | null;
+  department?: string | null;
+  official_email?: string | null;
+  recruiter_verification_status: VerificationStatus;
   verification_note?: string | null;
   verified_at?: string | null;
   verified_by_admin_id?: number | null;
@@ -90,6 +113,67 @@ export type AdminRecruiterVerification = CompanyProfile & {
   recruiter_name: string;
   recruiter_email: string;
   account_status: "ACTIVE" | "SUSPENDED";
+};
+
+export type VerificationStatus = "PENDING" | "VERIFIED" | "REJECTED";
+
+export type CompanyType = "MNC" | "Startup" | "Product-based" | "Service-based" | "Consultancy" | "Government" | "Non-profit" | "Other";
+
+export type Company = {
+  id: number;
+  company_name: string;
+  company_logo_url?: string | null;
+  company_type: CompanyType;
+  industry?: string | null;
+  website?: string | null;
+  official_email_domain?: string | null;
+  description?: string | null;
+  headquarters_location?: string | null;
+  founded_year?: number | null;
+  company_size?: string | null;
+  registration_number?: string | null;
+  verification_status: VerificationStatus;
+  verification_note?: string | null;
+  verified_by_admin_id?: number | null;
+  verified_at?: string | null;
+  average_rating: number;
+  total_reviews: number;
+  active_jobs_count: number;
+  recruiter_count: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CompanyRecruiter = {
+  id: number;
+  user_id: number;
+  recruiter_name: string;
+  recruiter_email: string;
+  designation?: string | null;
+  department?: string | null;
+  official_email?: string | null;
+  recruiter_verification_status: VerificationStatus;
+  account_status: "ACTIVE" | "SUSPENDED";
+  verified_at?: string | null;
+};
+
+export type CompanyDetail = Company & {
+  recruiters: CompanyRecruiter[];
+  active_jobs: Job[];
+};
+
+export type CompanyReview = {
+  id: number;
+  company_id: number;
+  job_seeker_id: number;
+  rating: number;
+  review_text?: string | null;
+  is_visible: boolean;
+  reviewer_name?: string | null;
+  reviewer_email?: string | null;
+  company_name?: string | null;
+  created_at: string;
+  updated_at: string;
 };
 
 export type Swipe = {

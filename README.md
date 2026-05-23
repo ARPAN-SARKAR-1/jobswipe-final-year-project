@@ -11,15 +11,19 @@ Freshers and early-career job seekers often spend too much time scrolling throug
 ## Features
 
 - Landing page with the tagline "Swipe Less. Apply Smarter."
-- Register and login with JWT authentication, bcrypt password hashing, role redirects, validation, loaders, and toasts.
+- Register and role-based login with JWT authentication, bcrypt password hashing, role redirects, validation, loaders, and toasts.
 - Forgot password and reset password demo flow with development reset token return.
 - Job Seeker dashboard, editable profile, profile picture upload, GitHub URL, education details, experience level, resume PDF upload, saved jobs, applications, and withdraw action.
 - Swipe Jobs page with Framer Motion drag animation, reject, save, apply, undo, and progress indicator.
 - Jobs list with job type, experience level, location, skill, work mode, and active-only filters.
-- Recruiter dashboard, company profile, company logo upload, job posting, received applications, and application status updates.
-- Admin dashboard with users, jobs, applications, swipes, moderation controls, and database summary cards.
+- Recruiter dashboard, company profile, recruiter profile, company logo upload, job posting, received applications, and application status updates.
+- Admin dashboard with users, jobs, applications, swipes, company verification, recruiter verification, review moderation, moderation controls, and database summary cards.
 - Owner hierarchy: the seeded Owner account can create and manage admins, while admins can moderate normal users and content without managing other admins.
-- Recruiter verification so only verified recruiters can publish active jobs.
+- Separate company profiles with multiple recruiter profiles under one company.
+- Company and recruiter verification with blue tick badges for trusted employers and recruiters.
+- Company ratings and reviews from eligible job seekers.
+- Fake job prevention rules so public jobs require a verified company, verified recruiter, active recruiter account, active job, valid deadline, and active moderation status.
+- Recruiter verification so only verified recruiters under verified companies can publish active jobs.
 - Company bond/service agreement disclosure on job cards, job details, saved jobs, applications, and swipe cards.
 - Skill multi-select with removable skill chips and custom skills for job seeker profiles and job posts.
 - Recruiter-started chat that becomes available only after an application is shortlisted.
@@ -154,6 +158,7 @@ python seed.py
 ```
 
 The seed script creates one protected Owner, one normal admin, two job seekers, two recruiters, fifteen jobs, sample applications, and sample swipes.
+It also creates verified and pending company/recruiter examples plus a sample company review.
 
 ## Demo Credentials
 
@@ -173,6 +178,44 @@ The seed script creates one protected Owner, one normal admin, two job seekers, 
 - Admins can moderate recruiters, job seekers, jobs, and applications.
 - Admins cannot create admins, manage other admins, or change Owner permissions.
 - Owner and Admin can both pause, activate, and remove jobs, and pause or activate applications.
+
+## Company Profiles And Verification
+
+- A company profile is a separate employer record. Multiple recruiter profiles can belong to the same company.
+- Company records store name, logo, type, industry, website, official email domain, description, headquarters, founded year, size, registration number, verification status, rating totals, and audit fields.
+- Recruiter profiles store the recruiter user, company, designation, department, official email, recruiter verification status, verification note, verifier, and verification time.
+- New companies and recruiters start as `PENDING`.
+- Owner/Admin users verify or reject companies from the Admin Dashboard.
+- Owner/Admin users verify or reject recruiters from the Admin Dashboard.
+- A verified company receives a blue tick and a "Verified Company" badge.
+- A verified recruiter can receive a blue tick or verified badge beside trusted job information.
+- Rejected or pending companies cannot publish public trusted jobs.
+- Recruiters see clear warnings when their company or recruiter profile is pending or rejected.
+
+## Role-Based Login
+
+- The login page asks users to choose Job Seeker, Recruiter, Admin, or Owner before entering email and password.
+- Login succeeds only when the selected role matches the account role in the database.
+- Wrong role selection returns a clean "No account found for selected role." error.
+- Successful login redirects by the actual stored role.
+- Public signup still allows only Job Seeker and Recruiter accounts.
+- Admin and Owner accounts cannot be created through public signup.
+
+## Company Reviews And Ratings
+
+- Logged-in Job Seekers can review a company only after applying to at least one job from that company.
+- Each job seeker can review a company once.
+- Ratings are limited to 1 through 5.
+- Review text is optional.
+- Company average rating and total visible reviews update whenever reviews are created, hidden, or shown.
+- Owner/Admin users can hide or show reviews from the Admin Dashboard.
+
+## Fake Job Prevention
+
+- A recruiter can publish an active job only when the recruiter account is active, the recruiter profile is verified, the company exists, and the company is verified.
+- The backend links new jobs to the recruiter's verified company and ignores fake company names in job-posting requests.
+- Job seeker job lists, swipe feed, job details, applications, and swipe actions only use public jobs from verified companies and verified recruiters.
+- Owner/Admin users can still inspect all jobs, including paused, removed, pending, rejected, or unverified records.
 
 ## API Docs
 

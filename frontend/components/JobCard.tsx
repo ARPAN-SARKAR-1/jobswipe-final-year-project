@@ -1,6 +1,7 @@
 import { AlertTriangle, Building2, CalendarClock, IndianRupee, MapPin, MonitorSmartphone } from "lucide-react";
 import Link from "next/link";
 
+import BlueTick from "@/components/BlueTick";
 import BondBadge from "@/components/BondBadge";
 import MatchScoreBadge from "@/components/MatchScoreBadge";
 import { assetUrl } from "@/lib/api";
@@ -24,9 +25,28 @@ export default function JobCard({ job, actions, detailsHref }: { job: Job; actio
         </div>
         <div className="min-w-0 flex-1">
           <h3 className="text-xl font-black tracking-normal text-[#172026]">{job.title}</h3>
-          <p className="mt-1 text-sm font-bold text-[#6b767d]">{job.company_name}</p>
+          <div className="mt-1 flex flex-wrap items-center gap-2 text-sm font-bold text-[#6b767d]">
+            {job.company_id ? (
+              <Link href={`/companies/${job.company_id}`} className="hover:text-teal-700">
+                {job.company_name}
+              </Link>
+            ) : (
+              <span>{job.company_name}</span>
+            )}
+            {job.company_verification_status === "VERIFIED" && <BlueTick label="Verified Company" />}
+          </div>
           <div className="mt-2 flex flex-wrap gap-2">
             <MatchScoreBadge job={job} />
+            {job.trusted_job && (
+              <span className="rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-black text-emerald-700">
+                Trusted Job
+              </span>
+            )}
+            {job.recruiter_verification_status === "VERIFIED" && (
+              <span className="rounded-lg border border-sky-200 bg-sky-50 px-2.5 py-1 text-xs font-black text-sky-700">
+                Recruiter Verified
+              </span>
+            )}
             {job.existing_application_status && (
               <span className="rounded-lg bg-sky-50 px-2.5 py-1 text-xs font-black text-sky-700">
                 Already Applied: {job.existing_application_status}

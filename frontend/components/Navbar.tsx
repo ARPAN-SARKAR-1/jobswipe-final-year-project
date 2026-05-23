@@ -14,6 +14,7 @@ const seekerLinks = [
   ["Dashboard", "/jobseeker/dashboard"],
   ["Swipe", "/jobseeker/swipe"],
   ["Jobs", "/jobseeker/jobs"],
+  ["Companies", "/companies"],
   ["Saved", "/jobseeker/saved"],
   ["Applications", "/jobseeker/applications"],
   ["Messages", "/messages"],
@@ -23,6 +24,7 @@ const seekerLinks = [
 const recruiterLinks = [
   ["Dashboard", "/recruiter/dashboard"],
   ["Post Job", "/recruiter/jobs/new"],
+  ["Companies", "/companies"],
   ["Applications", "/recruiter/applications"],
   ["Messages", "/messages"],
   ["Company", "/recruiter/company"]

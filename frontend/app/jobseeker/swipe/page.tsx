@@ -2,9 +2,11 @@
 
 import { AnimatePresence, motion, type PanInfo } from "framer-motion";
 import { Bookmark, BriefcaseBusiness, CalendarClock, Heart, MapPin, RotateCcw, X } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 
+import BlueTick from "@/components/BlueTick";
 import EmptyState from "@/components/EmptyState";
 import BondBadge from "@/components/BondBadge";
 import MatchScoreBadge from "@/components/MatchScoreBadge";
@@ -112,9 +114,23 @@ export default function SwipeJobsPage() {
                 </div>
 
                 <h2 className="mt-7 text-3xl font-black tracking-normal text-[#172026]">{current.title}</h2>
-                <p className="mt-2 text-base font-black text-[#6b767d]">{current.company_name}</p>
+                <div className="mt-2 flex flex-wrap items-center gap-2 text-base font-black text-[#6b767d]">
+                  {current.company_id ? (
+                    <Link href={`/companies/${current.company_id}`} className="hover:text-teal-700">
+                      {current.company_name}
+                    </Link>
+                  ) : (
+                    <span>{current.company_name}</span>
+                  )}
+                  {current.company_verification_status === "VERIFIED" && <BlueTick label="Verified Company" />}
+                </div>
                 <div className="mt-3 flex flex-wrap gap-2">
                   <MatchScoreBadge job={current} />
+                  {current.trusted_job && (
+                    <span className="rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-black text-emerald-700">
+                      Trusted Job
+                    </span>
+                  )}
                   {current.existing_application_status && (
                     <span className="rounded-lg bg-sky-50 px-2.5 py-1 text-xs font-black text-sky-700">
                       Already Applied: {current.existing_application_status}

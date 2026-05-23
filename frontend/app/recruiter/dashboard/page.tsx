@@ -48,17 +48,24 @@ export default function RecruiterDashboardPage() {
       <section className="panel mb-6 p-5">
         <div className="flex flex-col justify-between gap-3 md:flex-row md:items-center">
           <div>
-            <h2 className="text-xl font-black">Company verification</h2>
+            <h2 className="text-xl font-black">Verification status</h2>
             <p className="mt-1 text-sm font-bold leading-6 text-[#6b767d]">
-              {data.company_profile.recruiter_verification_status === "VERIFIED"
-                ? "Your company profile is verified. You can post active jobs."
-                : "Your company profile must be verified by admin before posting jobs."}
+              {data.company_profile.verification_status !== "VERIFIED"
+                ? "Your company is pending verification. Jobs will not be visible publicly until verification is completed."
+                : data.company_profile.recruiter_verification_status !== "VERIFIED"
+                  ? "Your recruiter profile must be verified before posting jobs."
+                  : "Your company and recruiter profile are verified. You can post trusted public jobs."}
             </p>
-            {data.company_profile.verification_note && (
-              <p className="mt-2 text-sm font-bold text-[#526069]">{data.company_profile.verification_note}</p>
+            {(data.company_profile.company_verification_note || data.company_profile.verification_note) && (
+              <p className="mt-2 text-sm font-bold text-[#526069]">
+                {data.company_profile.company_verification_note || data.company_profile.verification_note}
+              </p>
             )}
           </div>
-          <VerificationStatusBadge status={data.company_profile.recruiter_verification_status} />
+          <div className="flex flex-wrap gap-2">
+            <VerificationStatusBadge status={data.company_profile.verification_status} />
+            <VerificationStatusBadge status={data.company_profile.recruiter_verification_status} />
+          </div>
         </div>
       </section>
 

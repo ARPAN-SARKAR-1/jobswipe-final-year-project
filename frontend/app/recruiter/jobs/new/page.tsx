@@ -42,7 +42,14 @@ export default function PostJobPage() {
   useEffect(() => {
     if (loading) return;
     apiFetch<CompanyProfile>("/recruiter/company-profile")
-      .then(setCompany)
+      .then((data) => {
+        setCompany(data);
+        setForm((current) => ({
+          ...current,
+          company_name: data.company_name || current.company_name,
+          company_logo_url: data.company_logo_url || current.company_logo_url
+        }));
+      })
       .catch((error) => toast.error(error instanceof Error ? error.message : "Company profile failed"));
   }, [loading]);
 
@@ -56,8 +63,12 @@ export default function PostJobPage() {
       toast.error("Bond period cannot be negative");
       return;
     }
+    if (company?.verification_status !== "VERIFIED") {
+      toast.error("Your company must be verified before posting jobs.");
+      return;
+    }
     if (company?.recruiter_verification_status !== "VERIFIED") {
-      toast.error("Your company profile must be verified by admin before posting jobs.");
+      toast.error("Your recruiter profile must be verified before posting jobs.");
       return;
     }
     setSaving(true);
@@ -90,15 +101,18 @@ export default function PostJobPage() {
       <div className="panel mb-5 p-4">
         <div className="flex flex-col justify-between gap-3 md:flex-row md:items-center">
           <p className="text-sm font-bold leading-6 text-[#526069]">
-            Your company profile must be verified by admin before posting jobs.
+            Active public jobs require a verified company, verified recruiter profile, and active recruiter account.
           </p>
-          <VerificationStatusBadge status={company.recruiter_verification_status} />
+          <div className="flex flex-wrap gap-2">
+            <VerificationStatusBadge status={company.verification_status} />
+            <VerificationStatusBadge status={company.recruiter_verification_status} />
+          </div>
         </div>
       </div>
       <form onSubmit={submit} className="panel grid gap-4 p-5 md:grid-cols-2">
         <Input label="Job title" name="title" value={form.title} onChange={(value) => setForm({ ...form, title: value })} required />
-        <Input label="Company name" name="company_name" value={form.company_name} onChange={(value) => setForm({ ...form, company_name: value })} required />
-        <Input label="Company logo URL optional" name="company_logo_url" value={form.company_logo_url} onChange={(value) => setForm({ ...form, company_logo_url: value })} />
+        <Input label="Company name" name="company_name" value={form.company_name} onChange={(value) => setForm({ ...form, company_name: value })} required disabled />
+        <Input label="Company logo URL optional" name="company_logo_url" value={form.company_logo_url} onChange={(value) => setForm({ ...form, company_logo_url: value })} disabled />
         <Input label="Location" name="location" value={form.location} onChange={(value) => setForm({ ...form, location: value })} required />
         <Select label="Job type" value={form.job_type} options={jobTypes} onChange={(value) => setForm({ ...form, job_type: value })} />
         <Select label="Work mode" value={form.work_mode} options={workModes} onChange={(value) => setForm({ ...form, work_mode: value })} />
@@ -141,7 +155,7 @@ export default function PostJobPage() {
           <input type="checkbox" checked={form.is_active} onChange={(event) => setForm({ ...form, is_active: event.target.checked })} />
           Active job
         </label>
-        <button className="btn-primary md:col-span-2" disabled={saving || company.recruiter_verification_status !== "VERIFIED"} type="submit">
+        <button className="btn-primary md:col-span-2" disabled={saving || company.verification_status !== "VERIFIED" || company.recruiter_verification_status !== "VERIFIED"} type="submit">
           {saving && <Loader2 className="animate-spin" size={18} />}
           Post job
         </button>
@@ -150,13 +164,13 @@ export default function PostJobPage() {
   );
 }
 
-function Input({ label, name, value, onChange, required, type = "text" }: { label: string; name: string; value: string; onChange: (value: string) => void; required?: boolean; type?: string }) {
+function Input({ label, name, value, onChange, required, type = "text", disabled = false }: { label: string; name: string; value: string; onChange: (value: string) => void; required?: boolean; type?: string; disabled?: boolean }) {
   return (
     <div>
       <label className="label" htmlFor={name}>
         {label}
       </label>
-      <input id={name} className="field" required={required} type={type} value={value} onChange={(event) => onChange(event.target.value)} />
+      <input id={name} className="field disabled:bg-stone-100" required={required} type={type} value={value} disabled={disabled} onChange={(event) => onChange(event.target.value)} />
     </div>
   );
 }

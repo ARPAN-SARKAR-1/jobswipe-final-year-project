@@ -9,19 +9,18 @@ from app.core.database import get_db
 from app.core.security import get_current_user, require_roles
 from app.models.application import Application
 from app.models.application_timeline import ApplicationTimeline
-from app.models.company_profile import CompanyProfile
 from app.models.enums import (
     AccountStatus,
     ApplicationAdminStatus,
     ApplicationStatus,
     JobModerationStatus,
-    RecruiterVerificationStatus,
     UserRole,
 )
 from app.models.job import Job
 from app.models.job_seeker_profile import JobSeekerProfile
 from app.models.user import User
 from app.schemas.application import ApplicationCreate, ApplicationRead, ApplicationTimelineRead
+from app.services.job_visibility import ensure_public_job_available
 from app.services.timeline import add_timeline_event
 from app.utils.match_score import calculate_match_score
 
@@ -86,15 +85,7 @@ def apply_to_job(
     job = db.get(Job, payload.job_id)
     if job is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
-    if (
-        not job.is_active
-        or job.deadline < date.today()
-        or job.moderation_status != JobModerationStatus.ACTIVE.value
-    ):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="This job is not accepting applications")
-    company = db.scalar(select(CompanyProfile).where(CompanyProfile.recruiter_id == job.recruiter_id))
-    if company is None or company.recruiter_verification_status != RecruiterVerificationStatus.VERIFIED.value:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="This recruiter is not verified")
+    ensure_public_job_available(db, job, "This job is not accepting applications")
     return create_or_reactivate_application(db, current_user, job, payload)
 
 

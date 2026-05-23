@@ -30,6 +30,23 @@ class RecruiterVerificationStatus(str, Enum):
     REJECTED = "REJECTED"
 
 
+class CompanyVerificationStatus(str, Enum):
+    PENDING = "PENDING"
+    VERIFIED = "VERIFIED"
+    REJECTED = "REJECTED"
+
+
+class CompanyType(str, Enum):
+    MNC = "MNC"
+    STARTUP = "Startup"
+    PRODUCT_BASED = "Product-based"
+    SERVICE_BASED = "Service-based"
+    CONSULTANCY = "Consultancy"
+    GOVERNMENT = "Government"
+    NON_PROFIT = "Non-profit"
+    OTHER = "Other"
+
+
 class ChatThreadStatus(str, Enum):
     ACTIVE = "ACTIVE"
     CLOSED = "CLOSED"

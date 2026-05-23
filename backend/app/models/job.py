@@ -12,6 +12,7 @@ class Job(TimestampMixin, Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     recruiter_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    company_id: Mapped[int | None] = mapped_column(ForeignKey("companies.id", ondelete="SET NULL"), nullable=True)
     title: Mapped[str] = mapped_column(String(180), nullable=False)
     company_name: Mapped[str] = mapped_column(String(160), nullable=False)
     company_logo_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
@@ -32,7 +33,37 @@ class Job(TimestampMixin, Base):
     moderation_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     recruiter = relationship("User", back_populates="jobs")
+    company = relationship("Company", back_populates="jobs")
     applications = relationship("Application", back_populates="job", cascade="all, delete-orphan")
     swipes = relationship("Swipe", back_populates="job", cascade="all, delete-orphan")
     chat_threads = relationship("ChatThread", back_populates="job", cascade="all, delete-orphan")
     reports = relationship("Report", back_populates="job")
+
+    @property
+    def company_verification_status(self) -> str | None:
+        return self.company.verification_status if self.company else None
+
+    @property
+    def recruiter_verification_status(self) -> str | None:
+        profile = self.recruiter.recruiter_profile if self.recruiter else None
+        return profile.recruiter_verification_status if profile else None
+
+    @property
+    def company_average_rating(self) -> float | None:
+        return self.company.average_rating if self.company else None
+
+    @property
+    def company_total_reviews(self) -> int | None:
+        return self.company.total_reviews if self.company else None
+
+    @property
+    def trusted_job(self) -> bool:
+        profile = self.recruiter.recruiter_profile if self.recruiter else None
+        return bool(
+            self.company
+            and profile
+            and self.company.verification_status == "VERIFIED"
+            and profile.recruiter_verification_status == "VERIFIED"
+            and profile.company_id == self.company_id
+            and self.recruiter.account_status == "ACTIVE"
+        )

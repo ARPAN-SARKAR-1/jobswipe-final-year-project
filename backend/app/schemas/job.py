@@ -3,7 +3,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator, model_validator
 
-from app.models.enums import JobModerationStatus
+from app.models.enums import CompanyVerificationStatus, JobModerationStatus, RecruiterVerificationStatus
 from app.utils.skills import normalize_skills, split_skills
 
 
@@ -87,8 +87,14 @@ class JobUpdate(BaseModel):
 class JobRead(JobBase):
     id: int
     recruiter_id: int
+    company_id: int | None = None
     moderation_status: JobModerationStatus = JobModerationStatus.ACTIVE
     moderation_reason: str | None = None
+    company_verification_status: CompanyVerificationStatus | None = None
+    recruiter_verification_status: RecruiterVerificationStatus | None = None
+    company_average_rating: float | None = None
+    company_total_reviews: int | None = None
+    trusted_job: bool = False
     match_score: int | None = None
     matched_skills: list[str] = []
     missing_skills: list[str] = []

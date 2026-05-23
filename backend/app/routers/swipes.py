@@ -8,14 +8,14 @@ from sqlalchemy.orm import Session, joinedload
 from app.core.database import get_db
 from app.core.security import require_roles
 from app.models.application import Application
-from app.models.company_profile import CompanyProfile
-from app.models.enums import AccountStatus, ApplicationStatus, JobModerationStatus, RecruiterVerificationStatus, SwipeAction, UserRole
+from app.models.enums import AccountStatus, ApplicationStatus, JobModerationStatus, SwipeAction, UserRole
 from app.models.job import Job
 from app.models.job_seeker_profile import JobSeekerProfile
 from app.models.swipe import Swipe
 from app.models.user import User
 from app.routers.applications import create_or_reactivate_application
 from app.schemas.swipe import SwipeCreate, SwipeRead, UndoSwipeResponse
+from app.services.job_visibility import ensure_public_job_available
 from app.utils.match_score import calculate_match_score
 
 router = APIRouter(prefix="/swipes", tags=["Swipes"])
@@ -32,11 +32,7 @@ def create_swipe(
     job = db.get(Job, payload.job_id)
     if job is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
-    if not job.is_active or job.deadline < date.today() or job.moderation_status != JobModerationStatus.ACTIVE.value:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="This job is no longer active")
-    company = db.scalar(select(CompanyProfile).where(CompanyProfile.recruiter_id == job.recruiter_id))
-    if company is None or company.recruiter_verification_status != RecruiterVerificationStatus.VERIFIED.value:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="This recruiter is not verified")
+    ensure_public_job_available(db, job, "This job is no longer active")
 
     swipe = Swipe(job_seeker_id=current_user.id, job_id=job.id, action=payload.action.value)
     db.add(swipe)

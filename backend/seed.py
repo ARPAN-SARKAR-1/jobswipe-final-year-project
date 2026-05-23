@@ -8,14 +8,27 @@ from app.models.application import Application
 from app.models.application_timeline import ApplicationTimeline
 from app.models.chat_message import ChatMessage
 from app.models.chat_thread import ChatThread
+from app.models.company import Company
 from app.models.company_profile import CompanyProfile
-from app.models.enums import ApplicationStatus, ChatThreadStatus, RecruiterVerificationStatus, ReportStatus, ReportType, SwipeAction, UserRole
+from app.models.company_review import CompanyReview
+from app.models.enums import (
+    ApplicationStatus,
+    ChatThreadStatus,
+    CompanyVerificationStatus,
+    RecruiterVerificationStatus,
+    ReportStatus,
+    ReportType,
+    SwipeAction,
+    UserRole,
+)
 from app.models.job import Job
 from app.models.job_seeker_profile import JobSeekerProfile
 from app.models.notification import Notification
+from app.models.recruiter_profile import RecruiterProfile
 from app.models.report import Report
 from app.models.swipe import Swipe
 from app.models.user import User
+from app.services.company_reviews import recalculate_company_rating
 
 
 def get_or_create_user(db, name: str, email: str, password: str, role: UserRole) -> User:
@@ -101,29 +114,62 @@ def main() -> None:
             )
 
         companies = [
-            (recruiter, "NovaWorks Labs", "https://novaworks.example", "Bengaluru", "Product engineering studio hiring fresh talent."),
-            (recruiter_two, "CloudNest Systems", "https://cloudnest.example", "Hyderabad", "Cloud and data consultancy for fast-growing teams."),
+            (
+                recruiter,
+                "NovaWorks Labs",
+                "Product-based",
+                "Software Products",
+                "https://novaworks.example",
+                "novaworks.example",
+                "Bengaluru",
+                "Product engineering studio hiring fresh talent.",
+            ),
+            (
+                recruiter_two,
+                "CloudNest Systems",
+                "Service-based",
+                "Cloud Consulting",
+                "https://cloudnest.example",
+                "cloudnest.example",
+                "Hyderabad",
+                "Cloud and data consultancy for fast-growing teams.",
+            ),
         ]
-        for company_owner, name, website, location, description in companies:
-            company = db.scalar(select(CompanyProfile).where(CompanyProfile.recruiter_id == company_owner.id))
-            if company is None:
-                company = CompanyProfile(
-                    recruiter_id=company_owner.id,
-                    company_name=name,
-                    website=website,
-                    location=location,
-                    description=description,
+        for company_owner, name, company_type, industry, website, domain, location, description in companies:
+            legacy_profile = db.scalar(select(CompanyProfile).where(CompanyProfile.recruiter_id == company_owner.id))
+            if legacy_profile is None:
+                db.add(
+                    CompanyProfile(
+                        recruiter_id=company_owner.id,
+                        company_name=name,
+                        website=website,
+                        location=location,
+                        description=description,
+                    )
                 )
+
+            profile = db.scalar(select(RecruiterProfile).where(RecruiterProfile.user_id == company_owner.id))
+            company = profile.company if profile and profile.company else db.scalar(select(Company).where(Company.company_name == name))
+            if company is None:
+                company = Company(company_name=name)
                 db.add(company)
-            company.recruiter_verification_status = (
-                RecruiterVerificationStatus.VERIFIED.value
+                db.flush()
+            company.company_name = name
+            company.company_type = company_type
+            company.industry = industry
+            company.website = website
+            company.official_email_domain = domain
+            company.headquarters_location = location
+            company.description = description
+            company.verification_status = (
+                CompanyVerificationStatus.VERIFIED.value
                 if company_owner.id == recruiter.id
-                else RecruiterVerificationStatus.PENDING.value
+                else CompanyVerificationStatus.PENDING.value
             )
             company.verification_note = (
-                "Verified seed recruiter for demos."
+                "Verified seed company for demos."
                 if company_owner.id == recruiter.id
-                else "Pending seed recruiter for verification demos."
+                else "Pending seed company for verification demos."
             )
             company.verified_at = (
                 company.verified_at or datetime.now(timezone.utc).replace(tzinfo=None)
@@ -131,6 +177,30 @@ def main() -> None:
                 else None
             )
             company.verified_by_admin_id = admin.id if company_owner.id == recruiter.id else None
+
+            if profile is None:
+                profile = RecruiterProfile(user_id=company_owner.id, company_id=company.id, official_email=company_owner.email)
+                db.add(profile)
+            profile.company_id = company.id
+            profile.official_email = profile.official_email or company_owner.email
+            profile.designation = profile.designation or "Talent Partner"
+            profile.department = profile.department or "Hiring"
+            profile.recruiter_verification_status = (
+                RecruiterVerificationStatus.VERIFIED.value
+                if company_owner.id == recruiter.id
+                else RecruiterVerificationStatus.PENDING.value
+            )
+            profile.verification_note = (
+                "Verified seed recruiter for demos."
+                if company_owner.id == recruiter.id
+                else "Pending seed recruiter for verification demos."
+            )
+            profile.verified_at = (
+                profile.verified_at or datetime.now(timezone.utc).replace(tzinfo=None)
+                if company_owner.id == recruiter.id
+                else None
+            )
+            profile.verified_by_admin_id = admin.id if company_owner.id == recruiter.id else None
 
         db.flush()
         sample_jobs = [
@@ -153,12 +223,16 @@ def main() -> None:
         if db.scalar(select(Job).limit(1)) is None:
             for index, (title, required_skills, job_type, work_mode, exp, location, has_bond, bond_years, bond_details) in enumerate(sample_jobs):
                 owner = recruiter if index % 2 == 0 else recruiter_two
-                company_name = "NovaWorks Labs" if owner.id == recruiter.id else "CloudNest Systems"
+                profile = db.scalar(select(RecruiterProfile).where(RecruiterProfile.user_id == owner.id))
+                company = profile.company if profile and profile.company else None
+                company_name = company.company_name if company else ("NovaWorks Labs" if owner.id == recruiter.id else "CloudNest Systems")
                 db.add(
                     Job(
                         recruiter_id=owner.id,
+                        company_id=company.id if company else None,
                         title=title,
                         company_name=company_name,
+                        company_logo_url=company.company_logo_url if company else None,
                         location=location,
                         job_type=job_type,
                         work_mode=work_mode,
@@ -181,6 +255,12 @@ def main() -> None:
             for title, _required_skills, _job_type, _work_mode, _exp, _location, has_bond, bond_years, bond_details in sample_jobs:
                 job = db.scalar(select(Job).where(Job.title == title))
                 if job:
+                    profile = db.scalar(select(RecruiterProfile).where(RecruiterProfile.user_id == job.recruiter_id))
+                    company = profile.company if profile and profile.company else None
+                    if company:
+                        job.company_id = company.id
+                        job.company_name = company.company_name
+                        job.company_logo_url = company.company_logo_url or job.company_logo_url
                     job.has_bond = has_bond
                     job.bond_years = bond_years
                     job.bond_details = bond_details
@@ -191,6 +271,20 @@ def main() -> None:
             db.add(Application(job_seeker_id=seeker.id, job_id=first_jobs[0].id, status=ApplicationStatus.APPLIED.value))
             db.add(Application(job_seeker_id=seeker.id, job_id=first_jobs[1].id, status=ApplicationStatus.VIEWED.value))
             db.add(Application(job_seeker_id=seeker_two.id, job_id=first_jobs[2].id, status=ApplicationStatus.SHORTLISTED.value))
+        db.flush()
+
+        nova = db.scalar(select(Company).where(Company.company_name == "NovaWorks Labs"))
+        if nova and db.scalar(select(CompanyReview).where(CompanyReview.company_id == nova.id).where(CompanyReview.job_seeker_id == seeker.id)) is None:
+            db.add(
+                CompanyReview(
+                    company_id=nova.id,
+                    job_seeker_id=seeker.id,
+                    rating=5,
+                    review_text="Clear hiring process and useful role details.",
+                )
+            )
+            db.flush()
+            recalculate_company_rating(db, nova.id)
         if first_jobs and db.scalar(select(Swipe).limit(1)) is None:
             db.add(Swipe(job_seeker_id=seeker.id, job_id=first_jobs[0].id, action=SwipeAction.LIKE.value))
             db.add(Swipe(job_seeker_id=seeker.id, job_id=first_jobs[3].id, action=SwipeAction.SAVE.value))
@@ -270,7 +364,7 @@ def main() -> None:
                 Notification(
                     user_id=recruiter.id,
                     title="Recruiter verified",
-                    message="Your seed recruiter account is verified and can post jobs.",
+                    message="Your seed company and recruiter account are verified and can post jobs.",
                     type="RECRUITER_VERIFIED",
                     link_url="/recruiter/dashboard",
                 )

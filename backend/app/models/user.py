@@ -32,6 +32,13 @@ class User(TimestampMixin, Base):
         uselist=False,
         cascade="all, delete-orphan",
     )
+    recruiter_profile = relationship(
+        "RecruiterProfile",
+        foreign_keys="RecruiterProfile.user_id",
+        back_populates="recruiter",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
     jobs = relationship("Job", back_populates="recruiter", cascade="all, delete-orphan")
     applications = relationship("Application", back_populates="job_seeker", cascade="all, delete-orphan")
     swipes = relationship("Swipe", back_populates="job_seeker", cascade="all, delete-orphan")
@@ -50,3 +57,4 @@ class User(TimestampMixin, Base):
     notifications = relationship("Notification", back_populates="user", cascade="all, delete-orphan")
     reports_made = relationship("Report", foreign_keys="Report.reporter_id", back_populates="reporter")
     recruiter_reports = relationship("Report", foreign_keys="Report.recruiter_id", back_populates="recruiter")
+    company_reviews = relationship("CompanyReview", back_populates="job_seeker", cascade="all, delete-orphan")
