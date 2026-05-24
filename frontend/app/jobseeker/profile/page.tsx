@@ -8,7 +8,9 @@ import PageHeader from "@/components/PageHeader";
 import SkillMultiSelect from "@/components/SkillMultiSelect";
 import { apiFetch, assetUrl } from "@/lib/api";
 import { experienceLevels, jobTypes } from "@/lib/options";
+import { openProtectedResume } from "@/lib/protectedFiles";
 import { splitSkills } from "@/lib/utils";
+import { uploadRules, validateUploadFile } from "@/lib/uploadValidation";
 import { useAuth } from "@/hooks/useAuth";
 import type { JobSeekerProfile } from "@/types";
 
@@ -77,14 +79,11 @@ export default function JobSeekerProfilePage() {
     }
   };
 
-  const upload = async (file: File | undefined, endpoint: string, maxBytes: number, pdfOnly = false) => {
+  const upload = async (file: File | undefined, endpoint: string, rules: typeof uploadRules.resume | typeof uploadRules.image) => {
     if (!file) return;
-    if (file.size > maxBytes) {
-      toast.error("File size is too large");
-      return;
-    }
-    if (pdfOnly && file.type !== "application/pdf") {
-      toast.error("Resume must be a PDF");
+    const validationError = validateUploadFile(file, rules);
+    if (validationError) {
+      toast.error(validationError);
       return;
     }
     const body = new FormData();
@@ -95,6 +94,15 @@ export default function JobSeekerProfilePage() {
       load();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Upload failed");
+    }
+  };
+
+  const openResume = async () => {
+    if (!profile?.resume_pdf_url) return;
+    try {
+      await openProtectedResume(profile.resume_pdf_url);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Resume could not be opened");
     }
   };
 
@@ -120,22 +128,24 @@ export default function JobSeekerProfilePage() {
 
           <label className="btn-secondary mt-5 w-full cursor-pointer">
             Upload picture
-            <input className="hidden" type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => upload(event.target.files?.[0], "/jobseeker/profile-picture", 2 * 1024 * 1024)} />
+            <input className="hidden" type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" onChange={(event) => upload(event.target.files?.[0], "/jobseeker/profile-picture", uploadRules.image)} />
           </label>
+          <p className="mt-2 text-xs font-bold text-[#6b767d]">Images: JPG, PNG, WEBP only, max 2 MB.</p>
 
           <label className="btn-secondary mt-3 w-full cursor-pointer">
             <FileText size={17} />
             Upload resume PDF
-            <input className="hidden" type="file" accept="application/pdf" onChange={(event) => upload(event.target.files?.[0], "/jobseeker/resume", 5 * 1024 * 1024, true)} />
+            <input className="hidden" type="file" accept="application/pdf,.pdf" onChange={(event) => upload(event.target.files?.[0], "/jobseeker/resume", uploadRules.resume)} />
           </label>
+          <p className="mt-2 text-xs font-bold text-[#6b767d]">Resume: PDF only, max 5 MB.</p>
           <p className="mt-3 rounded-lg border border-teal-100 bg-teal-50 p-3 text-xs font-bold leading-6 text-teal-800">
             Your resume is not public. It becomes visible only to recruiters when you apply to their job. Owner/Admin may access it only for moderation or support.
           </p>
 
           {profile.resume_pdf_url && (
-            <a className="mt-4 block rounded-lg bg-teal-50 p-3 text-sm font-black text-teal-700" href={assetUrl(profile.resume_pdf_url)} target="_blank">
+            <button className="mt-4 block w-full rounded-lg bg-teal-50 p-3 text-left text-sm font-black text-teal-700" type="button" onClick={openResume}>
               View uploaded resume
-            </a>
+            </button>
           )}
         </aside>
 

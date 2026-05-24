@@ -1,5 +1,6 @@
 from datetime import datetime
 from typing import Any
+from urllib.parse import urlparse
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator
 
@@ -62,6 +63,42 @@ class CompanyProfileUpdate(BaseModel):
     designation: str | None = Field(default=None, max_length=120)
     department: str | None = Field(default=None, max_length=120)
     official_email: str | None = Field(default=None, max_length=255)
+
+    @field_validator("company_name")
+    @classmethod
+    def validate_company_name(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        text = value.strip()
+        if not text:
+            raise ValueError("Company name is required")
+        return text
+
+    @field_validator("website")
+    @classmethod
+    def validate_website(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        text = value.strip()
+        if not text:
+            return None
+        candidate = text if "://" in text else f"https://{text}"
+        parsed = urlparse(candidate)
+        if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+            raise ValueError("Website must be a valid URL")
+        return candidate
+
+    @field_validator("official_email_domain")
+    @classmethod
+    def normalize_official_email_domain(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        domain = value.strip().lower().lstrip("@")
+        if not domain:
+            return None
+        if any(char.isspace() for char in domain) or "/" in domain or "@" in domain or "." not in domain:
+            raise ValueError("Official email domain must be a valid domain")
+        return domain
 
 
 class CompanyProfileRead(CompanyProfileUpdate):

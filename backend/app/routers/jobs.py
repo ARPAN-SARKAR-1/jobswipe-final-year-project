@@ -24,6 +24,7 @@ from app.models.user import User
 from app.schemas.job import JobCreate, JobRead, JobUpdate
 from app.services.job_visibility import ensure_public_job_available
 from app.utils.match_score import calculate_match_score
+from app.utils.pagination import LimitQuery, PageQuery, pagination_offset
 from app.utils.skills import split_skills
 
 router = APIRouter(prefix="/jobs", tags=["Jobs"])
@@ -118,6 +119,8 @@ def list_jobs(
     skills: list[str] | None = Query(default=None),
     work_mode: str | None = Query(default=None, alias="workMode"),
     active_only: bool = Query(default=True, alias="activeOnly"),
+    page: PageQuery = 1,
+    limit: LimitQuery = 20,
 ) -> list[Job]:
     statement = apply_job_filters(
         select(Job).order_by(Job.created_at.desc()),
@@ -129,6 +132,7 @@ def list_jobs(
         work_mode,
         active_only,
     )
+    statement = statement.offset(pagination_offset(page, limit)).limit(limit)
     return apply_job_context(list(db.scalars(statement).all()), db, current_user)
 
 

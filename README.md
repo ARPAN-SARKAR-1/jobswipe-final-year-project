@@ -1,4 +1,4 @@
-# JobSwipe
+# JobSwipe - Swipe-Based Job Portal
 
 ## Project Overview
 
@@ -8,11 +8,15 @@ JobSwipe is a modern full-stack final year project for job seekers, freshers, re
 
 Freshers and early-career job seekers often spend too much time scrolling through repetitive listings. JobSwipe turns discovery into a focused workflow so users can quickly express intent, bookmark good roles, and track applications from one dashboard.
 
+## Project Objective
+
+The objective of JobSwipe is to build a secure, role-based job portal that supports job discovery, verified recruiter/company posting, applications, controlled recruiter-started chat, reports, notifications, and Owner/Admin moderation in one complete full-stack system.
+
 ## Features
 
 - Landing page with the tagline "Swipe Less. Apply Smarter."
 - Register and role-based login with JWT authentication, bcrypt password hashing, role redirects, validation, loaders, and toasts.
-- Forgot password and reset password demo flow with development reset token return.
+- Forgot password and reset password flow with token hidden from API responses.
 - Job Seeker dashboard, editable profile, profile picture upload, GitHub URL, education details, experience level, resume PDF upload, saved jobs, applications, and withdraw action.
 - Swipe Jobs page with Framer Motion drag animation, reject, save, apply, undo, and progress indicator.
 - Jobs list with job type, experience level, location, skill, work mode, and active-only filters.
@@ -35,6 +39,22 @@ Freshers and early-career job seekers often spend too much time scrolling throug
 - Privacy Policy and Terms & Conditions pages linked from signup and the footer.
 - Local uploads stored in `backend/uploads` for development.
 
+## Security Highlights
+
+- Passwords are hashed with bcrypt/passlib before storage.
+- JWT authentication protects logged-in API routes.
+- Access tokens expire after 30 minutes by default, and logout revokes the current token for the local/demo server process.
+- Role-based access control separates Owner, Admin, Recruiter, and Job Seeker permissions.
+- Resource endpoints combine role checks with ownership checks to reduce BOLA/IDOR risk.
+- Password reset tokens are not exposed in API responses; in development, the token can be checked only from backend debug logs.
+- File uploads validate MIME type, file extension, and size before saving.
+- Sensitive auth, report, and chat message endpoints use basic in-memory rate limiting for local/demo safety.
+- Resume PDFs are served through a protected file route and are visible to recruiters only after a job seeker applies to their job.
+- Recruiter and company verification helps prevent fake jobs from appearing publicly.
+- In production, the backend requires a strong `JWT_SECRET` and does not allow wildcard CORS origins.
+- Swagger/OpenAPI documentation is disabled in production.
+- Email delivery for password resets, cloud file storage, upload scanning, and Redis-backed rate limiting are planned future improvements.
+
 ## Tech Stack
 
 - Frontend: Next.js, TypeScript, Tailwind CSS, Framer Motion, Lucide icons, React Hot Toast.
@@ -42,12 +62,36 @@ Freshers and early-career job seekers often spend too much time scrolling throug
 - Database: MySQL with PyMySQL.
 - Local infrastructure: Docker Compose MySQL.
 
+## Architecture Summary
+
+```text
+Frontend -> FastAPI -> SQLAlchemy -> MySQL
+```
+
+```text
+User -> JWT Login -> Protected API -> Role Check -> Database
+```
+
+- The frontend is a Next.js application with role-specific pages and reusable components.
+- The backend is a FastAPI application organized by routers, schemas, models, services, and utilities.
+- SQLAlchemy models define relationships and constraints, while Alembic manages schema migrations.
+- JWT authentication protects private APIs, and role checks separate Owner, Admin, Recruiter, and Job Seeker actions.
+- Company and recruiter verification rules prevent untrusted public job posts.
+
 ## Folder Structure
 
 ```text
 jobswipe-python-final/
 +-- docker-compose.yml
 +-- README.md
++-- SECURITY_NOTES.md
++-- TESTING_CHECKLIST.md
++-- DEVELOPMENT_NOTES.md
++-- ARCHITECTURE.md
++-- DATABASE_SCHEMA.md
++-- API_SUMMARY.md
++-- DEMO_SCRIPT.md
++-- VIVA_PREP.md
 +-- backend/
 |   +-- app/
 |   |   +-- main.py
@@ -127,7 +171,7 @@ Backend `.env.example`:
 DATABASE_URL=mysql+pymysql://jobswipe_user:jobswipe_password@localhost:3306/jobswipe
 JWT_SECRET=change_this_secret
 JWT_ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=1440
+ACCESS_TOKEN_EXPIRE_MINUTES=30
 UPLOAD_DIR=uploads
 FRONTEND_URL=http://localhost:3000
 ENV=development
@@ -196,7 +240,7 @@ It also creates verified and pending company/recruiter examples plus a sample co
 
 - The login page asks users to choose Job Seeker, Recruiter, Admin, or Owner before entering email and password.
 - Login succeeds only when the selected role matches the account role in the database.
-- Wrong role selection returns a clean "No account found for selected role." error.
+- Wrong role selection returns a clean "No account found for the selected role or credentials." error.
 - Successful login redirects by the actual stored role.
 - Public signup still allows only Job Seeker and Recruiter accounts.
 - Admin and Owner accounts cannot be created through public signup.
@@ -217,6 +261,12 @@ It also creates verified and pending company/recruiter examples plus a sample co
 - Job seeker job lists, swipe feed, job details, applications, and swipe actions only use public jobs from verified companies and verified recruiters.
 - Owner/Admin users can still inspect all jobs, including paused, removed, pending, rejected, or unverified records.
 
+## Matching And Duplicate Safety
+
+- Match score is rule-based weighted scoring using skills, experience level, job type, location, and work mode. It is not a machine learning model.
+- Duplicate applications are blocked so one job seeker cannot apply to the same job more than once.
+- Duplicate company reviews are blocked so one job seeker can review one company only once.
+
 ## API Docs
 
 Run the backend and open:
@@ -224,6 +274,17 @@ Run the backend and open:
 ```text
 http://localhost:8000/docs
 ```
+
+## Supporting Documentation
+
+- `SECURITY_NOTES.md`: Security decisions, upload validation, password reset behavior, rate limiting, CORS, and future hardening.
+- `TESTING_CHECKLIST.md`: Manual test cases with test IDs, steps, expected results, and status column.
+- `DEVELOPMENT_NOTES.md`: Professional development process summary.
+- `ARCHITECTURE.md`: Frontend, backend, database, API, authentication, role, application, chat, verification, and moderation flows.
+- `DATABASE_SCHEMA.md`: Major models, fields, and relationships.
+- `API_SUMMARY.md`: Key API groups and endpoints.
+- `DEMO_SCRIPT.md`: 10-minute demo flow with speaking lines.
+- `VIVA_PREP.md`: Common mentor questions and short answers.
 
 ## Privacy And Terms
 
@@ -248,6 +309,9 @@ Frontend and backend are separated for independent deployment:
 - SMTP email delivery for password resets.
 - Resume parsing and skill matching.
 - Cloud file storage with signed URLs.
+- Redis-backed rate limiting for multi-instance production deployments.
+- Automated company verification workflows.
+- Advanced machine-learning-based recommendation.
 - Analytics for recruiter job performance.
 - Video interview scheduling.
 - Advanced fraud detection for fake recruiters or suspicious posts.

@@ -69,8 +69,8 @@ export default function Navbar() {
 
   const links = user?.role === "RECRUITER" ? recruiterLinks : user?.role === "ADMIN" || user?.role === "OWNER" ? adminLinks : seekerLinks;
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     setUser(null);
     router.push("/");
   };

@@ -2,7 +2,7 @@ from datetime import date
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, joinedload
 
 from app.core.database import get_db
@@ -27,6 +27,7 @@ from app.schemas.profile import CompanyProfileRead, CompanyProfileUpdate, Upload
 from app.services.notifications import create_notification
 from app.services.timeline import add_timeline_event
 from app.utils.file_upload import save_image
+from app.utils.pagination import LimitQuery, PageQuery, pagination_offset
 
 router = APIRouter(prefix="/recruiter", tags=["Recruiter"])
 
@@ -215,10 +216,14 @@ async def upload_company_logo(
 def applications(
     current_user: Annotated[User, Depends(require_roles(UserRole.RECRUITER.value))],
     db: Annotated[Session, Depends(get_db)],
+    page: PageQuery = 1,
+    limit: LimitQuery = 20,
+    search: str | None = None,
 ) -> list[RecruiterApplicationRead]:
-    rows = db.scalars(
+    statement = (
         select(Application)
         .join(Job)
+        .join(User, Application.job_seeker_id == User.id)
         .options(
             joinedload(Application.job),
             joinedload(Application.chat_thread),
@@ -226,7 +231,12 @@ def applications(
         )
         .where(Job.recruiter_id == current_user.id)
         .order_by(Application.created_at.desc())
-    ).all()
+    )
+    if search:
+        term = f"%{search.strip()}%"
+        statement = statement.where(or_(Job.title.ilike(term), User.name.ilike(term), User.email.ilike(term)))
+    statement = statement.offset(pagination_offset(page, limit)).limit(limit)
+    rows = db.scalars(statement).all()
 
     result: list[RecruiterApplicationRead] = []
     for application in rows:

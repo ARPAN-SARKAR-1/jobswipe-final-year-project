@@ -2,7 +2,7 @@ from datetime import date
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, joinedload
 
 from app.core.database import get_db
@@ -23,6 +23,7 @@ from app.schemas.company import (
 )
 from app.schemas.job import JobRead
 from app.services.company_reviews import recalculate_company_rating
+from app.utils.pagination import LimitQuery, PageQuery, pagination_offset
 
 router = APIRouter(prefix="/companies", tags=["Companies"])
 
@@ -88,8 +89,25 @@ def review_response(review: CompanyReview) -> CompanyReviewRead:
 
 
 @router.get("", response_model=list[CompanyRead])
-def list_companies(db: Annotated[Session, Depends(get_db)]) -> list[CompanyRead]:
-    companies = db.scalars(select(Company).order_by(Company.verification_status.desc(), Company.company_name.asc())).all()
+def list_companies(
+    db: Annotated[Session, Depends(get_db)],
+    page: PageQuery = 1,
+    limit: LimitQuery = 20,
+    search: str | None = None,
+) -> list[CompanyRead]:
+    statement = select(Company).order_by(Company.verification_status.desc(), Company.company_name.asc())
+    if search:
+        term = f"%{search.strip()}%"
+        statement = statement.where(
+            or_(
+                Company.company_name.ilike(term),
+                Company.industry.ilike(term),
+                Company.company_type.ilike(term),
+                Company.website.ilike(term),
+            )
+        )
+    statement = statement.offset(pagination_offset(page, limit)).limit(limit)
+    companies = db.scalars(statement).all()
     return [company_response(db, company) for company in companies]
 
 

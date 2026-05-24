@@ -2,7 +2,7 @@ from datetime import date, datetime, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, joinedload
 
 from app.core.database import get_db
@@ -39,6 +39,7 @@ from app.schemas.swipe import SwipeRead
 from app.services.company_reviews import recalculate_company_rating
 from app.services.notifications import create_notification
 from app.services.timeline import add_timeline_event
+from app.utils.pagination import LimitQuery, PageQuery, pagination_offset
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 
@@ -120,28 +121,54 @@ def dashboard(
 def users(
     _current_user: Annotated[User, Depends(require_admin_or_owner)],
     db: Annotated[Session, Depends(get_db)],
+    page: PageQuery = 1,
+    limit: LimitQuery = 20,
+    search: str | None = None,
 ) -> list[User]:
-    return list(db.scalars(select(User).order_by(User.created_at.desc())).all())
+    statement = select(User).order_by(User.created_at.desc())
+    if search:
+        term = f"%{search.strip()}%"
+        statement = statement.where(or_(User.name.ilike(term), User.email.ilike(term), User.role.ilike(term)))
+    statement = statement.offset(pagination_offset(page, limit)).limit(limit)
+    return list(db.scalars(statement).all())
 
 
 @router.get("/jobs", response_model=list[JobRead])
 def jobs(
     _current_user: Annotated[User, Depends(require_admin_or_owner)],
     db: Annotated[Session, Depends(get_db)],
+    page: PageQuery = 1,
+    limit: LimitQuery = 20,
+    search: str | None = None,
 ) -> list[Job]:
-    return list(db.scalars(select(Job).order_by(Job.created_at.desc())).all())
+    statement = select(Job).order_by(Job.created_at.desc())
+    if search:
+        term = f"%{search.strip()}%"
+        statement = statement.where(or_(Job.title.ilike(term), Job.company_name.ilike(term), Job.location.ilike(term)))
+    statement = statement.offset(pagination_offset(page, limit)).limit(limit)
+    return list(db.scalars(statement).all())
 
 
 @router.get("/applications", response_model=list[ApplicationRead])
 def applications(
     _current_user: Annotated[User, Depends(require_admin_or_owner)],
     db: Annotated[Session, Depends(get_db)],
+    page: PageQuery = 1,
+    limit: LimitQuery = 20,
+    search: str | None = None,
 ) -> list[Application]:
+    statement = (
+        select(Application)
+        .options(joinedload(Application.job), joinedload(Application.chat_thread))
+        .order_by(Application.created_at.desc())
+    )
+    if search:
+        term = f"%{search.strip()}%"
+        statement = statement.join(Job, Application.job_id == Job.id).where(or_(Job.title.ilike(term), Job.company_name.ilike(term)))
+    statement = statement.offset(pagination_offset(page, limit)).limit(limit)
     return list(
         db.scalars(
-            select(Application)
-            .options(joinedload(Application.job), joinedload(Application.chat_thread))
-            .order_by(Application.created_at.desc())
+            statement
         ).all()
     )
 
@@ -150,6 +177,8 @@ def applications(
 def chats(
     _current_user: Annotated[User, Depends(require_admin_or_owner)],
     db: Annotated[Session, Depends(get_db)],
+    page: PageQuery = 1,
+    limit: LimitQuery = 20,
 ) -> list[ChatThread]:
     return list(
         db.scalars(
@@ -161,6 +190,8 @@ def chats(
                 joinedload(ChatThread.job_seeker),
             )
             .order_by(ChatThread.created_at.desc())
+            .offset(pagination_offset(page, limit))
+            .limit(limit)
         ).all()
     )
 
@@ -169,20 +200,40 @@ def chats(
 def swipes(
     _current_user: Annotated[User, Depends(require_admin_or_owner)],
     db: Annotated[Session, Depends(get_db)],
+    page: PageQuery = 1,
+    limit: LimitQuery = 20,
 ) -> list[Swipe]:
-    return list(db.scalars(select(Swipe).options(joinedload(Swipe.job)).order_by(Swipe.created_at.desc())).all())
+    return list(
+        db.scalars(
+            select(Swipe)
+            .options(joinedload(Swipe.job))
+            .order_by(Swipe.created_at.desc())
+            .offset(pagination_offset(page, limit))
+            .limit(limit)
+        ).all()
+    )
 
 
 @router.get("/reports", response_model=list[ReportRead])
 def reports(
     _current_user: Annotated[User, Depends(require_admin_or_owner)],
     db: Annotated[Session, Depends(get_db)],
+    page: PageQuery = 1,
+    limit: LimitQuery = 20,
+    search: str | None = None,
 ) -> list[Report]:
+    statement = (
+        select(Report)
+        .options(joinedload(Report.reporter), joinedload(Report.recruiter), joinedload(Report.job))
+        .order_by(Report.created_at.desc(), Report.id.desc())
+    )
+    if search:
+        term = f"%{search.strip()}%"
+        statement = statement.where(or_(Report.report_type.ilike(term), Report.description.ilike(term), Report.status.ilike(term)))
+    statement = statement.offset(pagination_offset(page, limit)).limit(limit)
     return list(
         db.scalars(
-            select(Report)
-            .options(joinedload(Report.reporter), joinedload(Report.recruiter), joinedload(Report.job))
-            .order_by(Report.created_at.desc(), Report.id.desc())
+            statement
         ).all()
     )
 
@@ -317,8 +368,23 @@ def recruiter_verification_response(profile: RecruiterProfile) -> AdminRecruiter
 def company_verifications(
     _current_user: Annotated[User, Depends(require_admin_or_owner)],
     db: Annotated[Session, Depends(get_db)],
+    page: PageQuery = 1,
+    limit: LimitQuery = 20,
+    search: str | None = None,
 ) -> list[CompanyRead]:
-    companies = db.scalars(select(Company).order_by(Company.verification_status.asc(), Company.updated_at.desc())).all()
+    statement = select(Company).order_by(Company.verification_status.asc(), Company.updated_at.desc())
+    if search:
+        term = f"%{search.strip()}%"
+        statement = statement.where(
+            or_(
+                Company.company_name.ilike(term),
+                Company.industry.ilike(term),
+                Company.company_type.ilike(term),
+                Company.website.ilike(term),
+            )
+        )
+    statement = statement.offset(pagination_offset(page, limit)).limit(limit)
+    companies = db.scalars(statement).all()
     return [company_admin_response(db, company) for company in companies]
 
 
@@ -386,14 +452,23 @@ def reject_company(
 def recruiter_verifications(
     _current_user: Annotated[User, Depends(require_admin_or_owner)],
     db: Annotated[Session, Depends(get_db)],
+    page: PageQuery = 1,
+    limit: LimitQuery = 20,
+    search: str | None = None,
 ) -> list[AdminRecruiterVerificationRead]:
-    profiles = db.scalars(
+    statement = (
         select(RecruiterProfile)
         .join(User, RecruiterProfile.user_id == User.id)
+        .outerjoin(Company, RecruiterProfile.company_id == Company.id)
         .options(joinedload(RecruiterProfile.recruiter), joinedload(RecruiterProfile.company))
         .where(User.role == UserRole.RECRUITER.value)
         .order_by(RecruiterProfile.recruiter_verification_status.asc(), RecruiterProfile.updated_at.desc())
-    ).all()
+    )
+    if search:
+        term = f"%{search.strip()}%"
+        statement = statement.where(or_(User.name.ilike(term), User.email.ilike(term), Company.company_name.ilike(term)))
+    statement = statement.offset(pagination_offset(page, limit)).limit(limit)
+    profiles = db.scalars(statement).all()
     return [recruiter_verification_response(profile) for profile in profiles]
 
 
@@ -401,8 +476,11 @@ def recruiter_verifications(
 def recruiters(
     _current_user: Annotated[User, Depends(require_admin_or_owner)],
     db: Annotated[Session, Depends(get_db)],
+    page: PageQuery = 1,
+    limit: LimitQuery = 20,
+    search: str | None = None,
 ) -> list[AdminRecruiterVerificationRead]:
-    return recruiter_verifications(_current_user, db)
+    return recruiter_verifications(_current_user, db, page, limit, search)
 
 
 def find_recruiter_profile(db: Session, recruiter_id: int) -> RecruiterProfile:
@@ -488,12 +566,22 @@ def company_review_response(review: CompanyReview) -> AdminCompanyReviewRead:
 def company_reviews(
     _current_user: Annotated[User, Depends(require_admin_or_owner)],
     db: Annotated[Session, Depends(get_db)],
+    page: PageQuery = 1,
+    limit: LimitQuery = 20,
+    search: str | None = None,
 ) -> list[AdminCompanyReviewRead]:
-    reviews = db.scalars(
+    statement = (
         select(CompanyReview)
+        .join(Company, CompanyReview.company_id == Company.id)
+        .join(User, CompanyReview.job_seeker_id == User.id)
         .options(joinedload(CompanyReview.company), joinedload(CompanyReview.job_seeker))
         .order_by(CompanyReview.created_at.desc(), CompanyReview.id.desc())
-    ).all()
+    )
+    if search:
+        term = f"%{search.strip()}%"
+        statement = statement.where(or_(Company.company_name.ilike(term), User.name.ilike(term), User.email.ilike(term)))
+    statement = statement.offset(pagination_offset(page, limit)).limit(limit)
+    reviews = db.scalars(statement).all()
     return [company_review_response(review) for review in reviews]
 
 

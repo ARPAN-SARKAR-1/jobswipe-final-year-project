@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, joinedload
 
@@ -22,6 +22,7 @@ from app.models.job import Job
 from app.models.user import User
 from app.schemas.chat import ChatMessageCreate, ChatMessageRead, ChatReadResponse, ChatStartRequest, ChatThreadRead
 from app.services.notifications import create_notification
+from app.services.rate_limiter import rate_limit_key, rate_limiter
 from app.services.timeline import add_timeline_event
 
 router = APIRouter(prefix="/chats", tags=["Chats"])
@@ -87,6 +88,10 @@ def is_admin_or_owner(user: User) -> bool:
     return user.role in {UserRole.ADMIN.value, UserRole.OWNER.value}
 
 
+def is_suspended_user(user: User | None) -> bool:
+    return user is not None and user.account_status == AccountStatus.SUSPENDED.value
+
+
 def ensure_thread_reader(thread: ChatThread, current_user: User) -> None:
     if current_user.id in {thread.recruiter_id, thread.job_seeker_id} or is_admin_or_owner(current_user):
         return
@@ -98,6 +103,8 @@ def ensure_thread_sender(thread: ChatThread, current_user: User) -> None:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only chat participants can send messages")
     if current_user.account_status == AccountStatus.SUSPENDED.value:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Suspended users cannot send messages")
+    if is_suspended_user(thread.recruiter) or is_suspended_user(thread.job_seeker):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Chat is blocked while a participant account is suspended")
     if thread.status != ChatThreadStatus.ACTIVE.value:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="This chat is not active")
     if not thread.started_by_recruiter:
@@ -132,6 +139,8 @@ def start_chat(
     )
     if application is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found")
+    if is_suspended_user(application.job_seeker):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Chat is blocked while a participant account is suspended")
     if application.status != ApplicationStatus.SHORTLISTED.value:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Chat can only be started for shortlisted applications")
     if application.admin_status == ApplicationAdminStatus.PAUSED.value:
@@ -220,9 +229,11 @@ def chat_messages(
 def send_message(
     thread_id: int,
     payload: ChatMessageCreate,
+    request: Request,
     current_user: Annotated[User, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
 ) -> ChatMessage:
+    rate_limiter.check(rate_limit_key("chat:messages", request, current_user.id), max_attempts=20, window_seconds=60)
     thread = load_thread(db, thread_id)
     if is_admin_or_owner(current_user):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admins cannot send participant chat messages")

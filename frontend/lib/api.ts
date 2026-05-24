@@ -35,10 +35,20 @@ export function saveAuth(auth: AuthResponse) {
   window.dispatchEvent(new Event("jobswipe-auth"));
 }
 
-export function logout() {
+export function clearAuth() {
   window.localStorage.removeItem("jobswipe_token");
   window.localStorage.removeItem("jobswipe_user");
   window.dispatchEvent(new Event("jobswipe-auth"));
+}
+
+export async function logout() {
+  try {
+    await apiFetch<{ message: string }>("/auth/logout", { method: "POST" });
+  } catch {
+    // Local logout should still clear client state if the API is unavailable.
+  } finally {
+    clearAuth();
+  }
 }
 
 export function roleHome(role: Role): string {

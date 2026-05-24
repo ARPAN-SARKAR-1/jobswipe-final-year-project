@@ -10,11 +10,14 @@ import EmptyState from "@/components/EmptyState";
 import PageHeader from "@/components/PageHeader";
 import ApplicationTimeline from "@/components/ApplicationTimeline";
 import StatusBadge from "@/components/StatusBadge";
-import { apiFetch, assetUrl } from "@/lib/api";
+import { apiFetch } from "@/lib/api";
 import { recruiterStatuses } from "@/lib/options";
+import { openProtectedResume } from "@/lib/protectedFiles";
 import { formatDate } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import type { Application, ChatThread } from "@/types";
+
+const PAGE_LIMIT = 20;
 
 export default function RecruiterApplicationsPage() {
   const { loading } = useAuth(["RECRUITER"]);
@@ -23,16 +26,17 @@ export default function RecruiterApplicationsPage() {
   const [chatApplication, setChatApplication] = useState<Application | null>(null);
   const [firstMessage, setFirstMessage] = useState("");
   const [chatSubmitting, setChatSubmitting] = useState(false);
+  const [page, setPage] = useState(1);
 
   const load = () => {
-    apiFetch<Application[]>("/recruiter/applications")
+    apiFetch<Application[]>(`/recruiter/applications?page=${page}&limit=${PAGE_LIMIT}`)
       .then(setApplications)
       .catch((error) => toast.error(error instanceof Error ? error.message : "Applications failed"));
   };
 
   useEffect(() => {
     if (!loading) load();
-  }, [loading]);
+  }, [loading, page]);
 
   const updateStatus = async (id: number, status: string) => {
     try {
@@ -74,11 +78,30 @@ export default function RecruiterApplicationsPage() {
     }
   };
 
+  const openResume = async (path: string) => {
+    try {
+      await openProtectedResume(path);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Resume could not be opened");
+    }
+  };
+
   if (loading) return <main className="page-shell">Loading applications...</main>;
 
   return (
     <main className="page-shell">
       <PageHeader title="Applications Received" eyebrow="Recruiter" />
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-black/5 bg-white p-3 shadow-sm">
+        <span className="text-sm font-black text-[#526069]">Page {page}</span>
+        <div className="flex gap-2">
+          <button className="btn-secondary !py-2" type="button" disabled={page === 1} onClick={() => setPage((value) => Math.max(1, value - 1))}>
+            Previous
+          </button>
+          <button className="btn-secondary !py-2" type="button" disabled={applications.length < PAGE_LIMIT} onClick={() => setPage((value) => value + 1)}>
+            Next
+          </button>
+        </div>
+      </div>
       {applications.length === 0 ? (
         <EmptyState title="No applications received" text="Applications will appear here after job seekers apply or swipe right." />
       ) : (
@@ -113,10 +136,10 @@ export default function RecruiterApplicationsPage() {
                     </a>
                   )}
                   {application.applicant_resume_pdf_url && (
-                    <a className="btn-secondary !py-2" href={assetUrl(application.applicant_resume_pdf_url)} target="_blank">
+                    <button className="btn-secondary !py-2" type="button" onClick={() => openResume(application.applicant_resume_pdf_url!)}>
                       <ExternalLink size={16} />
                       Resume PDF
-                    </a>
+                    </button>
                   )}
                 </div>
               </div>

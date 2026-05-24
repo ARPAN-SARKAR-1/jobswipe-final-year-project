@@ -30,6 +30,26 @@ class JobBase(BaseModel):
     def normalize_required_skills(cls, value: Any) -> str:
         return normalize_skills(value)
 
+    @field_validator("deadline")
+    @classmethod
+    def deadline_not_in_past(cls, value: date) -> date:
+        if value < date.today():
+            raise ValueError("Deadline cannot be in the past")
+        return value
+
+    @field_validator("salary")
+    @classmethod
+    def validate_salary_text(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        text = value.strip()
+        if not text:
+            return None
+        numeric_text = text.replace(",", "").replace("\u20b9", "").replace("$", "").strip()
+        if numeric_text.replace(".", "", 1).lstrip("-").isdigit() and float(numeric_text) < 0:
+            raise ValueError("Salary cannot be negative")
+        return text
+
     @model_validator(mode="after")
     def validate_bond(self) -> "JobBase":
         if self.has_bond and self.bond_years is None:
@@ -73,6 +93,26 @@ class JobUpdate(BaseModel):
         if value is None:
             return None
         return normalize_skills(value)
+
+    @field_validator("deadline")
+    @classmethod
+    def deadline_not_in_past(cls, value: date | None) -> date | None:
+        if value is not None and value < date.today():
+            raise ValueError("Deadline cannot be in the past")
+        return value
+
+    @field_validator("salary")
+    @classmethod
+    def validate_salary_text(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        text = value.strip()
+        if not text:
+            return None
+        numeric_text = text.replace(",", "").replace("\u20b9", "").replace("$", "").strip()
+        if numeric_text.replace(".", "", 1).lstrip("-").isdigit() and float(numeric_text) < 0:
+            raise ValueError("Salary cannot be negative")
+        return text
 
     @model_validator(mode="after")
     def validate_bond(self) -> "JobUpdate":

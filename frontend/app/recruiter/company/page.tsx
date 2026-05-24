@@ -9,6 +9,7 @@ import PageHeader from "@/components/PageHeader";
 import VerificationStatusBadge from "@/components/VerificationStatusBadge";
 import { apiFetch, assetUrl } from "@/lib/api";
 import { companyTypes } from "@/lib/options";
+import { uploadRules, validateUploadFile } from "@/lib/uploadValidation";
 import { useAuth } from "@/hooks/useAuth";
 import type { CompanyProfile, CompanyType } from "@/types";
 
@@ -83,8 +84,9 @@ export default function CompanyProfilePage() {
 
   const uploadLogo = async (file: File | undefined) => {
     if (!file) return;
-    if (file.size > 2 * 1024 * 1024) {
-      toast.error("Logo must be under 2 MB");
+    const validationError = validateUploadFile(file, uploadRules.image);
+    if (validationError) {
+      toast.error(validationError);
       return;
     }
     const body = new FormData();
@@ -124,8 +126,9 @@ export default function CompanyProfilePage() {
           )}
           <label className="btn-secondary mt-5 w-full cursor-pointer">
             Upload company logo
-            <input className="hidden" type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => uploadLogo(event.target.files?.[0])} />
+            <input className="hidden" type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" onChange={(event) => uploadLogo(event.target.files?.[0])} />
           </label>
+          <p className="mt-2 text-xs font-bold text-[#6b767d]">Images: JPG, PNG, WEBP only, max 2 MB.</p>
         </aside>
 
         <form onSubmit={submit} className="panel grid gap-4 p-5">

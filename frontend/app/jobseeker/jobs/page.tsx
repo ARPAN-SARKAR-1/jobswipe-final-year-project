@@ -14,10 +14,13 @@ import { experienceLevels, jobTypes, workModes } from "@/lib/options";
 import { useAuth } from "@/hooks/useAuth";
 import type { Job } from "@/types";
 
+const PAGE_LIMIT = 20;
+
 export default function JobsListPage() {
   const { loading } = useAuth(["JOB_SEEKER"]);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [applyingJobId, setApplyingJobId] = useState<number | null>(null);
+  const [page, setPage] = useState(1);
   const [filters, setFilters] = useState({
     jobType: "",
     experienceLevel: "",
@@ -34,6 +37,8 @@ export default function JobsListPage() {
       else if (Array.isArray(value)) value.forEach((item) => params.append(key, item));
       else if (value) params.set(key, value);
     });
+    params.set("page", String(page));
+    params.set("limit", String(PAGE_LIMIT));
     apiFetch<Job[]>(`/jobs?${params.toString()}`)
       .then(setJobs)
       .catch((error) => toast.error(error instanceof Error ? error.message : "Jobs failed"));
@@ -41,11 +46,12 @@ export default function JobsListPage() {
 
   useEffect(() => {
     if (!loading) load();
-  }, [loading]);
+  }, [loading, page]);
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    load();
+    if (page === 1) load();
+    else setPage(1);
   };
 
   const apply = async (jobId: number) => {
@@ -106,6 +112,18 @@ export default function JobsListPage() {
           Active jobs only
         </label>
       </form>
+
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-black/5 bg-white p-3 shadow-sm">
+        <span className="text-sm font-black text-[#526069]">Page {page}</span>
+        <div className="flex gap-2">
+          <button className="btn-secondary !py-2" type="button" disabled={page === 1} onClick={() => setPage((value) => Math.max(1, value - 1))}>
+            Previous
+          </button>
+          <button className="btn-secondary !py-2" type="button" disabled={jobs.length < PAGE_LIMIT} onClick={() => setPage((value) => value + 1)}>
+            Next
+          </button>
+        </div>
+      </div>
 
       {jobs.length === 0 ? (
         <EmptyState title="No jobs found" text="Adjust filters or return to the swipe feed for active recommendations." />

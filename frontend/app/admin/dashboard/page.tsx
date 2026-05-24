@@ -51,6 +51,7 @@ type ConfirmAction = {
 };
 
 const emptyAdminForm = { name: "", email: "", password: "", confirm_password: "" };
+const PAGE_LIMIT = 20;
 
 export default function AdminDashboardPage() {
   const { user: currentUser, loading } = useAuth(["ADMIN", "OWNER"]);
@@ -72,19 +73,21 @@ export default function AdminDashboardPage() {
   const [submitting, setSubmitting] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [createForm, setCreateForm] = useState(emptyAdminForm);
+  const [page, setPage] = useState(1);
 
   const load = () => {
+    const pagedQuery = new URLSearchParams({ page: String(page), limit: String(PAGE_LIMIT) }).toString();
     Promise.all([
       apiFetch<AdminStats>("/admin/dashboard"),
-      apiFetch<User[]>("/admin/users"),
-      apiFetch<Job[]>("/admin/jobs"),
-      apiFetch<Application[]>("/admin/applications"),
-      apiFetch<ChatThread[]>("/admin/chats"),
-      apiFetch<Company[]>("/admin/companies"),
-      apiFetch<AdminRecruiterVerification[]>("/admin/recruiters"),
-      apiFetch<CompanyReview[]>("/admin/company-reviews"),
-      apiFetch<Report[]>("/admin/reports"),
-      apiFetch<Swipe[]>("/admin/swipes"),
+      apiFetch<User[]>(`/admin/users?${pagedQuery}`),
+      apiFetch<Job[]>(`/admin/jobs?${pagedQuery}`),
+      apiFetch<Application[]>(`/admin/applications?${pagedQuery}`),
+      apiFetch<ChatThread[]>(`/admin/chats?${pagedQuery}`),
+      apiFetch<Company[]>(`/admin/companies?${pagedQuery}`),
+      apiFetch<AdminRecruiterVerification[]>(`/admin/recruiters?${pagedQuery}`),
+      apiFetch<CompanyReview[]>(`/admin/company-reviews?${pagedQuery}`),
+      apiFetch<Report[]>(`/admin/reports?${pagedQuery}`),
+      apiFetch<Swipe[]>(`/admin/swipes?${pagedQuery}`),
       isOwner ? apiFetch<User[]>("/admin/admins") : Promise.resolve([]),
       isOwner ? apiFetch<AdminActionLog[]>("/admin/action-logs") : Promise.resolve([])
     ])
@@ -107,7 +110,7 @@ export default function AdminDashboardPage() {
 
   useEffect(() => {
     if (!loading && currentUser) load();
-  }, [loading, currentUser?.role]);
+  }, [loading, currentUser?.role, page]);
 
   const openAction = (action: ConfirmAction) => {
     setReason("");
@@ -176,6 +179,8 @@ export default function AdminDashboardPage() {
     return `/admin/users/${target.id}/${action}`;
   };
 
+  const hasMoreRows = [users, jobs, applications, chats, companies, verifications, companyReviews, reports, swipes].some((rows) => rows.length === PAGE_LIMIT);
+
   if (loading || !stats || !currentUser) return <main className="page-shell">Loading admin dashboard...</main>;
 
   return (
@@ -193,6 +198,18 @@ export default function AdminDashboardPage() {
         <StatCard label="Expired jobs" value={stats.expired_jobs} icon={Radio} />
         <StatCard label="Applications" value={stats.total_applications} icon={ClipboardList} />
       </section>
+
+      <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-black/5 bg-white p-3 shadow-sm">
+        <span className="text-sm font-black text-[#526069]">Table page {page}</span>
+        <div className="flex gap-2">
+          <button className="btn-secondary !py-2" type="button" disabled={page === 1} onClick={() => setPage((value) => Math.max(1, value - 1))}>
+            Previous
+          </button>
+          <button className="btn-secondary !py-2" type="button" disabled={!hasMoreRows} onClick={() => setPage((value) => value + 1)}>
+            Next
+          </button>
+        </div>
+      </div>
 
       <div className="mt-7 grid gap-6">
         {isOwner && (

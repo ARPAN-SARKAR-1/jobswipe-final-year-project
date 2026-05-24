@@ -1,17 +1,20 @@
+import logging
 from datetime import datetime, timedelta, timezone
+from hashlib import sha256
 from secrets import token_urlsafe
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi.security import HTTPAuthorizationCredentials
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.database import get_db
-from app.core.security import create_access_token, get_current_user, hash_password, verify_password
+from app.core.security import bearer_scheme, create_access_token, decode_access_token, get_current_user, hash_password, verify_password
 from app.models.company import Company
 from app.models.company_profile import CompanyProfile
-from app.models.enums import UserRole
+from app.models.enums import AccountStatus, UserRole
 from app.models.job_seeker_profile import JobSeekerProfile
 from app.models.recruiter_profile import RecruiterProfile
 from app.models.password_reset_token import PasswordResetToken
@@ -25,8 +28,16 @@ from app.schemas.auth import (
     TokenResponse,
     UserRead,
 )
+from app.services.rate_limiter import rate_limit_key, rate_limiter
+from app.services.token_revocation import token_denylist
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
+PASSWORD_RESET_MESSAGE = "If an account exists with this email, password reset instructions have been generated."
+logger = logging.getLogger(__name__)
+
+
+def hash_reset_token(token: str) -> str:
+    return sha256(token.encode("utf-8")).hexdigest()
 
 
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
@@ -64,12 +75,21 @@ def register(payload: RegisterRequest, db: Annotated[Session, Depends(get_db)]) 
 
 
 @router.post("/login", response_model=TokenResponse)
-def login(payload: LoginRequest, db: Annotated[Session, Depends(get_db)]) -> TokenResponse:
+def login(payload: LoginRequest, request: Request, db: Annotated[Session, Depends(get_db)]) -> TokenResponse:
+    rate_limiter.check(rate_limit_key("auth:login", request, payload.email), max_attempts=5, window_seconds=10 * 60)
     user = db.scalar(select(User).where(User.email == payload.email.lower()))
     if user is None or not verify_password(payload.password, user.password_hash):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials.")
     if user.role != payload.selected_role.value:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="No account found for selected role.")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="No account found for the selected role or credentials.",
+        )
+    if user.account_status == AccountStatus.SUSPENDED.value:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Your account is suspended. Please contact support.",
+        )
     access_token = create_access_token(str(user.id), user.role)
     return TokenResponse(access_token=access_token, user=user)
 
@@ -79,35 +99,52 @@ def me(current_user: Annotated[User, Depends(get_current_user)]) -> User:
     return current_user
 
 
+@router.post("/logout")
+def logout(credentials: Annotated[HTTPAuthorizationCredentials, Depends(bearer_scheme)]) -> dict[str, str]:
+    payload = decode_access_token(credentials.credentials)
+    token_denylist.revoke(str(payload["jti"]), int(payload["exp"]))
+    return {"message": "Logged out successfully"}
+
+
 @router.post("/forgot-password", response_model=ForgotPasswordResponse)
-def forgot_password(payload: ForgotPasswordRequest, db: Annotated[Session, Depends(get_db)]) -> ForgotPasswordResponse:
+def forgot_password(
+    payload: ForgotPasswordRequest,
+    request: Request,
+    db: Annotated[Session, Depends(get_db)],
+) -> ForgotPasswordResponse:
+    rate_limiter.check(rate_limit_key("auth:forgot-password", request, payload.email), max_attempts=3, window_seconds=15 * 60)
     user = db.scalar(select(User).where(User.email == payload.email.lower()))
-    message = "If this email exists, a password reset token has been generated."
     if user is None:
-        return ForgotPasswordResponse(message=message)
+        return ForgotPasswordResponse(message=PASSWORD_RESET_MESSAGE)
 
     reset_token = token_urlsafe(32)
     db.add(
         PasswordResetToken(
             user_id=user.id,
-            token=reset_token,
+            token=hash_reset_token(reset_token),
             expiry_date=datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(hours=1),
         )
     )
     db.commit()
 
     reset_url = f"{settings.frontend_url.split(',')[0].rstrip('/')}/reset-password?token={reset_token}"
-    if settings.env == "development":
-        print(f"[JobSwipe] Password reset token for {user.email}: {reset_token}")
-        return ForgotPasswordResponse(message=message, reset_token=reset_token, reset_url=reset_url)
-    return ForgotPasswordResponse(message=message)
+    if settings.env.strip().lower() == "development":
+        logger.debug("[JobSwipe] Password reset token for %s: %s", user.email, reset_token)
+        logger.debug("[JobSwipe] Password reset URL for %s: %s", user.email, reset_url)
+    return ForgotPasswordResponse(message=PASSWORD_RESET_MESSAGE)
 
 
 @router.post("/reset-password")
-def reset_password(payload: ResetPasswordRequest, db: Annotated[Session, Depends(get_db)]) -> dict[str, str]:
+def reset_password(
+    payload: ResetPasswordRequest,
+    request: Request,
+    db: Annotated[Session, Depends(get_db)],
+) -> dict[str, str]:
+    rate_limiter.check(rate_limit_key("auth:reset-password", request, payload.token[:16]), max_attempts=5, window_seconds=15 * 60)
+    token_hash = hash_reset_token(payload.token)
     record = db.scalar(
         select(PasswordResetToken)
-        .where(PasswordResetToken.token == payload.token)
+        .where(or_(PasswordResetToken.token == token_hash, PasswordResetToken.token == payload.token))
         .where(PasswordResetToken.used.is_(False))
     )
     if record is None or record.expiry_date < datetime.now(timezone.utc).replace(tzinfo=None):

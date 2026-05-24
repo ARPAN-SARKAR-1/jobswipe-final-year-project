@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -12,6 +12,7 @@ from app.models.report import Report
 from app.models.user import User
 from app.schemas.report import ReportCreate, ReportRead
 from app.services.notifications import notify_admins
+from app.services.rate_limiter import rate_limit_key, rate_limiter
 
 router = APIRouter(prefix="/reports", tags=["Reports"])
 
@@ -20,9 +21,11 @@ router = APIRouter(prefix="/reports", tags=["Reports"])
 def report_job(
     job_id: int,
     payload: ReportCreate,
+    request: Request,
     current_user: Annotated[User, Depends(require_roles(UserRole.JOB_SEEKER.value))],
     db: Annotated[Session, Depends(get_db)],
 ) -> Report:
+    rate_limiter.check(rate_limit_key("reports", request, current_user.id), max_attempts=5, window_seconds=60 * 60)
     job = db.get(Job, job_id)
     if job is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
@@ -52,9 +55,11 @@ def report_job(
 def report_recruiter(
     recruiter_id: int,
     payload: ReportCreate,
+    request: Request,
     current_user: Annotated[User, Depends(require_roles(UserRole.JOB_SEEKER.value))],
     db: Annotated[Session, Depends(get_db)],
 ) -> Report:
+    rate_limiter.check(rate_limit_key("reports", request, current_user.id), max_attempts=5, window_seconds=60 * 60)
     recruiter = db.get(User, recruiter_id)
     if recruiter is None or recruiter.role != UserRole.RECRUITER.value:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Recruiter not found")

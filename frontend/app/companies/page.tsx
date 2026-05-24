@@ -12,22 +12,36 @@ import VerificationStatusBadge from "@/components/VerificationStatusBadge";
 import { apiFetch, assetUrl } from "@/lib/api";
 import type { Company } from "@/types";
 
+const PAGE_LIMIT = 20;
+
 export default function CompaniesPage() {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
-    apiFetch<Company[]>("/companies")
+    apiFetch<Company[]>(`/companies?page=${page}&limit=${PAGE_LIMIT}`)
       .then(setCompanies)
       .catch((error) => toast.error(error instanceof Error ? error.message : "Companies failed"))
       .finally(() => setLoading(false));
-  }, []);
+  }, [page]);
 
   if (loading) return <main className="page-shell">Loading companies...</main>;
 
   return (
     <main className="page-shell">
       <PageHeader title="Companies" eyebrow="Verified employers" />
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-black/5 bg-white p-3 shadow-sm">
+        <span className="text-sm font-black text-[#526069]">Page {page}</span>
+        <div className="flex gap-2">
+          <button className="btn-secondary !py-2" type="button" disabled={page === 1} onClick={() => setPage((value) => Math.max(1, value - 1))}>
+            Previous
+          </button>
+          <button className="btn-secondary !py-2" type="button" disabled={companies.length < PAGE_LIMIT} onClick={() => setPage((value) => value + 1)}>
+            Next
+          </button>
+        </div>
+      </div>
       {companies.length === 0 ? (
         <EmptyState title="No companies found" text="Recruiter company profiles will appear here after setup." />
       ) : (
