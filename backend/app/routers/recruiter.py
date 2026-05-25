@@ -20,6 +20,7 @@ from app.models.enums import (
     UserRole,
 )
 from app.models.job import Job
+from app.models.job_seeker_document import JobSeekerDocument
 from app.models.job_seeker_profile import JobSeekerProfile
 from app.models.recruiter_profile import RecruiterProfile
 from app.models.user import User
@@ -252,11 +253,20 @@ def applications(
     page: PageQuery = 1,
     limit: LimitQuery = 20,
     search: str | None = None,
+    academic_status: str | None = None,
+    degree: str | None = None,
+    stream: str | None = None,
+    graduation_year: int | None = None,
+    current_year: str | None = None,
+    min_cgpa: float | None = None,
+    skills: str | None = None,
+    certificates_available: bool | None = None,
 ) -> list[RecruiterApplicationRead]:
     statement = (
         select(Application)
         .join(Job)
         .join(User, Application.job_seeker_id == User.id)
+        .outerjoin(JobSeekerProfile, JobSeekerProfile.user_id == Application.job_seeker_id)
         .options(
             joinedload(Application.job),
             joinedload(Application.chat_thread),
@@ -267,13 +277,48 @@ def applications(
     )
     if search:
         term = f"%{search.strip()}%"
-        statement = statement.where(or_(Job.title.ilike(term), User.name.ilike(term), User.email.ilike(term)))
+        statement = statement.where(
+            or_(
+                Job.title.ilike(term),
+                User.name.ilike(term),
+                User.email.ilike(term),
+                JobSeekerProfile.degree_name.ilike(term),
+                JobSeekerProfile.stream_or_branch.ilike(term),
+                JobSeekerProfile.skills.ilike(term),
+            )
+        )
+    if academic_status:
+        statement = statement.where(JobSeekerProfile.academic_status == academic_status)
+    if degree:
+        statement = statement.where(or_(JobSeekerProfile.degree_name.ilike(f"%{degree.strip()}%"), JobSeekerProfile.degree.ilike(f"%{degree.strip()}%")))
+    if stream:
+        statement = statement.where(JobSeekerProfile.stream_or_branch.ilike(f"%{stream.strip()}%"))
+    if graduation_year:
+        statement = statement.where(or_(JobSeekerProfile.expected_graduation_year == graduation_year, JobSeekerProfile.passing_year == graduation_year))
+    if current_year:
+        statement = statement.where(JobSeekerProfile.current_year == current_year)
+    if min_cgpa is not None:
+        statement = statement.where(JobSeekerProfile.current_cgpa >= min_cgpa)
+    if skills:
+        statement = statement.where(JobSeekerProfile.skills.ilike(f"%{skills.strip()}%"))
+    if certificates_available is True:
+        document_seekers = select(JobSeekerDocument.job_seeker_id).where(
+            JobSeekerDocument.document_type.in_(["CERTIFICATE", "INTERNSHIP_CERTIFICATE", "COURSE_CERTIFICATE"])
+        )
+        statement = statement.where(Application.job_seeker_id.in_(document_seekers))
     statement = statement.offset(pagination_offset(page, limit)).limit(limit)
     rows = db.scalars(statement).all()
 
     result: list[RecruiterApplicationRead] = []
     for application in rows:
         profile: JobSeekerProfile | None = application.job_seeker.job_seeker_profile
+        documents = list(
+            db.scalars(
+                select(JobSeekerDocument)
+                .where(JobSeekerDocument.job_seeker_id == application.job_seeker_id)
+                .order_by(JobSeekerDocument.uploaded_at.desc(), JobSeekerDocument.id.desc())
+            ).all()
+        )
         result.append(
             RecruiterApplicationRead(
                 id=application.id,
@@ -293,6 +338,19 @@ def applications(
                 applicant_email=application.job_seeker.email,
                 applicant_github_url=(profile.github_url if profile else None) or application.github_url,
                 applicant_resume_pdf_url=(profile.resume_pdf_url if profile else None) or application.resume_pdf_url,
+                applicant_academic_status=profile.academic_status if profile else None,
+                applicant_degree_name=(profile.degree_name or profile.degree) if profile else None,
+                applicant_stream_or_branch=profile.stream_or_branch if profile else None,
+                applicant_college_or_university=(profile.college_or_university or profile.college) if profile else None,
+                applicant_graduation_year=(profile.expected_graduation_year or profile.passing_year) if profile else None,
+                applicant_current_year=profile.current_year if profile else None,
+                applicant_cgpa=profile.current_cgpa if profile else None,
+                applicant_experience_level=profile.experience_level if profile else None,
+                applicant_internship_preference=profile.internship_preference if profile else None,
+                applicant_open_to_remote=profile.open_to_remote if profile else False,
+                applicant_open_to_relocation=profile.open_to_relocation if profile else False,
+                applicant_skills=profile.skills if profile else None,
+                applicant_documents=documents,
                 job_title=application.job.title,
             )
         )
@@ -357,6 +415,13 @@ def update_application_status(
     db.commit()
     db.refresh(application)
     profile = application.job_seeker.job_seeker_profile
+    documents = list(
+        db.scalars(
+            select(JobSeekerDocument)
+            .where(JobSeekerDocument.job_seeker_id == application.job_seeker_id)
+            .order_by(JobSeekerDocument.uploaded_at.desc(), JobSeekerDocument.id.desc())
+        ).all()
+    )
     return RecruiterApplicationRead(
         id=application.id,
         job_seeker_id=application.job_seeker_id,
@@ -375,6 +440,19 @@ def update_application_status(
         applicant_email=application.job_seeker.email,
         applicant_github_url=(profile.github_url if profile else None) or application.github_url,
         applicant_resume_pdf_url=(profile.resume_pdf_url if profile else None) or application.resume_pdf_url,
+        applicant_academic_status=profile.academic_status if profile else None,
+        applicant_degree_name=(profile.degree_name or profile.degree) if profile else None,
+        applicant_stream_or_branch=profile.stream_or_branch if profile else None,
+        applicant_college_or_university=(profile.college_or_university or profile.college) if profile else None,
+        applicant_graduation_year=(profile.expected_graduation_year or profile.passing_year) if profile else None,
+        applicant_current_year=profile.current_year if profile else None,
+        applicant_cgpa=profile.current_cgpa if profile else None,
+        applicant_experience_level=profile.experience_level if profile else None,
+        applicant_internship_preference=profile.internship_preference if profile else None,
+        applicant_open_to_remote=profile.open_to_remote if profile else False,
+        applicant_open_to_relocation=profile.open_to_relocation if profile else False,
+        applicant_skills=profile.skills if profile else None,
+        applicant_documents=documents,
         job_title=application.job.title,
     )
 

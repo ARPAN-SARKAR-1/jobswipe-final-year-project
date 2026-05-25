@@ -25,6 +25,7 @@ class User(TimestampMixin, Base):
     is_protected_owner: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     job_seeker_profile = relationship("JobSeekerProfile", back_populates="user", uselist=False, cascade="all, delete-orphan")
+    job_seeker_documents = relationship("JobSeekerDocument", back_populates="job_seeker", cascade="all, delete-orphan")
     company_profile = relationship(
         "CompanyProfile",
         foreign_keys="CompanyProfile.recruiter_id",

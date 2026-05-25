@@ -29,6 +29,7 @@ from app.models.enums import (
     UserRole,
 )
 from app.models.job import Job
+from app.models.job_seeker_document import JobSeekerDocument
 from app.models.job_seeker_profile import JobSeekerProfile
 from app.models.notification import Notification
 from app.models.recruiter_profile import RecruiterProfile
@@ -167,6 +168,38 @@ def ensure_profile(
     profile.experience_level = experience_level
     profile.preferred_location = preferred_location
     profile.preferred_job_type = preferred_job_type
+
+
+def apply_academic_profile(db, user: User, **values) -> None:
+    profile = db.scalar(select(JobSeekerProfile).where(JobSeekerProfile.user_id == user.id))
+    if profile is None:
+        profile = JobSeekerProfile(user_id=user.id)
+        db.add(profile)
+    for key, value in values.items():
+        setattr(profile, key, value)
+
+
+def ensure_document_metadata(db, user: User, document_type: str, title: str, filename: str, **values) -> None:
+    document = db.scalar(
+        select(JobSeekerDocument)
+        .where(JobSeekerDocument.job_seeker_id == user.id)
+        .where(JobSeekerDocument.document_type == document_type)
+        .where(JobSeekerDocument.title == title)
+    )
+    if document is None:
+        document = JobSeekerDocument(job_seeker_id=user.id, document_type=document_type, title=title)
+        db.add(document)
+    document.stored_filename = filename
+    document.original_filename = values.get("original_filename", filename)
+    document.file_url = f"/api/files/jobseeker-documents/{filename}"
+    document.mime_type = values.get("mime_type", "application/pdf")
+    document.file_size = values.get("file_size", 120000)
+    document.related_skill = values.get("related_skill")
+    document.issuing_organization = values.get("issuing_organization")
+    document.issue_date = values.get("issue_date")
+    document.credential_url = values.get("credential_url")
+    document.is_verified = values.get("is_verified", False)
+    document.uploaded_at = values.get("uploaded_at", now_naive())
 
 
 def ensure_job(db, recruiter: User, company: Company, title: str, **values) -> Job:
@@ -400,6 +433,20 @@ def main() -> None:
             "Bengaluru",
             "Full-time",
         )
+        apply_academic_profile(
+            db,
+            seeker,
+            academic_status="GRADUATE",
+            degree_name="B.Tech",
+            stream_or_branch="Computer Science",
+            college_or_university="City Engineering College",
+            passing_year=2026,
+            final_cgpa_or_percentage="8.4 CGPA",
+            experience_level="Fresher",
+            looking_for="Full-time",
+            open_to_remote=True,
+            open_to_relocation=True,
+        )
         ensure_profile(
             db,
             seeker_two,
@@ -414,6 +461,24 @@ def main() -> None:
             "0-1 years",
             "Remote",
             "Internship",
+        )
+        apply_academic_profile(
+            db,
+            seeker_two,
+            academic_status="UNDERGRADUATE",
+            degree_name="B.Tech",
+            stream_or_branch="Data Science",
+            college_or_university="National Institute of Technology",
+            admission_year=2022,
+            expected_graduation_year=2026,
+            current_year="Final Year",
+            current_semester="8",
+            current_cgpa=8.2,
+            internship_preference="Remote Internship",
+            preferred_internship_duration="3 months",
+            available_from=date.today() + timedelta(days=15),
+            open_to_remote=True,
+            open_to_relocation=False,
         )
         ensure_profile(
             db,
@@ -430,6 +495,26 @@ def main() -> None:
             "Kolkata",
             "Internship",
         )
+        apply_academic_profile(
+            db,
+            seeker_three,
+            academic_status="UNDERGRADUATE",
+            degree_name="BCA",
+            stream_or_branch="Computer Applications",
+            college_or_university="Metro College",
+            admission_year=2023,
+            expected_graduation_year=2026,
+            current_year="3rd Year",
+            current_semester="6",
+            current_cgpa=7.1,
+            internship_preference="Internship",
+            preferred_internship_duration="2 months",
+            open_to_remote=True,
+            open_to_relocation=True,
+        )
+        ensure_document_metadata(db, seeker_two, "MARKSHEET", "Semester 6 Marksheet", "seed-meera-marksheet.pdf", related_skill="Data Science", issuing_organization="National Institute of Technology")
+        ensure_document_metadata(db, seeker_two, "COURSE_CERTIFICATE", "Python Data Science Certificate", "seed-meera-python-certificate.pdf", related_skill="Python", issuing_organization="College Training Cell")
+        ensure_document_metadata(db, seeker, "CERTIFICATE", "Backend Development Certificate", "seed-aarav-backend-certificate.pdf", related_skill="Python", issuing_organization="NovaWorks Academy")
 
         verified_companies = [
             (
@@ -733,6 +818,11 @@ def main() -> None:
                 bond_details=bond_details,
                 moderation_status=JobModerationStatus.ACTIVE.value,
                 moderation_reason=None,
+                eligible_academic_status="UNDERGRADUATE" if job_type == "Internship" else "BOTH",
+                eligible_streams="Computer Science, Data Science, IT" if job_type == "Internship" else "Computer Science, IT, Data Science",
+                minimum_cgpa=7.0,
+                eligible_graduation_years="2025, 2026, 2027",
+                internship_available=job_type == "Internship",
             )
             jobs.append(job)
 
@@ -756,6 +846,11 @@ def main() -> None:
             bond_details=None,
             moderation_status=JobModerationStatus.ACTIVE.value,
             moderation_reason=None,
+            eligible_academic_status="GRADUATE",
+            eligible_streams="Computer Science, IT",
+            minimum_cgpa=7.0,
+            eligible_graduation_years="2024, 2025, 2026",
+            internship_available=False,
         )
         jobs.append(risky_job)
 

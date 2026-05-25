@@ -17,6 +17,8 @@ import VerificationStatusBadge from "@/components/VerificationStatusBadge";
 import { apiFetch, assetUrl, getStoredUser } from "@/lib/api";
 import type { Application, Job, RecruiterPublicProfile, RecruiterReview, RecruiterReviewSummary, User } from "@/types";
 
+const REVIEW_ELIGIBLE_APPLICATION_STATUSES = new Set<Application["status"]>(["SHORTLISTED"]);
+
 export default function RecruiterProfilePage() {
   const params = useParams<{ id: string }>();
   const [profile, setProfile] = useState<RecruiterPublicProfile | null>(null);
@@ -58,7 +60,11 @@ export default function RecruiterProfilePage() {
 
   const canReview = useMemo(() => {
     if (!profile || user?.role !== "JOB_SEEKER") return false;
-    return applications.some((application) => application.job?.recruiter_id === profile.id);
+    return applications.some(
+      (application) =>
+        application.job?.recruiter_id === profile.id &&
+        REVIEW_ELIGIBLE_APPLICATION_STATUSES.has(application.status)
+    );
   }, [applications, profile, user?.role]);
 
   const alreadyReviewed = useMemo(() => {
@@ -182,7 +188,7 @@ export default function RecruiterProfilePage() {
             </div>
             {user?.role === "JOB_SEEKER" && !canReview && (
               <p className="mt-5 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm font-bold text-amber-800">
-                You can review this recruiter after applying to one of their jobs.
+                You can review this recruiter only after being shortlisted or selected.
               </p>
             )}
             {user?.role === "JOB_SEEKER" && alreadyReviewed && (

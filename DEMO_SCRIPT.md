@@ -48,11 +48,15 @@ Action: Logout and login as Job Seeker.
 
 Speaking line: "The job seeker dashboard shows profile completion, saved jobs, applications, and recommended jobs."
 
-### 8. Complete Profile
+### 8. Complete Academic Profile
 
-Action: Open profile page and show education, skills, GitHub, profile picture, and resume upload.
+Action: Open profile page and show Academic Status, undergraduate fields, graduate fields, skills, GitHub, profile picture, and resume upload.
 
-Speaking line: "The profile supports skill selection and secure resume upload. Resume files are not public."
+Speaking line: "The role remains Job Seeker, but the profile supports both Undergraduate and Graduate candidates. Undergraduate users can add current year, stream, CGPA, internship preference, marksheets, and certificates."
+
+Action: Upload a resume, marksheet, and skill-linked certificate.
+
+Speaking line: "Documents are not public. Recruiters can see them only after the candidate applies to that recruiter's job."
 
 ### 9. Swipe And Apply
 
@@ -78,9 +82,9 @@ Speaking line: "Anonymous reviews hide the candidate name publicly, but Owner/Ad
 
 ### 12. Recruiter Shortlists
 
-Action: Login as Recruiter and open Applications Received. Change an application status to Shortlisted.
+Action: Login as Recruiter and open Applications Received. Filter applicants by academic status, stream, CGPA, skills, or certificate availability, then change an application status to Shortlisted.
 
-Speaking line: "Recruiters can view only applications for their own jobs and update allowed statuses."
+Speaking line: "Recruiters can view academic profile and certificates only for candidates who applied to their own jobs, then shortlist suitable candidates for chat."
 
 ### 13. Recruiter Starts Chat
 

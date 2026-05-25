@@ -1,4 +1,6 @@
 export type Role = "JOB_SEEKER" | "RECRUITER" | "ADMIN" | "OWNER";
+export type AcademicStatus = "UNDERGRADUATE" | "GRADUATE";
+export type JobSeekerDocumentType = "RESUME" | "MARKSHEET" | "CERTIFICATE" | "INTERNSHIP_CERTIFICATE" | "COURSE_CERTIFICATE" | "OTHER";
 
 export type User = {
   id: number;
@@ -49,6 +51,11 @@ export type Job = {
   company_average_rating?: number | null;
   company_total_reviews?: number | null;
   trusted_job: boolean;
+  eligible_academic_status: "UNDERGRADUATE" | "GRADUATE" | "BOTH";
+  eligible_streams?: string | null;
+  minimum_cgpa?: number | null;
+  eligible_graduation_years?: string | null;
+  internship_available: boolean;
   created_at: string;
   updated_at: string;
 };
@@ -72,6 +79,42 @@ export type JobSeekerProfile = {
   experience_level?: string | null;
   preferred_location?: string | null;
   preferred_job_type?: string | null;
+  academic_status?: AcademicStatus | null;
+  degree_name?: string | null;
+  stream_or_branch?: string | null;
+  college_or_university?: string | null;
+  admission_year?: number | null;
+  expected_graduation_year?: number | null;
+  current_year?: "1st Year" | "2nd Year" | "3rd Year" | "4th Year" | "Final Year" | null;
+  current_semester?: string | null;
+  current_cgpa?: number | null;
+  internship_preference?: "Internship" | "Training" | "Part-time" | "Remote Internship" | "Full-time after graduation" | null;
+  preferred_internship_duration?: string | null;
+  available_from?: string | null;
+  open_to_remote: boolean;
+  open_to_relocation: boolean;
+  final_cgpa_or_percentage?: string | null;
+  looking_for?: "Full-time" | "Internship" | "Contract" | "Remote" | "Hybrid" | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type JobSeekerDocument = {
+  id: number;
+  job_seeker_id: number;
+  document_type: JobSeekerDocumentType;
+  title: string;
+  file_url: string;
+  original_filename: string;
+  stored_filename: string;
+  mime_type: string;
+  file_size: number;
+  is_verified: boolean;
+  related_skill?: string | null;
+  issuing_organization?: string | null;
+  issue_date?: string | null;
+  credential_url?: string | null;
+  uploaded_at?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -397,6 +440,19 @@ export type Application = {
   applicant_email?: string;
   applicant_github_url?: string | null;
   applicant_resume_pdf_url?: string | null;
+  applicant_academic_status?: AcademicStatus | null;
+  applicant_degree_name?: string | null;
+  applicant_stream_or_branch?: string | null;
+  applicant_college_or_university?: string | null;
+  applicant_graduation_year?: number | null;
+  applicant_current_year?: string | null;
+  applicant_cgpa?: number | null;
+  applicant_experience_level?: string | null;
+  applicant_internship_preference?: string | null;
+  applicant_open_to_remote?: boolean;
+  applicant_open_to_relocation?: boolean;
+  applicant_skills?: string | null;
+  applicant_documents?: JobSeekerDocument[];
   job_title?: string;
 };
 

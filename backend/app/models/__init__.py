@@ -12,6 +12,7 @@ from app.models.company_profile import CompanyProfile
 from app.models.company_review import CompanyReview
 from app.models.job import Job
 from app.models.job_risk_assessment import JobRiskAssessment
+from app.models.job_seeker_document import JobSeekerDocument
 from app.models.job_seeker_profile import JobSeekerProfile
 from app.models.login_attempt import LoginAttempt
 from app.models.notification import Notification
@@ -39,6 +40,7 @@ __all__ = [
     "CompanyReview",
     "Job",
     "JobRiskAssessment",
+    "JobSeekerDocument",
     "JobSeekerProfile",
     "LoginAttempt",
     "Notification",

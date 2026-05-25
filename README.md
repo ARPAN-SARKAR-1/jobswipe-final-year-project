@@ -36,6 +36,9 @@ Trust architecture is harder than feature architecture. That is why JobSwipe inc
 - Company ratings and reviews from eligible job seekers, including work culture, interview process, salary transparency, and growth opportunity ratings.
 - Recruiter ratings and reviews for communication, response time, professionalism, transparency, and overall candidate experience.
 - Review analytics for Owner/Admin users, including highest-rated companies, lowest-rated companies, most-reviewed companies, low-rated recruiters, and flagged/hidden review counts.
+- Job Seeker academic profiles support Undergraduate and Graduate candidates with degree, stream, CGPA, graduation year, internship preference, remote/relocation preference, and experience details.
+- Protected academic document uploads support resumes, marksheets, certificates, internship certificates, course certificates, and skill-linked credential metadata.
+- Recruiter applicant filters include academic status, stream, graduation year, current year, CGPA, skills, and certificate availability.
 - Fake job prevention rules so public jobs require a verified company, verified recruiter, active recruiter account, active job, valid deadline, and active moderation status.
 - Rule-based fake job and suspicious candidate risk scoring for Owner/Admin review.
 - Rule-based suspicious user risk scoring using login attempts, profile completeness, reports, posting behavior, and verification status.
@@ -66,12 +69,13 @@ Trust architecture is harder than feature architecture. That is why JobSwipe inc
 - Login, signup, forgot password, and reset password can require a single-use CAPTCHA challenge that expires after 5 minutes.
 - Failed login attempts are recorded for security audit and user risk scoring without exposing internal failure reasons to the frontend.
 - Resume PDFs are served through a protected file route and are visible to recruiters only after a job seeker applies to their job.
+- Marksheets and certificates are served through protected file routes and are visible only to the owner, Owner/Admin, or recruiters whose jobs the candidate applied to.
 - Recruiter and company verification helps prevent fake jobs from appearing publicly.
 - Company claim verification prevents duplicate or fake use of verified brand names.
 - Reserved company-name checks flag famous-brand claims such as TCS, Infosys, Wipro, and similar names for Owner/Admin review.
 - Fake job and candidate alerts use rule-based risk scoring, not a trained machine learning model.
 - Suspicious user detection uses a rule-based user risk scoring engine, not a trained machine learning model.
-- Review eligibility checks allow only applied candidates to review companies or recruiters, reducing random fake reviews.
+- Review eligibility checks allow only shortlisted-or-later candidates to review companies or recruiters, reducing random fake reviews from basic applications.
 - Anonymous reviews hide the reviewer name publicly while Owner/Admin users can still see reviewer identity for moderation.
 - Owner/Admin users can hide, show, or flag company and recruiter reviews.
 - In production, the backend requires a strong `JWT_SECRET` and does not allow wildcard CORS origins.
@@ -283,12 +287,22 @@ It also creates verified and pending company/recruiter examples plus company rev
 
 ## Company Reviews And Ratings
 
-- Logged-in Job Seekers can review a company only after applying to at least one job from that company.
+- Logged-in Job Seekers can review a company only after being shortlisted or selected for at least one job from that company.
 - Each job seeker can review a company once.
 - Ratings are limited to 1 through 5.
 - Review text is optional.
 - Company average rating and total visible reviews update whenever reviews are created, hidden, or shown.
 - Owner/Admin users can hide or show reviews from the Admin Dashboard.
+
+## Academic Profiles And Documents
+
+- Job Seekers keep the platform role `JOB_SEEKER` and can choose `UNDERGRADUATE` or `GRADUATE` inside their profile.
+- Undergraduate profiles include degree, stream, college/university, admission year, expected graduation year, current year, semester, CGPA, internship preference, preferred duration, availability, remote preference, and relocation preference.
+- Graduate profiles include degree, stream, college/university, passing year, final CGPA/percentage, experience level, and job type preference.
+- Resume uploads remain PDF-only. Marksheets and certificates allow PDF, JPG, PNG, and WEBP files up to 5 MB.
+- Certificates can be linked to skills with issuing organization, issue date, and credential URL.
+- Recruiters can filter applicants by academic status, stream, graduation year, CGPA, skills, and whether certificates are available.
+- Job posts can include academic eligibility fields such as undergraduate/graduate/both, eligible streams, minimum CGPA, graduation years, and internship availability.
 
 ## Fake Job Prevention
 

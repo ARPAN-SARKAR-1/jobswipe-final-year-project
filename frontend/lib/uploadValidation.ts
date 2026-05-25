@@ -10,6 +10,11 @@ export const uploadRules = {
     maxBytes: 2 * 1024 * 1024,
     allowedMimeTypes: new Set(["image/jpeg", "image/png", "image/webp"]),
     allowedExtensions: new Set([".jpg", ".jpeg", ".png", ".webp"])
+  },
+  academicDocument: {
+    maxBytes: 5 * 1024 * 1024,
+    allowedMimeTypes: new Set(["application/pdf", "image/jpeg", "image/png", "image/webp"]),
+    allowedExtensions: new Set([".pdf", ".jpg", ".jpeg", ".png", ".webp"])
   }
 };
 

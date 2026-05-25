@@ -31,6 +31,11 @@ class Job(TimestampMixin, Base):
     bond_details: Mapped[str | None] = mapped_column(Text, nullable=True)
     moderation_status: Mapped[str] = mapped_column(String(30), default="ACTIVE", nullable=False)
     moderation_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    eligible_academic_status: Mapped[str] = mapped_column(String(30), default="BOTH", nullable=False)
+    eligible_streams: Mapped[str | None] = mapped_column(Text, nullable=True)
+    minimum_cgpa: Mapped[float | None] = mapped_column(Float, nullable=True)
+    eligible_graduation_years: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    internship_available: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     recruiter = relationship("User", back_populates="jobs")
     company = relationship("Company", back_populates="jobs")

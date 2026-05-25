@@ -17,6 +17,8 @@ import VerificationStatusBadge from "@/components/VerificationStatusBadge";
 import { apiFetch, assetUrl, getStoredUser } from "@/lib/api";
 import type { Application, CompanyDetail, CompanyReview, CompanyReviewSummary, User } from "@/types";
 
+const REVIEW_ELIGIBLE_APPLICATION_STATUSES = new Set<Application["status"]>(["SHORTLISTED"]);
+
 export default function CompanyDetailPage() {
   const params = useParams<{ id: string }>();
   const [company, setCompany] = useState<CompanyDetail | null>(null);
@@ -57,7 +59,11 @@ export default function CompanyDetailPage() {
 
   const canReview = useMemo(() => {
     if (!company || user?.role !== "JOB_SEEKER") return false;
-    return applications.some((application) => application.job?.company_id === company.id);
+    return applications.some(
+      (application) =>
+        application.job?.company_id === company.id &&
+        REVIEW_ELIGIBLE_APPLICATION_STATUSES.has(application.status)
+    );
   }, [applications, company, user?.role]);
 
   const alreadyReviewed = useMemo(() => {
@@ -200,7 +206,7 @@ export default function CompanyDetailPage() {
             )}
             {user?.role === "JOB_SEEKER" && !canReview && (
               <p className="mt-5 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm font-bold text-amber-800">
-                You can review this company after applying to one of its jobs.
+                You can review this company only after being shortlisted or selected.
               </p>
             )}
             {user?.role === "JOB_SEEKER" && alreadyReviewed && (

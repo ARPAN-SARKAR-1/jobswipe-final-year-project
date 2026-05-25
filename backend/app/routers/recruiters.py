@@ -12,6 +12,7 @@ from app.models.chat_thread import ChatThread
 from app.models.company import Company
 from app.models.enums import (
     AccountStatus,
+    ApplicationStatus,
     JobModerationStatus,
     RecruiterVerificationStatus,
     ReviewModerationStatus,
@@ -28,6 +29,12 @@ from app.services.review_moderation import contains_abusive_language
 from app.utils.pagination import LimitQuery, PageQuery, pagination_offset
 
 router = APIRouter(prefix="/recruiters", tags=["Recruiters"])
+REVIEW_ELIGIBLE_APPLICATION_STATUSES = {ApplicationStatus.SHORTLISTED.value}
+for optional_status in ("SELECTED", "HIRED", "JOINED"):
+    enum_value = getattr(ApplicationStatus, optional_status, None)
+    if enum_value is not None:
+        REVIEW_ELIGIBLE_APPLICATION_STATUSES.add(enum_value.value)
+REVIEW_ELIGIBILITY_ERROR = "You can review only after being shortlisted or selected for this company."
 
 
 def public_recruiter_jobs_statement(recruiter_id: int):
@@ -111,6 +118,7 @@ def eligible_application_id(db: Session, recruiter_id: int, job_seeker_id: int) 
         .join(Job, Application.job_id == Job.id)
         .where(Application.job_seeker_id == job_seeker_id)
         .where(Job.recruiter_id == recruiter_id)
+        .where(Application.status.in_(REVIEW_ELIGIBLE_APPLICATION_STATUSES))
         .order_by(Application.created_at.desc(), Application.id.desc())
         .limit(1)
     )
@@ -118,8 +126,10 @@ def eligible_application_id(db: Session, recruiter_id: int, job_seeker_id: int) 
         return application_id
     return db.scalar(
         select(ChatThread.application_id)
+        .join(Application, ChatThread.application_id == Application.id)
         .where(ChatThread.recruiter_id == recruiter_id)
         .where(ChatThread.job_seeker_id == job_seeker_id)
+        .where(Application.status.in_(REVIEW_ELIGIBLE_APPLICATION_STATUSES))
         .order_by(ChatThread.created_at.desc(), ChatThread.id.desc())
         .limit(1)
     )
@@ -184,7 +194,7 @@ def create_recruiter_review(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Recruiters cannot review themselves.")
     application_id = eligible_application_id(db, recruiter_id, current_user.id)
     if application_id is None:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You can review this recruiter after applying to one of their jobs.")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=REVIEW_ELIGIBILITY_ERROR)
     existing = db.scalar(
         select(RecruiterReview)
         .where(RecruiterReview.recruiter_id == recruiter_id)

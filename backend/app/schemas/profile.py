@@ -1,10 +1,20 @@
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
 from urllib.parse import urlparse
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator
 
-from app.models.enums import CompanyType, CompanyVerificationStatus, RecruiterVerificationStatus
+from app.models.enums import (
+    AcademicStatus,
+    CompanyType,
+    CompanyVerificationStatus,
+    CurrentAcademicYear,
+    EligibleAcademicStatus,
+    GraduateLookingFor,
+    InternshipPreference,
+    JobSeekerDocumentType,
+    RecruiterVerificationStatus,
+)
 from app.utils.skills import normalize_skills, split_skills
 
 
@@ -20,6 +30,22 @@ class JobSeekerProfileUpdate(BaseModel):
     experience_level: str | None = Field(default=None, max_length=40)
     preferred_location: str | None = Field(default=None, max_length=160)
     preferred_job_type: str | None = Field(default=None, max_length=40)
+    academic_status: AcademicStatus | None = None
+    degree_name: str | None = Field(default=None, max_length=160)
+    stream_or_branch: str | None = Field(default=None, max_length=160)
+    college_or_university: str | None = Field(default=None, max_length=180)
+    admission_year: int | None = Field(default=None, ge=1950, le=2100)
+    expected_graduation_year: int | None = Field(default=None, ge=1950, le=2100)
+    current_year: CurrentAcademicYear | None = None
+    current_semester: str | None = Field(default=None, max_length=40)
+    current_cgpa: float | None = Field(default=None, ge=0, le=10)
+    internship_preference: InternshipPreference | None = None
+    preferred_internship_duration: str | None = Field(default=None, max_length=80)
+    available_from: date | None = None
+    open_to_remote: bool = False
+    open_to_relocation: bool = False
+    final_cgpa_or_percentage: str | None = Field(default=None, max_length=40)
+    looking_for: GraduateLookingFor | None = None
 
     @field_validator("skills", mode="before")
     @classmethod
@@ -43,6 +69,44 @@ class JobSeekerProfileRead(JobSeekerProfileUpdate):
     resume_pdf_url: str | None = None
     created_at: datetime
     updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class JobSeekerDocumentRead(BaseModel):
+    id: int
+    job_seeker_id: int
+    document_type: JobSeekerDocumentType
+    title: str
+    file_url: str
+    original_filename: str
+    stored_filename: str
+    mime_type: str
+    file_size: int
+    is_verified: bool = False
+    related_skill: str | None = None
+    issuing_organization: str | None = None
+    issue_date: date | None = None
+    credential_url: str | None = None
+    uploaded_at: datetime | None = None
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class RecruiterApplicantDocumentRead(BaseModel):
+    id: int
+    document_type: JobSeekerDocumentType
+    title: str
+    file_url: str
+    mime_type: str
+    file_size: int
+    related_skill: str | None = None
+    issuing_organization: str | None = None
+    issue_date: date | None = None
+    credential_url: str | None = None
+    is_verified: bool = False
 
     model_config = ConfigDict(from_attributes=True)
 

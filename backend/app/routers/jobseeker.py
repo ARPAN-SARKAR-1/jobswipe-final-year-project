@@ -1,7 +1,7 @@
-from datetime import date
+from datetime import date, datetime, timezone
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -9,14 +9,16 @@ from app.core.database import get_db
 from app.core.security import require_roles
 from app.models.application import Application
 from app.models.company import Company
-from app.models.enums import AccountStatus, CompanyVerificationStatus, JobModerationStatus, RecruiterVerificationStatus, UserRole
+from app.core.config import settings
+from app.models.enums import AccountStatus, CompanyVerificationStatus, JobModerationStatus, JobSeekerDocumentType, RecruiterVerificationStatus, UserRole
 from app.models.job import Job
+from app.models.job_seeker_document import JobSeekerDocument
 from app.models.job_seeker_profile import JobSeekerProfile
 from app.models.recruiter_profile import RecruiterProfile
 from app.models.swipe import Swipe
 from app.models.user import User
-from app.schemas.profile import JobSeekerProfileRead, JobSeekerProfileUpdate, UploadResponse
-from app.utils.file_upload import save_image, save_resume_pdf
+from app.schemas.profile import JobSeekerDocumentRead, JobSeekerProfileRead, JobSeekerProfileUpdate, UploadResponse
+from app.utils.file_upload import save_image, save_jobseeker_document, save_resume_pdf
 
 router = APIRouter(prefix="/jobseeker", tags=["Job Seeker"])
 
@@ -50,6 +52,22 @@ def profile_response(profile: JobSeekerProfile, user: User) -> JobSeekerProfileR
         experience_level=profile.experience_level,
         preferred_location=profile.preferred_location,
         preferred_job_type=profile.preferred_job_type,
+        academic_status=profile.academic_status,
+        degree_name=profile.degree_name,
+        stream_or_branch=profile.stream_or_branch,
+        college_or_university=profile.college_or_university,
+        admission_year=profile.admission_year,
+        expected_graduation_year=profile.expected_graduation_year,
+        current_year=profile.current_year,
+        current_semester=profile.current_semester,
+        current_cgpa=profile.current_cgpa,
+        internship_preference=profile.internship_preference,
+        preferred_internship_duration=profile.preferred_internship_duration,
+        available_from=profile.available_from,
+        open_to_remote=profile.open_to_remote,
+        open_to_relocation=profile.open_to_relocation,
+        final_cgpa_or_percentage=profile.final_cgpa_or_percentage,
+        looking_for=profile.looking_for,
         created_at=profile.created_at,
         updated_at=profile.updated_at,
     )
@@ -73,6 +91,10 @@ def dashboard(
         profile.experience_level,
         profile.preferred_location,
         profile.preferred_job_type,
+        profile.academic_status,
+        profile.degree_name,
+        profile.stream_or_branch,
+        profile.college_or_university,
     ]
     completion = round(sum(1 for value in fields if value) / len(fields) * 100)
 
@@ -99,12 +121,18 @@ def dashboard(
     applications_count = db.scalar(
         select(func.count(Application.id)).where(Application.job_seeker_id == current_user.id)
     )
+    documents = db.scalars(select(JobSeekerDocument).where(JobSeekerDocument.job_seeker_id == current_user.id)).all()
+    document_types = {document.document_type for document in documents}
     return {
         "name": current_user.name,
         "profile_completion": completion,
         "recommended_jobs_count": recommended_count or 0,
         "saved_jobs_count": saved_count or 0,
         "applications_count": applications_count or 0,
+        "academic_profile_completed": bool(profile.academic_status and profile.degree_name and profile.stream_or_branch),
+        "resume_uploaded": bool(profile.resume_pdf_url or "RESUME" in document_types),
+        "marksheet_uploaded": "MARKSHEET" in document_types,
+        "certificate_uploaded": bool({"CERTIFICATE", "INTERNSHIP_CERTIFICATE", "COURSE_CERTIFICATE"}.intersection(document_types)),
     }
 
 
@@ -124,7 +152,9 @@ def update_profile(
     db: Annotated[Session, Depends(get_db)],
 ) -> JobSeekerProfileRead:
     profile = get_or_create_profile(db, current_user.id)
-    for key, value in payload.model_dump().items():
+    for key, value in payload.model_dump(mode="json").items():
+        if key == "skills_list":
+            continue
         setattr(profile, key, value)
     db.commit()
     db.refresh(profile)
@@ -154,3 +184,100 @@ async def upload_resume(
     profile.resume_pdf_url = url
     db.commit()
     return UploadResponse(url=url, message="Resume uploaded")
+
+
+@router.get("/documents", response_model=list[JobSeekerDocumentRead])
+def list_documents(
+    current_user: Annotated[User, Depends(require_roles(UserRole.JOB_SEEKER.value))],
+    db: Annotated[Session, Depends(get_db)],
+) -> list[JobSeekerDocument]:
+    return list(
+        db.scalars(
+            select(JobSeekerDocument)
+            .where(JobSeekerDocument.job_seeker_id == current_user.id)
+            .order_by(JobSeekerDocument.uploaded_at.desc(), JobSeekerDocument.id.desc())
+        ).all()
+    )
+
+
+@router.post("/documents", response_model=JobSeekerDocumentRead, status_code=status.HTTP_201_CREATED)
+async def upload_document(
+    current_user: Annotated[User, Depends(require_roles(UserRole.JOB_SEEKER.value))],
+    db: Annotated[Session, Depends(get_db)],
+    document_type: str = Form(...),
+    title: str = Form(...),
+    related_skill: str | None = Form(default=None),
+    issuing_organization: str | None = Form(default=None),
+    issue_date: str | None = Form(default=None),
+    credential_url: str | None = Form(default=None),
+    file: UploadFile = File(...),
+) -> JobSeekerDocument:
+    try:
+        normalized_type = JobSeekerDocumentType(document_type)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid document type.") from exc
+
+    clean_title = title.strip()
+    if not clean_title:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Document title is required.")
+
+    parsed_issue_date: date | None = None
+    if issue_date and issue_date.strip():
+        try:
+            parsed_issue_date = date.fromisoformat(issue_date.strip())
+        except ValueError as exc:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Issue date must be a valid date.") from exc
+
+    metadata = await save_jobseeker_document(file, resume_only=normalized_type == JobSeekerDocumentType.RESUME)
+    document = JobSeekerDocument(
+        job_seeker_id=current_user.id,
+        document_type=normalized_type.value,
+        title=clean_title[:180],
+        file_url=str(metadata["url"]),
+        original_filename=str(metadata["original_filename"]),
+        stored_filename=str(metadata["stored_filename"]),
+        mime_type=str(metadata["mime_type"]),
+        file_size=int(metadata["file_size"]),
+        related_skill=(related_skill or "").strip()[:120] or None,
+        issuing_organization=(issuing_organization or "").strip()[:180] or None,
+        issue_date=parsed_issue_date,
+        credential_url=(credential_url or "").strip()[:500] or None,
+        uploaded_at=datetime.now(timezone.utc).replace(tzinfo=None),
+    )
+    db.add(document)
+    if normalized_type == JobSeekerDocumentType.RESUME:
+        profile = get_or_create_profile(db, current_user.id)
+        profile.resume_pdf_url = document.file_url
+    db.commit()
+    db.refresh(document)
+    return document
+
+
+@router.delete("/documents/{document_id}")
+def delete_document(
+    document_id: int,
+    current_user: Annotated[User, Depends(require_roles(UserRole.JOB_SEEKER.value))],
+    db: Annotated[Session, Depends(get_db)],
+) -> dict[str, str]:
+    document = db.scalar(
+        select(JobSeekerDocument)
+        .where(JobSeekerDocument.id == document_id)
+        .where(JobSeekerDocument.job_seeker_id == current_user.id)
+    )
+    if document is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+    if document.document_type == JobSeekerDocumentType.RESUME.value:
+        profile = get_or_create_profile(db, current_user.id)
+        if profile.resume_pdf_url == document.file_url:
+            profile.resume_pdf_url = None
+    file_path = (settings.upload_path / "jobseeker-documents" / document.stored_filename).resolve()
+    document_root = (settings.upload_path / "jobseeker-documents").resolve()
+    db.delete(document)
+    db.commit()
+    try:
+        file_path.relative_to(document_root)
+        if file_path.is_file():
+            file_path.unlink()
+    except ValueError:
+        pass
+    return {"message": "Document deleted"}

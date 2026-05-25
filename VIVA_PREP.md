@@ -121,3 +121,12 @@
 
 40. What is the future scope?
     - SMTP email, cloud file storage, Redis-backed rate limiting, automated company verification, advanced recommendation, analytics, and exportable admin reports.
+
+41. Does the platform support undergraduate students?
+    - Yes. Job seekers can select Undergraduate or Graduate. Undergraduate users can add current year, joining year, expected graduation year, CGPA, stream, internship preference, marksheets, and certificates.
+
+42. How are academic documents protected?
+    - Documents are not public. Job seekers can access their own documents, recruiters can view only documents of candidates who applied to their jobs, and Owner/Admin users can access them for moderation or support.
+
+43. How does the academic profile help recruiters?
+    - Recruiters can filter candidates by academic status, stream, graduation year, CGPA, skills, and certificates, which helps separate internship-ready undergraduate candidates from graduate full-time candidates.

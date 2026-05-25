@@ -233,7 +233,7 @@ def create_job(
         company = profile.company if profile else None
     if company is None or profile is None:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Your company must be verified before posting jobs.")
-    data = payload.model_dump(exclude={"required_skills_list"})
+    data = payload.model_dump(mode="json", exclude={"required_skills_list"})
     data["company_id"] = company.id
     data["company_name"] = company.company_name
     data["company_logo_url"] = company.company_logo_url or data.get("company_logo_url")
@@ -258,7 +258,7 @@ def update_job(
     if job is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
 
-    update_data = payload.model_dump(exclude_unset=True)
+    update_data = payload.model_dump(mode="json", exclude_unset=True)
     will_be_active = update_data.get("is_active", job.is_active)
     profile: RecruiterProfile | None = None
     company: Company | None = None

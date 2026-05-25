@@ -14,6 +14,7 @@ from app.models.company_member import CompanyMember
 from app.models.company_review import CompanyReview
 from app.models.enums import (
     AccountStatus,
+    ApplicationStatus,
     CompanyClaimStatus,
     CompanyMemberRole,
     CompanyVerificationStatus,
@@ -64,6 +65,12 @@ from app.services.review_moderation import contains_abusive_language
 from app.utils.pagination import LimitQuery, PageQuery, pagination_offset
 
 router = APIRouter(prefix="/companies", tags=["Companies"])
+REVIEW_ELIGIBLE_APPLICATION_STATUSES = {ApplicationStatus.SHORTLISTED.value}
+for optional_status in ("SELECTED", "HIRED", "JOINED"):
+    enum_value = getattr(ApplicationStatus, optional_status, None)
+    if enum_value is not None:
+        REVIEW_ELIGIBLE_APPLICATION_STATUSES.add(enum_value.value)
+REVIEW_ELIGIBILITY_ERROR = "You can review only after being shortlisted or selected for this company."
 
 
 def public_jobs_statement(company_id: int):
@@ -488,13 +495,14 @@ def create_company_review(
         .join(Job, Application.job_id == Job.id)
         .where(Application.job_seeker_id == current_user.id)
         .where(Job.company_id == company_id)
+        .where(Application.status.in_(REVIEW_ELIGIBLE_APPLICATION_STATUSES))
         .order_by(Application.created_at.desc(), Application.id.desc())
         .limit(1)
     )
     if application_id is None:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="You can review this company after applying to one of its jobs.",
+            detail=REVIEW_ELIGIBILITY_ERROR,
         )
     existing = db.scalar(
         select(CompanyReview)

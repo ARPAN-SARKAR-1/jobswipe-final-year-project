@@ -12,6 +12,7 @@ from app.core.security import get_current_user
 from app.models.application import Application
 from app.models.enums import UserRole
 from app.models.job import Job
+from app.models.job_seeker_document import JobSeekerDocument
 from app.models.job_seeker_profile import JobSeekerProfile
 from app.models.user import User
 
@@ -66,6 +67,24 @@ def job_seeker_can_access_resume(db: Session, job_seeker_id: int, urls: list[str
     return application_id is not None
 
 
+def ensure_safe_document_filename(filename: str) -> str:
+    path = Path(filename)
+    if path.name != filename or path.suffix.lower() not in {".pdf", ".jpg", ".jpeg", ".png", ".webp"}:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
+    return filename
+
+
+def recruiter_can_access_jobseeker_documents(db: Session, recruiter_id: int, job_seeker_id: int) -> bool:
+    application_id = db.scalar(
+        select(Application.id)
+        .join(Job, Application.job_id == Job.id)
+        .where(Application.job_seeker_id == job_seeker_id)
+        .where(Job.recruiter_id == recruiter_id)
+        .limit(1)
+    )
+    return application_id is not None
+
+
 @router.get("/resumes/{filename}")
 def get_resume_file(
     filename: str,
@@ -93,5 +112,35 @@ def get_resume_file(
         return FileResponse(resume_path, media_type="application/pdf", filename=safe_filename)
     if current_user.role == UserRole.RECRUITER.value and recruiter_can_access_resume(db, current_user.id, owner_id):
         return FileResponse(resume_path, media_type="application/pdf", filename=safe_filename)
+
+    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
+
+
+@router.get("/jobseeker-documents/{filename}")
+def get_jobseeker_document_file(
+    filename: str,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+) -> FileResponse:
+    safe_filename = ensure_safe_document_filename(filename)
+    document_path = (settings.upload_path / "jobseeker-documents" / safe_filename).resolve()
+    document_root = (settings.upload_path / "jobseeker-documents").resolve()
+    try:
+        document_path.relative_to(document_root)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found") from exc
+    if not document_path.is_file():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
+
+    document = db.scalar(select(JobSeekerDocument).where(JobSeekerDocument.stored_filename == safe_filename).limit(1))
+    if document is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
+
+    if current_user.role in {UserRole.ADMIN.value, UserRole.OWNER.value}:
+        return FileResponse(document_path, media_type=document.mime_type, filename=document.original_filename)
+    if current_user.role == UserRole.JOB_SEEKER.value and current_user.id == document.job_seeker_id:
+        return FileResponse(document_path, media_type=document.mime_type, filename=document.original_filename)
+    if current_user.role == UserRole.RECRUITER.value and recruiter_can_access_jobseeker_documents(db, current_user.id, document.job_seeker_id):
+        return FileResponse(document_path, media_type=document.mime_type, filename=document.original_filename)
 
     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")

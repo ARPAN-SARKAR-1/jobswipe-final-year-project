@@ -15,6 +15,12 @@ export const companyTypes = ["MNC", "Startup", "Product-based", "Service-based",
 export const jobTypes = ["Internship", "Full-time", "Part-time", "Remote", "Hybrid", "Contract"];
 export const workModes = ["On-site", "Remote", "Hybrid"];
 export const experienceLevels = ["Fresher", "0-1 years", "1-2 years", "2+ years"];
+export const academicStatuses = ["UNDERGRADUATE", "GRADUATE"];
+export const currentAcademicYears = ["1st Year", "2nd Year", "3rd Year", "4th Year", "Final Year"];
+export const internshipPreferences = ["Internship", "Training", "Part-time", "Remote Internship", "Full-time after graduation"];
+export const graduateLookingFor = ["Full-time", "Internship", "Contract", "Remote", "Hybrid"];
+export const eligibleAcademicStatuses = ["UNDERGRADUATE", "GRADUATE", "BOTH"];
+export const documentTypes = ["RESUME", "MARKSHEET", "CERTIFICATE", "INTERNSHIP_CERTIFICATE", "COURSE_CERTIFICATE", "OTHER"];
 export const applicationStatuses = ["APPLIED", "VIEWED", "SHORTLISTED", "REJECTED", "WITHDRAWN"];
 export const recruiterStatuses = ["VIEWED", "SHORTLISTED", "REJECTED"];
 

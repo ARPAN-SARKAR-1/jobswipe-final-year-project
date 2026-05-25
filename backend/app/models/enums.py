@@ -8,6 +8,50 @@ class UserRole(str, Enum):
     ADMIN = "ADMIN"
 
 
+class AcademicStatus(str, Enum):
+    UNDERGRADUATE = "UNDERGRADUATE"
+    GRADUATE = "GRADUATE"
+
+
+class CurrentAcademicYear(str, Enum):
+    FIRST_YEAR = "1st Year"
+    SECOND_YEAR = "2nd Year"
+    THIRD_YEAR = "3rd Year"
+    FOURTH_YEAR = "4th Year"
+    FINAL_YEAR = "Final Year"
+
+
+class InternshipPreference(str, Enum):
+    INTERNSHIP = "Internship"
+    TRAINING = "Training"
+    PART_TIME = "Part-time"
+    REMOTE_INTERNSHIP = "Remote Internship"
+    FULL_TIME_AFTER_GRADUATION = "Full-time after graduation"
+
+
+class GraduateLookingFor(str, Enum):
+    FULL_TIME = "Full-time"
+    INTERNSHIP = "Internship"
+    CONTRACT = "Contract"
+    REMOTE = "Remote"
+    HYBRID = "Hybrid"
+
+
+class EligibleAcademicStatus(str, Enum):
+    UNDERGRADUATE = "UNDERGRADUATE"
+    GRADUATE = "GRADUATE"
+    BOTH = "BOTH"
+
+
+class JobSeekerDocumentType(str, Enum):
+    RESUME = "RESUME"
+    MARKSHEET = "MARKSHEET"
+    CERTIFICATE = "CERTIFICATE"
+    INTERNSHIP_CERTIFICATE = "INTERNSHIP_CERTIFICATE"
+    COURSE_CERTIFICATE = "COURSE_CERTIFICATE"
+    OTHER = "OTHER"
+
+
 class AccountStatus(str, Enum):
     ACTIVE = "ACTIVE"
     SUSPENDED = "SUSPENDED"

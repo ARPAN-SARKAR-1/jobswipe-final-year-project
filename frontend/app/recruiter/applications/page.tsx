@@ -11,8 +11,8 @@ import PageHeader from "@/components/PageHeader";
 import ApplicationTimeline from "@/components/ApplicationTimeline";
 import StatusBadge from "@/components/StatusBadge";
 import { apiFetch } from "@/lib/api";
-import { recruiterStatuses } from "@/lib/options";
-import { openProtectedResume } from "@/lib/protectedFiles";
+import { academicStatuses, currentAcademicYears, recruiterStatuses } from "@/lib/options";
+import { openProtectedDocument, openProtectedResume } from "@/lib/protectedFiles";
 import { formatDate } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import type { Application, ChatThread } from "@/types";
@@ -27,16 +27,33 @@ export default function RecruiterApplicationsPage() {
   const [firstMessage, setFirstMessage] = useState("");
   const [chatSubmitting, setChatSubmitting] = useState(false);
   const [page, setPage] = useState(1);
+  const [filters, setFilters] = useState({
+    academic_status: "",
+    stream: "",
+    graduation_year: "",
+    current_year: "",
+    min_cgpa: "",
+    skills: "",
+    certificates_available: false
+  });
 
   const load = () => {
-    apiFetch<Application[]>(`/recruiter/applications?page=${page}&limit=${PAGE_LIMIT}`)
+    const params = new URLSearchParams({ page: String(page), limit: String(PAGE_LIMIT) });
+    Object.entries(filters).forEach(([key, value]) => {
+      if (typeof value === "boolean") {
+        if (value) params.set(key, "true");
+      } else if (value.trim()) {
+        params.set(key, value.trim());
+      }
+    });
+    apiFetch<Application[]>(`/recruiter/applications?${params.toString()}`)
       .then(setApplications)
       .catch((error) => toast.error(error instanceof Error ? error.message : "Applications failed"));
   };
 
   useEffect(() => {
     if (!loading) load();
-  }, [loading, page]);
+  }, [loading, page, filters]);
 
   const updateStatus = async (id: number, status: string) => {
     try {
@@ -86,6 +103,14 @@ export default function RecruiterApplicationsPage() {
     }
   };
 
+  const openDocument = async (path: string) => {
+    try {
+      await openProtectedDocument(path);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Document could not be opened");
+    }
+  };
+
   const reportCandidate = async (application: Application) => {
     const reason = window.prompt(`Why is ${application.applicant_name || "this candidate"} suspicious?`);
     if (!reason || reason.trim().length < 10) {
@@ -119,6 +144,31 @@ export default function RecruiterApplicationsPage() {
           </button>
         </div>
       </div>
+      <div className="mb-5 grid gap-3 rounded-lg border border-black/5 bg-white p-3 shadow-sm md:grid-cols-4">
+        <select className="field" value={filters.academic_status} onChange={(event) => setFilters({ ...filters, academic_status: event.target.value })}>
+          <option value="">Academic status</option>
+          {academicStatuses.map((status) => (
+            <option key={status} value={status}>{status}</option>
+          ))}
+        </select>
+        <input className="field" placeholder="Stream/branch" value={filters.stream} onChange={(event) => setFilters({ ...filters, stream: event.target.value })} />
+        <input className="field" placeholder="Graduation year" type="number" value={filters.graduation_year} onChange={(event) => setFilters({ ...filters, graduation_year: event.target.value })} />
+        <select className="field" value={filters.current_year} onChange={(event) => setFilters({ ...filters, current_year: event.target.value })}>
+          <option value="">Current year</option>
+          {currentAcademicYears.map((year) => (
+            <option key={year}>{year}</option>
+          ))}
+        </select>
+        <input className="field" placeholder="Minimum CGPA" type="number" value={filters.min_cgpa} onChange={(event) => setFilters({ ...filters, min_cgpa: event.target.value })} />
+        <input className="field" placeholder="Skills" value={filters.skills} onChange={(event) => setFilters({ ...filters, skills: event.target.value })} />
+        <label className="flex items-center gap-3 rounded-lg border border-black/10 bg-white/70 p-3 text-sm font-black text-[#526069]">
+          <input type="checkbox" checked={filters.certificates_available} onChange={(event) => setFilters({ ...filters, certificates_available: event.target.checked })} />
+          Certificates available
+        </label>
+        <button className="btn-secondary !py-2" type="button" onClick={() => setFilters({ academic_status: "", stream: "", graduation_year: "", current_year: "", min_cgpa: "", skills: "", certificates_available: false })}>
+          Clear filters
+        </button>
+      </div>
       {applications.length === 0 ? (
         <EmptyState title="No applications received" text="Applications will appear here after job seekers apply or swipe right." />
       ) : (
@@ -133,6 +183,14 @@ export default function RecruiterApplicationsPage() {
                 </div>
                 <h2 className="text-xl font-black">{application.applicant_name}</h2>
                 <p className="mt-1 text-sm font-bold text-[#6b767d]">{application.applicant_email}</p>
+                <div className="mt-3 grid gap-2 rounded-lg border border-black/5 bg-white/70 p-3 text-sm font-bold text-[#526069] md:grid-cols-2">
+                  <span>Academic: {application.applicant_academic_status || "Not added"}</span>
+                  <span>Degree: {application.applicant_degree_name || "Not added"}</span>
+                  <span>Stream: {application.applicant_stream_or_branch || "Not added"}</span>
+                  <span>Graduation: {application.applicant_graduation_year || application.applicant_current_year || "Not added"}</span>
+                  <span>CGPA: {application.applicant_cgpa ?? "Not added"}</span>
+                  <span>Preference: {application.applicant_internship_preference || application.applicant_experience_level || "Not added"}</span>
+                </div>
                 <p className="mt-4 text-base font-black text-[#172026]">{application.job_title}</p>
                 {application.admin_status === "PAUSED" && (
                   <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm font-bold text-amber-800">
@@ -158,6 +216,12 @@ export default function RecruiterApplicationsPage() {
                       Resume PDF
                     </button>
                   )}
+                  {application.applicant_documents?.map((document) => (
+                    <button key={document.id} className="btn-secondary !py-2" type="button" onClick={() => openDocument(document.file_url)}>
+                      <ExternalLink size={16} />
+                      {document.document_type.replaceAll("_", " ")}
+                    </button>
+                  ))}
                   <button className="btn-secondary !py-2 border-amber-200 bg-amber-50 text-amber-800" type="button" onClick={() => reportCandidate(application)}>
                     <ShieldAlert size={16} />
                     Report Candidate

@@ -16,6 +16,10 @@ type Dashboard = {
   recommended_jobs_count: number;
   saved_jobs_count: number;
   applications_count: number;
+  academic_profile_completed: boolean;
+  resume_uploaded: boolean;
+  marksheet_uploaded: boolean;
+  certificate_uploaded: boolean;
 };
 
 export default function JobSeekerDashboard() {
@@ -70,6 +74,12 @@ export default function JobSeekerDashboard() {
             <div className="h-3 rounded-lg bg-teal-600" style={{ width: `${data.profile_completion}%` }} />
           </div>
           <p className="mt-4 text-sm font-bold text-[#6b767d]">Recruiters see stronger context when resume, GitHub, skills, and experience are filled.</p>
+          <div className="mt-5 grid gap-2 text-sm font-black text-[#526069]">
+            <span>{data.academic_profile_completed ? "Complete" : "Pending"} academic profile</span>
+            <span>{data.resume_uploaded ? "Uploaded" : "Pending"} resume</span>
+            <span>{data.marksheet_uploaded ? "Uploaded" : "Pending"} marksheet</span>
+            <span>{data.certificate_uploaded ? "Uploaded" : "Pending"} certificate</span>
+          </div>
         </div>
       </section>
     </main>

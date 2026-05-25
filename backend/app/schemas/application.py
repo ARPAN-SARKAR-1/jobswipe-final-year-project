@@ -4,6 +4,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.models.enums import ApplicationAdminStatus, ApplicationStatus
 from app.schemas.job import JobRead
+from app.schemas.profile import RecruiterApplicantDocumentRead
 
 
 class ApplicationCreate(BaseModel):
@@ -35,6 +36,19 @@ class RecruiterApplicationRead(ApplicationRead):
     applicant_email: str
     applicant_github_url: str | None = None
     applicant_resume_pdf_url: str | None = None
+    applicant_academic_status: str | None = None
+    applicant_degree_name: str | None = None
+    applicant_stream_or_branch: str | None = None
+    applicant_college_or_university: str | None = None
+    applicant_graduation_year: int | None = None
+    applicant_current_year: str | None = None
+    applicant_cgpa: float | None = None
+    applicant_experience_level: str | None = None
+    applicant_internship_preference: str | None = None
+    applicant_open_to_remote: bool = False
+    applicant_open_to_relocation: bool = False
+    applicant_skills: str | None = None
+    applicant_documents: list[RecruiterApplicantDocumentRead] = Field(default_factory=list)
     job_title: str
 
 

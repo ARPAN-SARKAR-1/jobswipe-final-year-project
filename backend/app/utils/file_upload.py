@@ -19,6 +19,7 @@ IMAGE_TYPES = {
     "image/webp": {".webp"},
 }
 PDF_TYPES = {"application/pdf": {".pdf"}}
+ACADEMIC_DOCUMENT_TYPES = {**PDF_TYPES, **IMAGE_TYPES}
 DANGEROUS_EXTENSIONS = {
     ".bat",
     ".cmd",
@@ -55,6 +56,12 @@ def sanitize_original_filename(filename: str | None, allowed_extensions: set[str
     return suffix
 
 
+def safe_display_filename(filename: str | None) -> str:
+    raw_name = (filename or "document").strip().replace("\\", "_").replace("/", "_")
+    safe_name = re.sub(r"[^A-Za-z0-9._ -]", "_", raw_name).strip(" .")
+    return safe_name[:255] or "document"
+
+
 def sniff_content_type(content: bytes) -> str | None:
     if magic is not None:
         try:
@@ -73,7 +80,7 @@ def sniff_content_type(content: bytes) -> str | None:
     return None
 
 
-async def save_upload(file: UploadFile, subfolder: str, allowed_types: dict[str, set[str]], max_bytes: int) -> str:
+async def save_upload_with_metadata(file: UploadFile, subfolder: str, allowed_types: dict[str, set[str]], max_bytes: int) -> dict[str, str | int]:
     normalized_types = {key.lower(): {suffix.lower() for suffix in value} for key, value in allowed_types.items()}
     allowed_extensions = {suffix for suffixes in normalized_types.values() for suffix in suffixes}
     extension = sanitize_original_filename(file.filename, allowed_extensions)
@@ -102,7 +109,18 @@ async def save_upload(file: UploadFile, subfolder: str, allowed_types: dict[str,
     filename = f"{uuid4().hex}{extension}"
     target = target_dir / filename
     target.write_bytes(content)
-    return f"/uploads/{subfolder}/{filename}"
+    return {
+        "url": f"/uploads/{subfolder}/{filename}",
+        "stored_filename": filename,
+        "original_filename": safe_display_filename(file.filename),
+        "mime_type": detected_content_type,
+        "file_size": len(content),
+    }
+
+
+async def save_upload(file: UploadFile, subfolder: str, allowed_types: dict[str, set[str]], max_bytes: int) -> str:
+    metadata = await save_upload_with_metadata(file, subfolder, allowed_types, max_bytes)
+    return str(metadata["url"])
 
 
 async def save_image(file: UploadFile, subfolder: str) -> str:
@@ -113,3 +131,15 @@ async def save_resume_pdf(file: UploadFile) -> str:
     url = await save_upload(file, "resumes", PDF_TYPES, MAX_PDF_BYTES)
     filename = url.rsplit("/", 1)[-1]
     return f"/api/files/resumes/{filename}"
+
+
+async def save_jobseeker_document(file: UploadFile, resume_only: bool = False) -> dict[str, str | int]:
+    metadata = await save_upload_with_metadata(
+        file,
+        "jobseeker-documents",
+        PDF_TYPES if resume_only else ACADEMIC_DOCUMENT_TYPES,
+        MAX_PDF_BYTES,
+    )
+    filename = str(metadata["stored_filename"])
+    metadata["url"] = f"/api/files/jobseeker-documents/{filename}"
+    return metadata

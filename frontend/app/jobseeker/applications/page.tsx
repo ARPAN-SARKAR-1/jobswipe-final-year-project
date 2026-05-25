@@ -67,7 +67,7 @@ export default function MyApplicationsPage() {
                 <p className="mt-4 text-sm font-bold text-[#6b767d]">Applied on {formatDate(application.created_at)}</p>
                 {(application.resume_pdf_url || application.job) && (
                   <p className="mt-3 rounded-lg border border-teal-100 bg-teal-50 p-3 text-xs font-bold leading-6 text-teal-800">
-                    Resume shared with recruiter for this application.
+                    Your resume and selected academic documents are visible to this recruiter after application.
                   </p>
                 )}
                 <div className="mt-4 rounded-lg border border-black/5 bg-white p-3">

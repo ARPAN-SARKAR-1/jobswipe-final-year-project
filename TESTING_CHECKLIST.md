@@ -92,17 +92,29 @@ Use the `Status` column during manual testing. Suggested values: `Pending`, `Pas
 | USER-RISK-03 | Reported recruiter risk | Report a recruiter. | Recruiter user risk score increases and appears in Admin dashboard if medium or above. | Pending |
 | USER-RISK-04 | Suspicious user queue | Open Admin Dashboard after risk generation. | Suspicious Users section shows flagged users with risk score/reasons. | Pending |
 | USER-RISK-05 | User risk review/suspend | Owner/Admin reviews and suspends a suspicious user. | Risk item is marked reviewed and user account is suspended. | Pending |
-| REVIEW-01 | Review eligibility | Job seeker reviews company after applying to a job from that company. | Review is created. | Pending |
-| REVIEW-02 | Review ineligible | Job seeker reviews company without applying. | Backend returns 403. | Pending |
+| REVIEW-01 | Review eligibility | Job seeker reviews company after being shortlisted for a job from that company. | Review is created. | Pending |
+| REVIEW-02 | Review ineligible | Job seeker reviews company without a shortlisted-or-later application. | Backend returns 403. | Pending |
 | REVIEW-03 | Duplicate review | Job seeker reviews same company twice. | Backend returns conflict. | Pending |
 | REVIEW-04 | Rating average | Create, hide, and show review. | Average rating and total visible reviews update. | Pending |
 | REVIEW-05 | Review moderation | Owner/Admin hides and shows review. | Public company page respects visibility. | Pending |
-| REVIEW-06 | Recruiter review eligible | Job seeker reviews recruiter after applying to that recruiter's job or after chat. | Review is created and recruiter rating updates. | Pending |
+| REVIEW-06 | Recruiter review eligible | Job seeker reviews recruiter after being shortlisted for that recruiter's job or after recruiter-started chat. | Review is created and recruiter rating updates. | Pending |
 | REVIEW-07 | Recruiter review ineligible | Job seeker reviews unrelated recruiter. | Backend returns 403. | Pending |
 | REVIEW-08 | Duplicate recruiter review | Job seeker reviews same recruiter twice. | Backend returns conflict. | Pending |
 | REVIEW-09 | Recruiter cannot manage reviews | Recruiter tries to call admin review moderation APIs. | Backend returns 403. | Pending |
 | REVIEW-10 | Review analytics | Owner/Admin opens review analytics. | Highest/lowest companies, low-rated recruiters, and flagged/hidden counts load. | Pending |
 | REVIEW-11 | Review anonymity | Job seeker submits anonymous review. | Public page hides reviewer name; Admin moderation still shows reviewer. | Pending |
+| ACADEMIC-01 | Undergraduate profile | Job seeker selects Undergraduate and saves degree, stream, current year, CGPA, and internship preference. | Profile saves and reloads with undergraduate fields. | Pending |
+| ACADEMIC-02 | Graduate profile | Job seeker selects Graduate and saves passing year, final CGPA/percentage, experience level, and looking-for preference. | Profile saves and reloads with graduate fields. | Pending |
+| DOC-01 | Resume document upload | Job seeker uploads PDF resume through documents section. | Upload succeeds and appears in document list. | Pending |
+| DOC-02 | Marksheet upload | Job seeker uploads PDF/JPG/PNG/WEBP marksheet. | Upload succeeds and is protected. | Pending |
+| DOC-03 | Certificate skill link | Job seeker uploads certificate with related skill and issuer. | Certificate appears with skill metadata. | Pending |
+| DOC-04 | Invalid document type | Upload unsupported extension or MIME type. | Backend returns invalid file type. | Pending |
+| DOC-05 | Oversized document | Upload document larger than 5 MB. | Backend returns file size error. | Pending |
+| DOC-06 | Document access control | Recruiter opens document for unrelated job seeker. | Backend returns 403 or 404. | Pending |
+| DOC-07 | Recruiter applicant document access | Recruiter opens document for candidate who applied to own job. | Document opens through protected route. | Pending |
+| FILTER-01 | Recruiter academic filter | Recruiter filters applications by Undergraduate/Graduate. | Filtered applicant list loads. | Pending |
+| MATCH-01 | Internship academic match | Undergraduate profile views internship job. | Match score benefits internship/undergraduate fit. | Pending |
+| MATCH-02 | Full-time academic match | Graduate profile views full-time job. | Match score benefits graduate/full-time fit. | Pending |
 | NOTIF-01 | Notification list | User opens notifications page. | Notifications load. | Pending |
 | NOTIF-02 | Mark read | User marks notifications read. | Unread count updates. | Pending |
 | PRIVACY-01 | Terms page | Open `/terms`. | Terms page loads. | Pending |

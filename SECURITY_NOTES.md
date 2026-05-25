@@ -44,6 +44,9 @@
 - Resume PDFs are not served through the public static uploads route.
 - Resume access goes through `GET /api/files/resumes/{filename}` with role and ownership checks.
 - Job seekers can access their own resume, recruiters can access resumes only for applicants to their own jobs, and Owner/Admin users can access resumes for moderation.
+- Academic documents such as marksheets and certificates are not public and are served through `GET /api/files/jobseeker-documents/{filename}` with the same ownership-based access rules.
+- Recruiters cannot access documents of candidates who did not apply to their jobs.
+- Academic document uploads validate file extension, MIME type, file signature, and size before saving with UUID filenames.
 - If `python-magic` is available, upload validation can use it for MIME detection; otherwise the backend uses extension, declared MIME type, and basic file-signature checks.
 
 ## Rate Limiting And CORS
@@ -61,7 +64,8 @@
 ## Data Visibility
 
 - Resumes are not public.
-- A recruiter can see a resume only after the job seeker applies to that recruiter's job.
+- Academic documents are not public.
+- A recruiter can see a resume, marksheet, or certificate only after the job seeker applies to that recruiter's job.
 - Owner/Admin users may access records only for moderation or support workflows.
 
 ## Fake Job Prevention
@@ -86,8 +90,8 @@
 - Match score is rule-based weighted scoring using profile and job fields. It is not a machine learning model.
 - Duplicate applications are blocked by backend application checks.
 - Duplicate company reviews are blocked by backend eligibility checks.
-- Company reviews require the job seeker to have applied to at least one job from that company.
-- Recruiter reviews require the job seeker to have applied to one of the recruiter's jobs or participated in a recruiter-started chat.
+- Company reviews require the job seeker to have a shortlisted-or-later application for a job from that company.
+- Recruiter reviews require the job seeker to have a shortlisted-or-later application for one of the recruiter's jobs; a recruiter-started chat after shortlisting also confirms the same relationship.
 - Anonymous reviews hide the job seeker name publicly, but Owner/Admin users can still see reviewer identity for moderation and safety.
 - Owner/Admin users can hide, show, or flag abusive company and recruiter reviews.
 - Hidden reviews are excluded from public review lists and rating rollups.

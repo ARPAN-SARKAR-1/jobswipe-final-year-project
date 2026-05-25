@@ -9,7 +9,7 @@ import PageHeader from "@/components/PageHeader";
 import SkillMultiSelect from "@/components/SkillMultiSelect";
 import VerificationStatusBadge from "@/components/VerificationStatusBadge";
 import { apiFetch } from "@/lib/api";
-import { experienceLevels, jobTypes, workModes } from "@/lib/options";
+import { eligibleAcademicStatuses, experienceLevels, jobTypes, workModes } from "@/lib/options";
 import { useAuth } from "@/hooks/useAuth";
 import type { CompanyProfile, Job } from "@/types";
 
@@ -29,7 +29,12 @@ const initial = {
   is_active: true,
   has_bond: false,
   bond_years: "",
-  bond_details: ""
+  bond_details: "",
+  eligible_academic_status: "BOTH",
+  eligible_streams: "",
+  minimum_cgpa: "",
+  eligible_graduation_years: "",
+  internship_available: true
 };
 
 export default function PostJobPage() {
@@ -81,7 +86,10 @@ export default function PostJobPage() {
           eligibility: form.eligibility || null,
           salary: form.salary || null,
           bond_years: form.has_bond ? Number(form.bond_years) : null,
-          bond_details: form.has_bond ? form.bond_details || null : null
+          bond_details: form.has_bond ? form.bond_details || null : null,
+          eligible_streams: form.eligible_streams || null,
+          minimum_cgpa: form.minimum_cgpa ? Number(form.minimum_cgpa) : null,
+          eligible_graduation_years: form.eligible_graduation_years || null
         })
       });
       toast.success(job.moderation_status === "PAUSED" ? "Your job has been sent for review due to safety checks." : "Job posted");
@@ -118,6 +126,14 @@ export default function PostJobPage() {
         <Select label="Work mode" value={form.work_mode} options={workModes} onChange={(value) => setForm({ ...form, work_mode: value })} />
         <Input label="Salary/stipend" name="salary" value={form.salary} onChange={(value) => setForm({ ...form, salary: value })} />
         <Select label="Required experience level" value={form.required_experience_level} options={experienceLevels} onChange={(value) => setForm({ ...form, required_experience_level: value })} />
+        <Select label="Eligible academic status" value={form.eligible_academic_status} options={eligibleAcademicStatuses} onChange={(value) => setForm({ ...form, eligible_academic_status: value })} />
+        <Input label="Eligible streams" name="eligible_streams" value={form.eligible_streams} onChange={(value) => setForm({ ...form, eligible_streams: value })} />
+        <Input label="Minimum CGPA" name="minimum_cgpa" value={form.minimum_cgpa} onChange={(value) => setForm({ ...form, minimum_cgpa: value })} type="number" />
+        <Input label="Eligible graduation years" name="eligible_graduation_years" value={form.eligible_graduation_years} onChange={(value) => setForm({ ...form, eligible_graduation_years: value })} />
+        <label className="flex items-center gap-3 rounded-lg border border-black/10 bg-white/70 p-3 text-sm font-black text-[#526069]">
+          <input type="checkbox" checked={form.internship_available} onChange={(event) => setForm({ ...form, internship_available: event.target.checked })} />
+          Internship available
+        </label>
         <div className="md:col-span-2">
           <SkillMultiSelect label="Required skills" selected={form.required_skills} onChange={(skills) => setForm({ ...form, required_skills: skills })} required />
         </div>

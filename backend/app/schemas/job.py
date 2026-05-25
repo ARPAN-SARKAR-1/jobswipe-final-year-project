@@ -3,7 +3,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator, model_validator
 
-from app.models.enums import CompanyVerificationStatus, JobModerationStatus, RecruiterVerificationStatus
+from app.models.enums import CompanyVerificationStatus, EligibleAcademicStatus, JobModerationStatus, RecruiterVerificationStatus
 from app.utils.skills import normalize_skills, split_skills
 
 
@@ -24,18 +24,16 @@ class JobBase(BaseModel):
     has_bond: bool = False
     bond_years: float | None = Field(default=None, ge=0)
     bond_details: str | None = None
+    eligible_academic_status: EligibleAcademicStatus = EligibleAcademicStatus.BOTH
+    eligible_streams: str | None = None
+    minimum_cgpa: float | None = Field(default=None, ge=0, le=10)
+    eligible_graduation_years: str | None = Field(default=None, max_length=255)
+    internship_available: bool = False
 
     @field_validator("required_skills", mode="before")
     @classmethod
     def normalize_required_skills(cls, value: Any) -> str:
         return normalize_skills(value)
-
-    @field_validator("deadline")
-    @classmethod
-    def deadline_not_in_past(cls, value: date) -> date:
-        if value < date.today():
-            raise ValueError("Deadline cannot be in the past")
-        return value
 
     @field_validator("salary")
     @classmethod
@@ -49,6 +47,13 @@ class JobBase(BaseModel):
         if numeric_text.replace(".", "", 1).lstrip("-").isdigit() and float(numeric_text) < 0:
             raise ValueError("Salary cannot be negative")
         return text
+
+    @field_validator("eligible_streams", mode="before")
+    @classmethod
+    def normalize_eligible_streams(cls, value: Any) -> str | None:
+        if value is None:
+            return None
+        return normalize_skills(value)
 
     @model_validator(mode="after")
     def validate_bond(self) -> "JobBase":
@@ -66,7 +71,12 @@ class JobBase(BaseModel):
 
 
 class JobCreate(JobBase):
-    pass
+    @field_validator("deadline")
+    @classmethod
+    def deadline_not_in_past(cls, value: date) -> date:
+        if value < date.today():
+            raise ValueError("Deadline cannot be in the past")
+        return value
 
 
 class JobUpdate(BaseModel):
@@ -86,6 +96,11 @@ class JobUpdate(BaseModel):
     has_bond: bool | None = None
     bond_years: float | None = Field(default=None, ge=0)
     bond_details: str | None = None
+    eligible_academic_status: EligibleAcademicStatus | None = None
+    eligible_streams: str | None = None
+    minimum_cgpa: float | None = Field(default=None, ge=0, le=10)
+    eligible_graduation_years: str | None = Field(default=None, max_length=255)
+    internship_available: bool | None = None
 
     @field_validator("required_skills", mode="before")
     @classmethod
@@ -114,6 +129,13 @@ class JobUpdate(BaseModel):
             raise ValueError("Salary cannot be negative")
         return text
 
+    @field_validator("eligible_streams", mode="before")
+    @classmethod
+    def normalize_eligible_streams(cls, value: Any) -> str | None:
+        if value is None:
+            return None
+        return normalize_skills(value)
+
     @model_validator(mode="after")
     def validate_bond(self) -> "JobUpdate":
         if self.has_bond is True and self.bond_years is None:
@@ -135,6 +157,11 @@ class JobRead(JobBase):
     company_average_rating: float | None = None
     company_total_reviews: int | None = None
     trusted_job: bool = False
+    eligible_academic_status: EligibleAcademicStatus = EligibleAcademicStatus.BOTH
+    eligible_streams: str | None = None
+    minimum_cgpa: float | None = None
+    eligible_graduation_years: str | None = None
+    internship_available: bool = False
     match_score: int | None = None
     matched_skills: list[str] = []
     missing_skills: list[str] = []
