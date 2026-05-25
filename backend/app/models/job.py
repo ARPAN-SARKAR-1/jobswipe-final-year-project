@@ -38,6 +38,7 @@ class Job(TimestampMixin, Base):
     swipes = relationship("Swipe", back_populates="job", cascade="all, delete-orphan")
     chat_threads = relationship("ChatThread", back_populates="job", cascade="all, delete-orphan")
     reports = relationship("Report", back_populates="job")
+    risk_assessment = relationship("JobRiskAssessment", back_populates="job", uselist=False, cascade="all, delete-orphan")
 
     @property
     def company_verification_status(self) -> str | None:

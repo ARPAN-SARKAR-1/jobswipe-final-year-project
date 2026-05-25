@@ -11,34 +11,58 @@ from app.models.admin_action_log import AdminActionLog
 from app.models.application import Application
 from app.models.chat_thread import ChatThread
 from app.models.company import Company
+from app.models.company_claim_request import CompanyClaimRequest
+from app.models.company_member import CompanyMember
 from app.models.company_review import CompanyReview
+from app.models.candidate_risk_assessment import CandidateRiskAssessment
 from app.models.enums import (
     AccountStatus,
     ApplicationAdminStatus,
     ChatThreadStatus,
+    CompanyClaimStatus,
+    CompanyMemberRole,
     CompanyVerificationStatus,
     JobModerationStatus,
     RecruiterVerificationStatus,
     ReportStatus,
+    ReviewModerationStatus,
+    RiskAutoAction,
     UserRole,
 )
 from app.models.job import Job
+from app.models.job_risk_assessment import JobRiskAssessment
 from app.models.recruiter_profile import RecruiterProfile
+from app.models.recruiter_review import RecruiterReview
 from app.models.report import Report
 from app.models.swipe import Swipe
 from app.models.user import User
-from app.schemas.admin import AdminActionLogRead, AdminCreateRequest, AdminNoteRequest, AdminReasonRequest
+from app.models.user_risk_assessment import UserRiskAssessment
+from app.schemas.admin import (
+    AdminActionLogRead,
+    AdminCreateRequest,
+    AdminNoteRequest,
+    AdminReasonRequest,
+    CandidateRiskAssessmentRead,
+    JobRiskAssessmentRead,
+    UserRiskAssessmentRead,
+)
 from app.schemas.application import ApplicationRead
 from app.schemas.chat import ChatThreadRead
 from app.schemas.auth import UserRead
-from app.schemas.company import AdminCompanyReviewRead, CompanyRead
+from app.schemas.company import AdminCompanyReviewRead, CompanyClaimRead, CompanyJoinRequestRead, CompanyRead
 from app.schemas.job import JobRead
 from app.schemas.profile import AdminRecruiterVerificationRead
 from app.schemas.report import ReportRead, ReportStatusUpdate
+from app.schemas.review import RecruiterReviewRead, ReviewAnalyticsRead
+from app.schemas.security import SecuritySettingsRead, SecuritySettingsUpdate
 from app.schemas.swipe import SwipeRead
 from app.services.company_reviews import recalculate_company_rating
+from app.services.company_claims import ensure_company_member, finalize_claim_as_verified, reject_company_member
+from app.services.captcha import get_security_settings
 from app.services.notifications import create_notification
+from app.services.recruiter_reviews import recalculate_recruiter_rating
 from app.services.timeline import add_timeline_event
+from app.services.user_risk_assessment import update_user_risk
 from app.utils.pagination import LimitQuery, PageQuery, pagination_offset
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
@@ -63,10 +87,117 @@ def log_action(
     )
 
 
+def utc_now_naive() -> datetime:
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
 def ensure_user_exists(user: User | None) -> User:
     if user is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     return user
+
+
+def admin_company_claim_response(claim: CompanyClaimRequest) -> CompanyClaimRead:
+    return CompanyClaimRead(
+        id=claim.id,
+        company_id=claim.company_id,
+        requested_company_name=claim.requested_company_name,
+        requested_domain=claim.requested_domain,
+        requester_user_id=claim.requester_user_id,
+        official_email=claim.official_email,
+        claim_status=claim.claim_status,
+        email_verified_at=claim.email_verified_at,
+        reviewed_by_admin_id=claim.reviewed_by_admin_id,
+        admin_note=claim.admin_note,
+        risk_score=claim.risk_score,
+        risk_level=claim.risk_level,
+        requires_admin_review=claim.requires_admin_review,
+        risk_reasons=claim.risk_reasons,
+        company_name=claim.company.company_name if claim.company else None,
+        requester_name=claim.requester.name if claim.requester else None,
+        created_at=claim.created_at,
+        updated_at=claim.updated_at,
+    )
+
+
+def admin_company_member_response(member: CompanyMember) -> CompanyJoinRequestRead:
+    return CompanyJoinRequestRead(
+        id=member.id,
+        company_id=member.company_id,
+        user_id=member.user_id,
+        company_role=member.company_role,
+        verification_status=member.verification_status,
+        requested_at=member.requested_at,
+        verified_at=member.verified_at,
+        verified_by_user_id=member.verified_by_user_id,
+        note=member.note,
+        user_name=member.user.name if member.user else None,
+        user_email=member.user.email if member.user else None,
+        company_name=member.company.company_name if member.company else None,
+        created_at=member.created_at,
+        updated_at=member.updated_at,
+    )
+
+
+def job_risk_response(assessment: JobRiskAssessment) -> JobRiskAssessmentRead:
+    job = assessment.job
+    recruiter = job.recruiter if job else None
+    return JobRiskAssessmentRead(
+        id=assessment.id,
+        job_id=assessment.job_id,
+        risk_score=assessment.risk_score,
+        risk_level=assessment.risk_level,
+        reasons=assessment.reasons,
+        auto_action=assessment.auto_action,
+        reviewed_by_admin_id=assessment.reviewed_by_admin_id,
+        reviewed_at=assessment.reviewed_at,
+        job_title=job.title if job else None,
+        company_name=job.company_name if job else None,
+        recruiter_id=job.recruiter_id if job else None,
+        recruiter_name=recruiter.name if recruiter else None,
+        moderation_status=job.moderation_status if job else None,
+        created_at=assessment.created_at,
+        updated_at=assessment.updated_at,
+    )
+
+
+def candidate_risk_response(assessment: CandidateRiskAssessment) -> CandidateRiskAssessmentRead:
+    user = assessment.job_seeker
+    return CandidateRiskAssessmentRead(
+        id=assessment.id,
+        job_seeker_id=assessment.job_seeker_id,
+        risk_score=assessment.risk_score,
+        risk_level=assessment.risk_level,
+        reasons=assessment.reasons,
+        reviewed_by_admin_id=assessment.reviewed_by_admin_id,
+        reviewed_at=assessment.reviewed_at,
+        admin_note=assessment.admin_note,
+        job_seeker_name=user.name if user else None,
+        job_seeker_email=user.email if user else None,
+        created_at=assessment.created_at,
+        updated_at=assessment.updated_at,
+    )
+
+
+def user_risk_response(assessment: UserRiskAssessment) -> UserRiskAssessmentRead:
+    user = assessment.user
+    return UserRiskAssessmentRead(
+        id=assessment.id,
+        user_id=assessment.user_id,
+        risk_score=assessment.risk_score,
+        risk_level=assessment.risk_level,
+        reasons=assessment.reasons,
+        last_evaluated_at=assessment.last_evaluated_at,
+        reviewed_by_admin_id=assessment.reviewed_by_admin_id,
+        reviewed_at=assessment.reviewed_at,
+        admin_note=assessment.admin_note,
+        user_name=user.name if user else None,
+        user_email=user.email if user else None,
+        user_role=user.role if user else None,
+        account_status=user.account_status if user else None,
+        created_at=assessment.created_at,
+        updated_at=assessment.updated_at,
+    )
 
 
 def ensure_owner_target_allowed(current_user: User, target: User, action: str) -> None:
@@ -290,6 +421,147 @@ def list_admins(
     )
 
 
+@router.get("/security-settings", response_model=SecuritySettingsRead)
+def security_settings(
+    _current_user: Annotated[User, Depends(require_admin_or_owner)],
+    db: Annotated[Session, Depends(get_db)],
+) -> SecuritySettingsRead:
+    return get_security_settings(db)
+
+
+@router.put("/security-settings", response_model=SecuritySettingsRead)
+def update_security_settings(
+    payload: SecuritySettingsUpdate,
+    current_user: Annotated[User, Depends(require_admin_or_owner)],
+    db: Annotated[Session, Depends(get_db)],
+) -> SecuritySettingsRead:
+    settings = get_security_settings(db)
+    for key, value in payload.model_dump(exclude_unset=True).items():
+        setattr(settings, key, value)
+    log_action(db, current_user, "UPDATE_SECURITY_SETTINGS", "SECURITY_SETTINGS", settings.id)
+    db.commit()
+    db.refresh(settings)
+    return settings
+
+
+@router.get("/company-claims", response_model=list[CompanyClaimRead])
+def company_claims(
+    _current_user: Annotated[User, Depends(require_admin_or_owner)],
+    db: Annotated[Session, Depends(get_db)],
+    page: PageQuery = 1,
+    limit: LimitQuery = 20,
+    search: str | None = None,
+) -> list[CompanyClaimRead]:
+    statement = (
+        select(CompanyClaimRequest)
+        .options(joinedload(CompanyClaimRequest.company), joinedload(CompanyClaimRequest.requester))
+        .order_by(CompanyClaimRequest.requires_admin_review.desc(), CompanyClaimRequest.created_at.desc())
+    )
+    if search:
+        term = f"%{search.strip()}%"
+        statement = statement.where(
+            or_(
+                CompanyClaimRequest.requested_company_name.ilike(term),
+                CompanyClaimRequest.requested_domain.ilike(term),
+                CompanyClaimRequest.official_email.ilike(term),
+            )
+        )
+    claims = db.scalars(statement.offset(pagination_offset(page, limit)).limit(limit)).all()
+    return [admin_company_claim_response(claim) for claim in claims]
+
+
+@router.get("/company-members", response_model=list[CompanyJoinRequestRead])
+def company_member_requests(
+    _current_user: Annotated[User, Depends(require_admin_or_owner)],
+    db: Annotated[Session, Depends(get_db)],
+    page: PageQuery = 1,
+    limit: LimitQuery = 20,
+    verification_status: str | None = None,
+    search: str | None = None,
+) -> list[CompanyJoinRequestRead]:
+    statement = (
+        select(CompanyMember)
+        .options(joinedload(CompanyMember.user), joinedload(CompanyMember.company))
+        .order_by(CompanyMember.verification_status.asc(), CompanyMember.created_at.desc())
+    )
+    if verification_status:
+        statement = statement.where(CompanyMember.verification_status == verification_status.upper())
+    if search:
+        term = f"%{search.strip()}%"
+        statement = statement.join(User, CompanyMember.user_id == User.id).join(Company, CompanyMember.company_id == Company.id)
+        statement = statement.where(or_(User.name.ilike(term), User.email.ilike(term), Company.company_name.ilike(term)))
+    members = db.scalars(statement.offset(pagination_offset(page, limit)).limit(limit)).all()
+    return [admin_company_member_response(member) for member in members]
+
+
+@router.put("/company-claims/{claim_id}/approve", response_model=CompanyClaimRead)
+def approve_company_claim(
+    claim_id: int,
+    payload: AdminNoteRequest,
+    current_user: Annotated[User, Depends(require_admin_or_owner)],
+    db: Annotated[Session, Depends(get_db)],
+) -> CompanyClaimRead:
+    claim = db.scalar(
+        select(CompanyClaimRequest)
+        .options(joinedload(CompanyClaimRequest.company), joinedload(CompanyClaimRequest.requester))
+        .where(CompanyClaimRequest.id == claim_id)
+    )
+    if claim is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Company claim not found")
+    if claim.email_verified_at is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Official email must be verified before approval.")
+    claim.admin_note = payload.admin_note
+    finalize_claim_as_verified(db, claim, current_user)
+    log_action(db, current_user, "APPROVE_COMPANY_CLAIM", "COMPANY_CLAIM", claim.id, payload.admin_note)
+    db.commit()
+    db.refresh(claim)
+    return admin_company_claim_response(claim)
+
+
+@router.put("/company-claims/{claim_id}/reject", response_model=CompanyClaimRead)
+def reject_company_claim(
+    claim_id: int,
+    payload: AdminNoteRequest,
+    current_user: Annotated[User, Depends(require_admin_or_owner)],
+    db: Annotated[Session, Depends(get_db)],
+) -> CompanyClaimRead:
+    claim = db.scalar(
+        select(CompanyClaimRequest)
+        .options(joinedload(CompanyClaimRequest.company), joinedload(CompanyClaimRequest.requester))
+        .where(CompanyClaimRequest.id == claim_id)
+    )
+    if claim is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Company claim not found")
+    claim.claim_status = CompanyClaimStatus.REJECTED.value
+    claim.reviewed_by_admin_id = current_user.id
+    claim.admin_note = payload.admin_note
+    if claim.company:
+        claim.company.verification_status = CompanyVerificationStatus.REJECTED.value
+        claim.company.verification_note = payload.admin_note
+    member = db.scalar(
+        select(CompanyMember)
+        .where(CompanyMember.company_id == claim.company_id)
+        .where(CompanyMember.user_id == claim.requester_user_id)
+    )
+    if member:
+        reject_company_member(db, member, current_user, payload.admin_note)
+    create_notification(
+        db,
+        claim.requester_user_id,
+        "Company claim rejected",
+        payload.admin_note,
+        "COMPANY_CLAIM_REJECTED",
+        "/recruiter/company",
+    )
+    log_action(db, current_user, "REJECT_COMPANY_CLAIM", "COMPANY_CLAIM", claim.id, payload.admin_note)
+    requester = db.get(User, claim.requester_user_id)
+    if requester:
+        update_user_risk(db, requester)
+    db.commit()
+    db.refresh(claim)
+    return admin_company_claim_response(claim)
+
+
 def company_admin_response(db: Session, company: Company) -> CompanyRead:
     active_jobs = db.scalar(
         select(func.count(Job.id))
@@ -506,6 +778,17 @@ def verify_recruiter(
     profile.verification_note = payload.admin_note
     profile.verified_at = datetime.now(timezone.utc).replace(tzinfo=None)
     profile.verified_by_admin_id = current_user.id
+    if profile.company_id:
+        member = ensure_company_member(
+            db,
+            profile.company_id,
+            profile.user_id,
+            CompanyMemberRole.COMPANY_RECRUITER.value,
+            RecruiterVerificationStatus.VERIFIED.value,
+            payload.admin_note,
+        )
+        member.verified_at = profile.verified_at
+        member.verified_by_user_id = current_user.id
     create_notification(
         db,
         profile.user_id,
@@ -532,6 +815,15 @@ def reject_recruiter(
     profile.verification_note = payload.admin_note
     profile.verified_at = None
     profile.verified_by_admin_id = current_user.id
+    if profile.company_id:
+        member = db.scalar(
+            select(CompanyMember)
+            .where(CompanyMember.company_id == profile.company_id)
+            .where(CompanyMember.user_id == profile.user_id)
+        )
+        if member:
+            member.verification_status = RecruiterVerificationStatus.REJECTED.value
+            member.note = payload.admin_note
     create_notification(
         db,
         profile.user_id,
@@ -551,9 +843,20 @@ def company_review_response(review: CompanyReview) -> AdminCompanyReviewRead:
         id=review.id,
         company_id=review.company_id,
         job_seeker_id=review.job_seeker_id,
+        application_id=review.application_id,
         rating=review.rating,
+        overall_rating=review.overall_rating,
+        work_culture_rating=review.work_culture_rating,
+        interview_process_rating=review.interview_process_rating,
+        salary_transparency_rating=review.salary_transparency_rating,
+        growth_opportunity_rating=review.growth_opportunity_rating,
+        review_title=review.review_title,
         review_text=review.review_text,
+        pros=review.pros,
+        cons=review.cons,
+        is_anonymous=review.is_anonymous,
         is_visible=review.is_visible,
+        moderation_status=review.moderation_status,
         reviewer_name=review.job_seeker.name if review.job_seeker else None,
         reviewer_email=review.job_seeker.email if review.job_seeker else None,
         company_name=review.company.company_name if review.company else None,
@@ -585,12 +888,7 @@ def company_reviews(
     return [company_review_response(review) for review in reviews]
 
 
-@router.put("/company-reviews/{review_id}/hide", response_model=AdminCompanyReviewRead)
-def hide_company_review(
-    review_id: int,
-    current_user: Annotated[User, Depends(require_admin_or_owner)],
-    db: Annotated[Session, Depends(get_db)],
-) -> AdminCompanyReviewRead:
+def load_company_review(db: Session, review_id: int) -> CompanyReview:
     review = db.scalar(
         select(CompanyReview)
         .options(joinedload(CompanyReview.company), joinedload(CompanyReview.job_seeker))
@@ -598,7 +896,18 @@ def hide_company_review(
     )
     if review is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Review not found")
+    return review
+
+
+@router.put("/company-reviews/{review_id}/hide", response_model=AdminCompanyReviewRead)
+def hide_company_review(
+    review_id: int,
+    current_user: Annotated[User, Depends(require_admin_or_owner)],
+    db: Annotated[Session, Depends(get_db)],
+) -> AdminCompanyReviewRead:
+    review = load_company_review(db, review_id)
     review.is_visible = False
+    review.moderation_status = ReviewModerationStatus.HIDDEN.value
     recalculate_company_rating(db, review.company_id)
     log_action(db, current_user, "HIDE_COMPANY_REVIEW", "COMPANY_REVIEW", review.id)
     db.commit()
@@ -612,19 +921,215 @@ def show_company_review(
     current_user: Annotated[User, Depends(require_admin_or_owner)],
     db: Annotated[Session, Depends(get_db)],
 ) -> AdminCompanyReviewRead:
-    review = db.scalar(
-        select(CompanyReview)
-        .options(joinedload(CompanyReview.company), joinedload(CompanyReview.job_seeker))
-        .where(CompanyReview.id == review_id)
-    )
-    if review is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Review not found")
+    review = load_company_review(db, review_id)
     review.is_visible = True
+    review.moderation_status = ReviewModerationStatus.VISIBLE.value
     recalculate_company_rating(db, review.company_id)
     log_action(db, current_user, "SHOW_COMPANY_REVIEW", "COMPANY_REVIEW", review.id)
     db.commit()
     db.refresh(review)
     return company_review_response(review)
+
+
+@router.put("/company-reviews/{review_id}/flag", response_model=AdminCompanyReviewRead)
+def flag_company_review(
+    review_id: int,
+    current_user: Annotated[User, Depends(require_admin_or_owner)],
+    db: Annotated[Session, Depends(get_db)],
+) -> AdminCompanyReviewRead:
+    review = load_company_review(db, review_id)
+    review.is_visible = False
+    review.moderation_status = ReviewModerationStatus.FLAGGED.value
+    recalculate_company_rating(db, review.company_id)
+    log_action(db, current_user, "FLAG_COMPANY_REVIEW", "COMPANY_REVIEW", review.id)
+    db.commit()
+    db.refresh(review)
+    return company_review_response(review)
+
+
+def recruiter_review_response(review: RecruiterReview) -> RecruiterReviewRead:
+    profile = review.recruiter.recruiter_profile if review.recruiter else None
+    company = profile.company if profile else None
+    return RecruiterReviewRead(
+        id=review.id,
+        recruiter_id=review.recruiter_id,
+        job_seeker_id=review.job_seeker_id,
+        application_id=review.application_id,
+        overall_rating=review.overall_rating,
+        communication_rating=review.communication_rating,
+        response_time_rating=review.response_time_rating,
+        professionalism_rating=review.professionalism_rating,
+        transparency_rating=review.transparency_rating,
+        review_title=review.review_title,
+        review_text=review.review_text,
+        is_anonymous=review.is_anonymous,
+        is_visible=review.is_visible,
+        moderation_status=review.moderation_status,
+        reviewer_name=review.job_seeker.name if review.job_seeker else None,
+        recruiter_name=review.recruiter.name if review.recruiter else None,
+        recruiter_email=review.recruiter.email if review.recruiter else None,
+        company_name=company.company_name if company else None,
+        created_at=review.created_at,
+        updated_at=review.updated_at,
+    )
+
+
+@router.get("/recruiter-reviews", response_model=list[RecruiterReviewRead])
+def recruiter_reviews(
+    _current_user: Annotated[User, Depends(require_admin_or_owner)],
+    db: Annotated[Session, Depends(get_db)],
+    page: PageQuery = 1,
+    limit: LimitQuery = 20,
+    search: str | None = None,
+) -> list[RecruiterReviewRead]:
+    statement = (
+        select(RecruiterReview)
+        .join(User, RecruiterReview.recruiter_id == User.id)
+        .options(
+            joinedload(RecruiterReview.job_seeker),
+            joinedload(RecruiterReview.recruiter).joinedload(User.recruiter_profile).joinedload(RecruiterProfile.company),
+        )
+        .order_by(RecruiterReview.created_at.desc(), RecruiterReview.id.desc())
+    )
+    if search:
+        term = f"%{search.strip()}%"
+        statement = statement.where(or_(User.name.ilike(term), User.email.ilike(term), RecruiterReview.review_text.ilike(term)))
+    rows = db.scalars(statement.offset(pagination_offset(page, limit)).limit(limit)).all()
+    return [recruiter_review_response(row) for row in rows]
+
+
+def load_recruiter_review(db: Session, review_id: int) -> RecruiterReview:
+    review = db.scalar(
+        select(RecruiterReview)
+        .options(
+            joinedload(RecruiterReview.job_seeker),
+            joinedload(RecruiterReview.recruiter).joinedload(User.recruiter_profile).joinedload(RecruiterProfile.company),
+        )
+        .where(RecruiterReview.id == review_id)
+    )
+    if review is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Recruiter review not found")
+    return review
+
+
+@router.put("/recruiter-reviews/{review_id}/hide", response_model=RecruiterReviewRead)
+def hide_recruiter_review(
+    review_id: int,
+    current_user: Annotated[User, Depends(require_admin_or_owner)],
+    db: Annotated[Session, Depends(get_db)],
+) -> RecruiterReviewRead:
+    review = load_recruiter_review(db, review_id)
+    review.is_visible = False
+    review.moderation_status = ReviewModerationStatus.HIDDEN.value
+    recalculate_recruiter_rating(db, review.recruiter_id)
+    log_action(db, current_user, "HIDE_RECRUITER_REVIEW", "RECRUITER_REVIEW", review.id)
+    db.commit()
+    db.refresh(review)
+    return recruiter_review_response(review)
+
+
+@router.put("/recruiter-reviews/{review_id}/show", response_model=RecruiterReviewRead)
+def show_recruiter_review(
+    review_id: int,
+    current_user: Annotated[User, Depends(require_admin_or_owner)],
+    db: Annotated[Session, Depends(get_db)],
+) -> RecruiterReviewRead:
+    review = load_recruiter_review(db, review_id)
+    review.is_visible = True
+    review.moderation_status = ReviewModerationStatus.VISIBLE.value
+    recalculate_recruiter_rating(db, review.recruiter_id)
+    log_action(db, current_user, "SHOW_RECRUITER_REVIEW", "RECRUITER_REVIEW", review.id)
+    db.commit()
+    db.refresh(review)
+    return recruiter_review_response(review)
+
+
+@router.put("/recruiter-reviews/{review_id}/flag", response_model=RecruiterReviewRead)
+def flag_recruiter_review(
+    review_id: int,
+    current_user: Annotated[User, Depends(require_admin_or_owner)],
+    db: Annotated[Session, Depends(get_db)],
+) -> RecruiterReviewRead:
+    review = load_recruiter_review(db, review_id)
+    review.is_visible = False
+    review.moderation_status = ReviewModerationStatus.FLAGGED.value
+    recalculate_recruiter_rating(db, review.recruiter_id)
+    log_action(db, current_user, "FLAG_RECRUITER_REVIEW", "RECRUITER_REVIEW", review.id)
+    db.commit()
+    db.refresh(review)
+    return recruiter_review_response(review)
+
+
+@router.get("/analytics/reviews", response_model=ReviewAnalyticsRead)
+def review_analytics(
+    _current_user: Annotated[User, Depends(require_admin_or_owner)],
+    db: Annotated[Session, Depends(get_db)],
+) -> ReviewAnalyticsRead:
+    highest_companies = db.scalars(
+        select(Company).where(Company.total_reviews > 0).order_by(Company.average_rating.desc(), Company.total_reviews.desc()).limit(5)
+    ).all()
+    lowest_companies = db.scalars(
+        select(Company).where(Company.total_reviews > 0).order_by(Company.average_rating.asc(), Company.total_reviews.desc()).limit(5)
+    ).all()
+    most_reviewed = db.scalars(
+        select(Company).where(Company.total_reviews > 0).order_by(Company.total_reviews.desc(), Company.average_rating.desc()).limit(5)
+    ).all()
+    low_recruiters = db.scalars(
+        select(RecruiterProfile)
+        .options(joinedload(RecruiterProfile.recruiter), joinedload(RecruiterProfile.company))
+        .where(RecruiterProfile.total_reviews > 0)
+        .order_by(RecruiterProfile.average_rating.asc(), RecruiterProfile.total_reviews.desc())
+        .limit(5)
+    ).all()
+    recent_company_reviews = db.scalars(
+        select(CompanyReview)
+        .options(joinedload(CompanyReview.company), joinedload(CompanyReview.job_seeker))
+        .order_by(CompanyReview.created_at.desc(), CompanyReview.id.desc())
+        .limit(5)
+    ).all()
+    recent_recruiter_reviews = db.scalars(
+        select(RecruiterReview)
+        .options(
+            joinedload(RecruiterReview.job_seeker),
+            joinedload(RecruiterReview.recruiter).joinedload(User.recruiter_profile).joinedload(RecruiterProfile.company),
+        )
+        .order_by(RecruiterReview.created_at.desc(), RecruiterReview.id.desc())
+        .limit(5)
+    ).all()
+    hidden_reviews_count = (db.scalar(select(func.count(CompanyReview.id)).where(CompanyReview.moderation_status == ReviewModerationStatus.HIDDEN.value)) or 0) + (
+        db.scalar(select(func.count(RecruiterReview.id)).where(RecruiterReview.moderation_status == ReviewModerationStatus.HIDDEN.value)) or 0
+    )
+    flagged_reviews_count = (db.scalar(select(func.count(CompanyReview.id)).where(CompanyReview.moderation_status == ReviewModerationStatus.FLAGGED.value)) or 0) + (
+        db.scalar(select(func.count(RecruiterReview.id)).where(RecruiterReview.moderation_status == ReviewModerationStatus.FLAGGED.value)) or 0
+    )
+    return ReviewAnalyticsRead(
+        highest_rated_companies=[
+            {"id": company.id, "name": company.company_name, "average_rating": company.average_rating, "total_reviews": company.total_reviews}
+            for company in highest_companies
+        ],
+        lowest_rated_companies=[
+            {"id": company.id, "name": company.company_name, "average_rating": company.average_rating, "total_reviews": company.total_reviews}
+            for company in lowest_companies
+        ],
+        most_reviewed_companies=[
+            {"id": company.id, "name": company.company_name, "average_rating": company.average_rating, "total_reviews": company.total_reviews}
+            for company in most_reviewed
+        ],
+        low_rated_recruiters=[
+            {
+                "id": profile.user_id,
+                "name": profile.recruiter.name if profile.recruiter else "Recruiter",
+                "company_name": profile.company.company_name if profile.company else None,
+                "average_rating": profile.average_rating,
+                "total_reviews": profile.total_reviews,
+            }
+            for profile in low_recruiters
+        ],
+        recent_company_reviews=[company_review_response(review).model_dump(mode="json") for review in recent_company_reviews],
+        recent_recruiter_reviews=[recruiter_review_response(review).model_dump(mode="json") for review in recent_recruiter_reviews],
+        hidden_reviews_count=int(hidden_reviews_count),
+        flagged_reviews_count=int(flagged_reviews_count),
+    )
 
 
 @router.post("/admins", response_model=UserRead, status_code=status.HTTP_201_CREATED)
@@ -930,3 +1435,209 @@ def activate_chat(
     db.commit()
     db.refresh(thread)
     return thread
+
+
+@router.get("/risk/jobs", response_model=list[JobRiskAssessmentRead])
+def risky_jobs(
+    _current_user: Annotated[User, Depends(require_admin_or_owner)],
+    db: Annotated[Session, Depends(get_db)],
+    page: PageQuery = 1,
+    limit: LimitQuery = 20,
+) -> list[JobRiskAssessmentRead]:
+    rows = db.scalars(
+        select(JobRiskAssessment)
+        .options(joinedload(JobRiskAssessment.job).joinedload(Job.recruiter))
+        .where(JobRiskAssessment.risk_score >= 31)
+        .order_by(JobRiskAssessment.risk_score.desc(), JobRiskAssessment.created_at.desc())
+        .offset(pagination_offset(page, limit))
+        .limit(limit)
+    ).all()
+    return [job_risk_response(row) for row in rows]
+
+
+@router.put("/risk/jobs/{job_id}/approve", response_model=JobRiskAssessmentRead)
+def approve_risky_job(
+    job_id: int,
+    current_user: Annotated[User, Depends(require_admin_or_owner)],
+    db: Annotated[Session, Depends(get_db)],
+) -> JobRiskAssessmentRead:
+    assessment = db.scalar(
+        select(JobRiskAssessment)
+        .options(joinedload(JobRiskAssessment.job).joinedload(Job.recruiter))
+        .where(JobRiskAssessment.job_id == job_id)
+    )
+    if assessment is None or assessment.job is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Risk assessment not found")
+    assessment.job.moderation_status = JobModerationStatus.ACTIVE.value
+    assessment.job.moderation_reason = None
+    assessment.reviewed_by_admin_id = current_user.id
+    assessment.reviewed_at = utc_now_naive()
+    assessment.auto_action = RiskAutoAction.NONE.value
+    log_action(db, current_user, "APPROVE_RISKY_JOB", "JOB", job_id)
+    db.commit()
+    db.refresh(assessment)
+    return job_risk_response(assessment)
+
+
+@router.put("/risk/jobs/{job_id}/pause", response_model=JobRiskAssessmentRead)
+def pause_risky_job(
+    job_id: int,
+    current_user: Annotated[User, Depends(require_admin_or_owner)],
+    db: Annotated[Session, Depends(get_db)],
+) -> JobRiskAssessmentRead:
+    assessment = db.scalar(
+        select(JobRiskAssessment)
+        .options(joinedload(JobRiskAssessment.job).joinedload(Job.recruiter))
+        .where(JobRiskAssessment.job_id == job_id)
+    )
+    if assessment is None or assessment.job is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Risk assessment not found")
+    assessment.job.moderation_status = JobModerationStatus.PAUSED.value
+    assessment.job.moderation_reason = "Kept paused after safety review."
+    assessment.reviewed_by_admin_id = current_user.id
+    assessment.reviewed_at = utc_now_naive()
+    log_action(db, current_user, "PAUSE_RISKY_JOB", "JOB", job_id)
+    db.commit()
+    db.refresh(assessment)
+    return job_risk_response(assessment)
+
+
+@router.put("/risk/jobs/{job_id}/remove", response_model=JobRiskAssessmentRead)
+def remove_risky_job(
+    job_id: int,
+    current_user: Annotated[User, Depends(require_admin_or_owner)],
+    db: Annotated[Session, Depends(get_db)],
+) -> JobRiskAssessmentRead:
+    assessment = db.scalar(
+        select(JobRiskAssessment)
+        .options(joinedload(JobRiskAssessment.job).joinedload(Job.recruiter))
+        .where(JobRiskAssessment.job_id == job_id)
+    )
+    if assessment is None or assessment.job is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Risk assessment not found")
+    assessment.job.moderation_status = JobModerationStatus.REMOVED.value
+    assessment.job.moderation_reason = "Removed after safety review."
+    assessment.reviewed_by_admin_id = current_user.id
+    assessment.reviewed_at = utc_now_naive()
+    log_action(db, current_user, "REMOVE_RISKY_JOB", "JOB", job_id)
+    db.commit()
+    db.refresh(assessment)
+    return job_risk_response(assessment)
+
+
+@router.get("/risk/candidates", response_model=list[CandidateRiskAssessmentRead])
+def risky_candidates(
+    _current_user: Annotated[User, Depends(require_admin_or_owner)],
+    db: Annotated[Session, Depends(get_db)],
+    page: PageQuery = 1,
+    limit: LimitQuery = 20,
+) -> list[CandidateRiskAssessmentRead]:
+    rows = db.scalars(
+        select(CandidateRiskAssessment)
+        .options(joinedload(CandidateRiskAssessment.job_seeker))
+        .order_by(CandidateRiskAssessment.risk_score.desc(), CandidateRiskAssessment.created_at.desc())
+        .offset(pagination_offset(page, limit))
+        .limit(limit)
+    ).all()
+    return [candidate_risk_response(row) for row in rows]
+
+
+@router.get("/risk/users", response_model=list[UserRiskAssessmentRead])
+def risky_users(
+    _current_user: Annotated[User, Depends(require_admin_or_owner)],
+    db: Annotated[Session, Depends(get_db)],
+    page: PageQuery = 1,
+    limit: LimitQuery = 20,
+) -> list[UserRiskAssessmentRead]:
+    rows = db.scalars(
+        select(UserRiskAssessment)
+        .options(joinedload(UserRiskAssessment.user))
+        .where(UserRiskAssessment.risk_score >= 31)
+        .order_by(UserRiskAssessment.risk_score.desc(), UserRiskAssessment.updated_at.desc())
+        .offset(pagination_offset(page, limit))
+        .limit(limit)
+    ).all()
+    return [user_risk_response(row) for row in rows]
+
+
+@router.get("/risk/users/{user_id}", response_model=UserRiskAssessmentRead)
+def user_risk_detail(
+    user_id: int,
+    _current_user: Annotated[User, Depends(require_admin_or_owner)],
+    db: Annotated[Session, Depends(get_db)],
+) -> UserRiskAssessmentRead:
+    user = ensure_user_exists(db.get(User, user_id))
+    assessment = update_user_risk(db, user)
+    db.commit()
+    db.refresh(assessment)
+    return user_risk_response(assessment)
+
+
+@router.put("/risk/users/{user_id}/review", response_model=UserRiskAssessmentRead)
+def review_risky_user(
+    user_id: int,
+    payload: AdminNoteRequest,
+    current_user: Annotated[User, Depends(require_admin_or_owner)],
+    db: Annotated[Session, Depends(get_db)],
+) -> UserRiskAssessmentRead:
+    user = ensure_user_exists(db.get(User, user_id))
+    assessment = update_user_risk(db, user)
+    assessment.reviewed_by_admin_id = current_user.id
+    assessment.reviewed_at = utc_now_naive()
+    assessment.admin_note = payload.admin_note
+    log_action(db, current_user, "REVIEW_USER_RISK", "USER", user.id, payload.admin_note)
+    db.commit()
+    db.refresh(assessment)
+    return user_risk_response(assessment)
+
+
+@router.put("/risk/users/{user_id}/suspend", response_model=UserRiskAssessmentRead)
+def suspend_risky_user(
+    user_id: int,
+    payload: AdminReasonRequest,
+    current_user: Annotated[User, Depends(require_admin_or_owner)],
+    db: Annotated[Session, Depends(get_db)],
+) -> UserRiskAssessmentRead:
+    target = ensure_user_exists(db.get(User, user_id))
+    ensure_moderation_target_allowed(current_user, target, "suspend")
+    target.account_status = AccountStatus.SUSPENDED.value
+    target.suspension_reason = payload.reason
+    assessment = update_user_risk(db, target)
+    assessment.reviewed_by_admin_id = current_user.id
+    assessment.reviewed_at = utc_now_naive()
+    assessment.admin_note = payload.reason
+    create_notification(
+        db,
+        target.id,
+        "Account suspended",
+        payload.reason,
+        "USER_SUSPENDED",
+        "/login",
+    )
+    log_action(db, current_user, "SUSPEND_USER_RISK", "USER", target.id, payload.reason)
+    db.commit()
+    db.refresh(assessment)
+    return user_risk_response(assessment)
+
+
+@router.put("/risk/candidates/{assessment_id}/review", response_model=CandidateRiskAssessmentRead)
+def review_risky_candidate(
+    assessment_id: int,
+    payload: AdminNoteRequest,
+    current_user: Annotated[User, Depends(require_admin_or_owner)],
+    db: Annotated[Session, Depends(get_db)],
+) -> CandidateRiskAssessmentRead:
+    assessment = db.scalar(
+        select(CandidateRiskAssessment)
+        .options(joinedload(CandidateRiskAssessment.job_seeker))
+        .where(CandidateRiskAssessment.id == assessment_id)
+    )
+    if assessment is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Candidate risk assessment not found")
+    assessment.reviewed_by_admin_id = current_user.id
+    assessment.reviewed_at = utc_now_naive()
+    assessment.admin_note = payload.admin_note
+    log_action(db, current_user, "REVIEW_CANDIDATE_RISK", "CANDIDATE_RISK", assessment.id, payload.admin_note)
+    db.commit()
+    db.refresh(assessment)
+    return candidate_risk_response(assessment)

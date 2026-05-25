@@ -5,6 +5,11 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
 from app.models.enums import AccountStatus, UserRole
 
 
+class CaptchaPayload(BaseModel):
+    captcha_id: str | None = Field(default=None, max_length=80)
+    captcha_answer: str | None = Field(default=None, max_length=20)
+
+
 class UserRead(BaseModel):
     id: int
     name: str
@@ -23,7 +28,7 @@ class UserRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-class RegisterRequest(BaseModel):
+class RegisterRequest(CaptchaPayload):
     name: str = Field(min_length=2, max_length=120)
     email: EmailStr
     password: str = Field(min_length=8, max_length=128)
@@ -45,7 +50,7 @@ class RegisterRequest(BaseModel):
         return self
 
 
-class LoginRequest(BaseModel):
+class LoginRequest(CaptchaPayload):
     email: EmailStr
     password: str = Field(min_length=1)
     selected_role: UserRole
@@ -57,7 +62,7 @@ class TokenResponse(BaseModel):
     user: UserRead
 
 
-class ForgotPasswordRequest(BaseModel):
+class ForgotPasswordRequest(CaptchaPayload):
     email: EmailStr
 
 
@@ -65,7 +70,7 @@ class ForgotPasswordResponse(BaseModel):
     message: str
 
 
-class ResetPasswordRequest(BaseModel):
+class ResetPasswordRequest(CaptchaPayload):
     token: str = Field(min_length=20)
     new_password: str = Field(min_length=8, max_length=128)
     confirm_new_password: str = Field(min_length=8, max_length=128)

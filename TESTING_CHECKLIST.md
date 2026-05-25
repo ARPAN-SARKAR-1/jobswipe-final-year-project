@@ -15,6 +15,15 @@ Use the `Status` column during manual testing. Suggested values: `Pending`, `Pas
 | AUTH-09 | Login rate limit | Send repeated failed login attempts for same email/IP. | Backend returns 429 after limit is reached. | Pending |
 | AUTH-10 | Revoked token access | Login, call logout, then use the same token on `/api/auth/me`. | Backend returns 401 for the revoked token. | Pending |
 | AUTH-11 | Access token expiry | Decode a newly issued JWT or inspect backend setting. | Token expiry is 30 minutes by default. | Pending |
+| CAPTCHA-01 | CAPTCHA challenge | Call `GET /api/security/captcha`. | Response contains `captcha_id` and a math question. | Pending |
+| CAPTCHA-02 | Login missing CAPTCHA | Submit login without CAPTCHA while login CAPTCHA is enabled. | Backend rejects with CAPTCHA error. | Pending |
+| CAPTCHA-03 | Login wrong CAPTCHA | Submit login with an incorrect CAPTCHA answer. | Backend rejects with CAPTCHA verification failed. | Pending |
+| CAPTCHA-04 | Login correct CAPTCHA | Submit login with valid role, credentials, and CAPTCHA. | Login succeeds for Owner, Admin, Recruiter, and Job Seeker roles. | Pending |
+| CAPTCHA-05 | CAPTCHA single-use | Reuse the same CAPTCHA on a second request. | Backend rejects the reused CAPTCHA. | Pending |
+| CAPTCHA-06 | Expired CAPTCHA | Submit a CAPTCHA after expiry or with forced expired test data. | Backend returns expired CAPTCHA message. | Pending |
+| CAPTCHA-07 | Signup CAPTCHA | Submit signup with and without valid CAPTCHA. | Signup requires valid CAPTCHA when enabled. | Pending |
+| CAPTCHA-08 | Forgot/reset CAPTCHA | Submit forgot/reset password with and without valid CAPTCHA. | Backend requires valid CAPTCHA when enabled. | Pending |
+| CAPTCHA-09 | Admin CAPTCHA settings | Owner/Admin disables and re-enables CAPTCHA settings. | Backend respects the setting and dashboard toggle updates. | Pending |
 | RESET-01 | Forgot password response | Call forgot password API. | Response contains generic message and no reset token. | Pending |
 | RESET-02 | Reset password | Use valid reset token from backend development console or test setup. | Password reset succeeds and token cannot be reused. | Pending |
 | RESET-03 | Forgot password rate limit | Send repeated forgot password requests for same email/IP. | Backend returns 429 after limit is reached. | Pending |
@@ -78,11 +87,22 @@ Use the `Status` column during manual testing. Suggested values: `Pending`, `Pas
 | ADMIN-05 | Job moderation | Owner/Admin pauses, activates, or removes job. | Job moderation status updates. | Pending |
 | ADMIN-06 | Application moderation | Owner/Admin pauses or activates application. | Application admin status updates. | Pending |
 | ADMIN-07 | Chat moderation | Owner/Admin pauses or activates chat thread. | Chat status updates. | Pending |
+| USER-RISK-01 | New job seeker risk | Create a job seeker with incomplete profile. | Rule-based user risk assessment is generated as low/medium. | Pending |
+| USER-RISK-02 | Unverified recruiter risk | Create recruiter with unverified company. | User risk reasons mention unverified recruiter/company state. | Pending |
+| USER-RISK-03 | Reported recruiter risk | Report a recruiter. | Recruiter user risk score increases and appears in Admin dashboard if medium or above. | Pending |
+| USER-RISK-04 | Suspicious user queue | Open Admin Dashboard after risk generation. | Suspicious Users section shows flagged users with risk score/reasons. | Pending |
+| USER-RISK-05 | User risk review/suspend | Owner/Admin reviews and suspends a suspicious user. | Risk item is marked reviewed and user account is suspended. | Pending |
 | REVIEW-01 | Review eligibility | Job seeker reviews company after applying to a job from that company. | Review is created. | Pending |
 | REVIEW-02 | Review ineligible | Job seeker reviews company without applying. | Backend returns 403. | Pending |
 | REVIEW-03 | Duplicate review | Job seeker reviews same company twice. | Backend returns conflict. | Pending |
 | REVIEW-04 | Rating average | Create, hide, and show review. | Average rating and total visible reviews update. | Pending |
 | REVIEW-05 | Review moderation | Owner/Admin hides and shows review. | Public company page respects visibility. | Pending |
+| REVIEW-06 | Recruiter review eligible | Job seeker reviews recruiter after applying to that recruiter's job or after chat. | Review is created and recruiter rating updates. | Pending |
+| REVIEW-07 | Recruiter review ineligible | Job seeker reviews unrelated recruiter. | Backend returns 403. | Pending |
+| REVIEW-08 | Duplicate recruiter review | Job seeker reviews same recruiter twice. | Backend returns conflict. | Pending |
+| REVIEW-09 | Recruiter cannot manage reviews | Recruiter tries to call admin review moderation APIs. | Backend returns 403. | Pending |
+| REVIEW-10 | Review analytics | Owner/Admin opens review analytics. | Highest/lowest companies, low-rated recruiters, and flagged/hidden counts load. | Pending |
+| REVIEW-11 | Review anonymity | Job seeker submits anonymous review. | Public page hides reviewer name; Admin moderation still shows reviewer. | Pending |
 | NOTIF-01 | Notification list | User opens notifications page. | Notifications load. | Pending |
 | NOTIF-02 | Mark read | User marks notifications read. | Unread count updates. | Pending |
 | PRIVACY-01 | Terms page | Open `/terms`. | Terms page loads. | Pending |

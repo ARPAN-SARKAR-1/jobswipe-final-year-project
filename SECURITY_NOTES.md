@@ -15,6 +15,15 @@
 - Public signup allows only Job Seeker and Recruiter accounts.
 - Swagger/OpenAPI docs are disabled when `ENV=production`.
 
+## CAPTCHA And Login Audit
+
+- Login, signup, forgot password, and reset password can require an internal math CAPTCHA for local/demo protection.
+- CAPTCHA answers are stored only as hashes, expire after 5 minutes, and are single-use.
+- Owner/Admin users can enable or disable CAPTCHA requirements from Security Settings.
+- The internal CAPTCHA is designed for final year demo use. Production deployments should replace or extend it with Google reCAPTCHA, hCaptcha, Cloudflare Turnstile, or another managed provider.
+- Failed login attempts are recorded with email, selected role, IP address, success flag, and internal failure reason for audit and risk scoring.
+- Login responses use safe generic messages and do not expose whether the email, password, or selected role was the exact failure.
+
 ## Password Reset
 
 - Password reset tokens are not returned in API responses.
@@ -58,8 +67,17 @@
 ## Fake Job Prevention
 
 - Recruiter/company verification helps prevent fake companies and fake jobs.
-- Public job posting requires an active recruiter account, verified recruiter profile, verified company, and active moderation status.
+- Public job posting requires an active recruiter account, verified recruiter profile, verified company, verified company membership, and active moderation status.
 - Job seeker feeds show only active public jobs from verified companies and verified recruiters.
+- Company claim verification prevents recruiters from freely using verified or famous company names without approval.
+- Official-domain claim checks require the company email domain to match the requested company domain.
+- Reserved brand names such as TCS, Infosys, Wipro, Accenture, and similar variants are marked high risk for Owner/Admin review.
+- Company-level roles separate `COMPANY_OWNER`, `COMPANY_ADMIN`, and `COMPANY_RECRUITER` permissions from global platform roles.
+- Fake job alerts use a rule-based risk scoring engine for money requests, suspicious domains, unverified company/recruiter state, reports, duplicate spam, and unrealistic salary signals.
+- Critical jobs are auto-paused for admin review; high-risk jobs are flagged and kept out of public feeds through moderation.
+- Candidate alerts use rule-based scoring for recruiter reports, missing profile details, suspicious links, repeated applications, and duplicate contact signals.
+- Suspicious user alerts use a rule-based user risk scoring engine for incomplete profiles, failed login attempts, suspicious links, repeated reports, unverified recruiter/company state, risky jobs, and rejected company claims.
+- Risk scoring is rule-based and ML-ready, but it is not a full trained machine learning system.
 - Chat is backend-gated by the `SHORTLISTED` application status and recruiter ownership of the job.
 - Chat is blocked for applied, viewed, rejected, withdrawn, admin-paused applications, paused/removed jobs, and suspended users.
 
@@ -68,13 +86,22 @@
 - Match score is rule-based weighted scoring using profile and job fields. It is not a machine learning model.
 - Duplicate applications are blocked by backend application checks.
 - Duplicate company reviews are blocked by backend eligibility checks.
+- Company reviews require the job seeker to have applied to at least one job from that company.
+- Recruiter reviews require the job seeker to have applied to one of the recruiter's jobs or participated in a recruiter-started chat.
+- Anonymous reviews hide the job seeker name publicly, but Owner/Admin users can still see reviewer identity for moderation and safety.
+- Owner/Admin users can hide, show, or flag abusive company and recruiter reviews.
+- Hidden reviews are excluded from public review lists and rating rollups.
 
 ## Future Scope
 
 - Production email service for password reset delivery.
+- Production SMTP service for company claim verification emails.
+- Production CAPTCHA provider integration.
+- Official company document verification for high-risk brand claims.
 - Cloud storage with signed upload/download URLs.
 - Redis-backed rate limiting.
 - Malware scanning for uploaded files.
 - Automated company verification.
 - Advanced machine-learning-based recommendation.
+- Trained ML model for fake-user detection.
 - Audit dashboards for security-sensitive admin actions.

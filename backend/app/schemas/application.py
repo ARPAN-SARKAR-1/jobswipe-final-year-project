@@ -42,6 +42,10 @@ class ApplicationStatusUpdate(BaseModel):
     status: ApplicationStatus
 
 
+class CandidateReportCreate(BaseModel):
+    reason: str = Field(min_length=10, max_length=1000)
+
+
 class ApplicationTimelineRead(BaseModel):
     id: int
     application_id: int

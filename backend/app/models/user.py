@@ -58,3 +58,41 @@ class User(TimestampMixin, Base):
     reports_made = relationship("Report", foreign_keys="Report.reporter_id", back_populates="reporter")
     recruiter_reports = relationship("Report", foreign_keys="Report.recruiter_id", back_populates="recruiter")
     company_reviews = relationship("CompanyReview", back_populates="job_seeker", cascade="all, delete-orphan")
+    recruiter_reviews_given = relationship(
+        "RecruiterReview",
+        foreign_keys="RecruiterReview.job_seeker_id",
+        back_populates="job_seeker",
+        cascade="all, delete-orphan",
+    )
+    recruiter_reviews_received = relationship(
+        "RecruiterReview",
+        foreign_keys="RecruiterReview.recruiter_id",
+        back_populates="recruiter",
+        cascade="all, delete-orphan",
+    )
+    company_memberships = relationship(
+        "CompanyMember",
+        foreign_keys="CompanyMember.user_id",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+    company_claim_requests = relationship(
+        "CompanyClaimRequest",
+        foreign_keys="CompanyClaimRequest.requester_user_id",
+        back_populates="requester",
+        cascade="all, delete-orphan",
+    )
+    candidate_risk_assessment = relationship(
+        "CandidateRiskAssessment",
+        foreign_keys="CandidateRiskAssessment.job_seeker_id",
+        back_populates="job_seeker",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
+    user_risk_assessment = relationship(
+        "UserRiskAssessment",
+        foreign_keys="UserRiskAssessment.user_id",
+        back_populates="user",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )

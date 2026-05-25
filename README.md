@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-JobSwipe is a modern full-stack final year project for job seekers, freshers, recruiters, admins, and an Owner account. Its main idea is to reduce job-search fatigue with a Tinder-style job discovery flow: one active job card at a time, swipe right to apply, swipe left to skip, and save jobs for later.
+JobSwipe is a swipe-based fresher job discovery prototype focused on reducing job-search fatigue and improving trust through company/recruiter verification. Its main idea is a Tinder-style job discovery flow: one active job card at a time, swipe right to apply, swipe left to skip, and save jobs for later.
 
 ## Problem Statement
 
@@ -12,11 +12,18 @@ Freshers and early-career job seekers often spend too much time scrolling throug
 
 The objective of JobSwipe is to build a secure, role-based job portal that supports job discovery, verified recruiter/company posting, applications, controlled recruiter-started chat, reports, notifications, and Owner/Admin moderation in one complete full-stack system.
 
+## Market Positioning
+
+JobSwipe is not positioned as a direct competitor to large job portals such as Naukri or LinkedIn. Existing platforms are powerful but list-heavy, while JobSwipe focuses on one-job-at-a-time fresher and internship discovery. The project is best understood as a focused prototype for freshers who need faster discovery, clear trust signals, verified recruiters, and safer job posting rules.
+
+Trust architecture is harder than feature architecture. That is why JobSwipe includes company claim verification, recruiter verification, fake-job risk scoring, and Owner/Admin review queues.
+
 ## Features
 
 - Landing page with the tagline "Swipe Less. Apply Smarter."
 - Register and role-based login with JWT authentication, bcrypt password hashing, role redirects, validation, loaders, and toasts.
 - Forgot password and reset password flow with token hidden from API responses.
+- Internal math CAPTCHA for login, signup, forgot password, and reset password demo flows.
 - Job Seeker dashboard, editable profile, profile picture upload, GitHub URL, education details, experience level, resume PDF upload, saved jobs, applications, and withdraw action.
 - Swipe Jobs page with Framer Motion drag animation, reject, save, apply, undo, and progress indicator.
 - Jobs list with job type, experience level, location, skill, work mode, and active-only filters.
@@ -25,8 +32,15 @@ The objective of JobSwipe is to build a secure, role-based job portal that suppo
 - Owner hierarchy: the seeded Owner account can create and manage admins, while admins can moderate normal users and content without managing other admins.
 - Separate company profiles with multiple recruiter profiles under one company.
 - Company and recruiter verification with blue tick badges for trusted employers and recruiters.
-- Company ratings and reviews from eligible job seekers.
+- Company claim verification with official-domain checks and company-level member roles.
+- Company ratings and reviews from eligible job seekers, including work culture, interview process, salary transparency, and growth opportunity ratings.
+- Recruiter ratings and reviews for communication, response time, professionalism, transparency, and overall candidate experience.
+- Review analytics for Owner/Admin users, including highest-rated companies, lowest-rated companies, most-reviewed companies, low-rated recruiters, and flagged/hidden review counts.
 - Fake job prevention rules so public jobs require a verified company, verified recruiter, active recruiter account, active job, valid deadline, and active moderation status.
+- Rule-based fake job and suspicious candidate risk scoring for Owner/Admin review.
+- Rule-based suspicious user risk scoring using login attempts, profile completeness, reports, posting behavior, and verification status.
+- Owner/Admin security settings to enable or disable CAPTCHA on sensitive flows.
+- Seeded cold-start demo data with verified companies, safe jobs, pending join requests, reports, notifications, and suspicious-job queues for final year presentation.
 - Recruiter verification so only verified recruiters under verified companies can publish active jobs.
 - Company bond/service agreement disclosure on job cards, job details, saved jobs, applications, and swipe cards.
 - Skill multi-select with removable skill chips and custom skills for job seeker profiles and job posts.
@@ -49,8 +63,17 @@ The objective of JobSwipe is to build a secure, role-based job portal that suppo
 - Password reset tokens are not exposed in API responses; in development, the token can be checked only from backend debug logs.
 - File uploads validate MIME type, file extension, and size before saving.
 - Sensitive auth, report, and chat message endpoints use basic in-memory rate limiting for local/demo safety.
+- Login, signup, forgot password, and reset password can require a single-use CAPTCHA challenge that expires after 5 minutes.
+- Failed login attempts are recorded for security audit and user risk scoring without exposing internal failure reasons to the frontend.
 - Resume PDFs are served through a protected file route and are visible to recruiters only after a job seeker applies to their job.
 - Recruiter and company verification helps prevent fake jobs from appearing publicly.
+- Company claim verification prevents duplicate or fake use of verified brand names.
+- Reserved company-name checks flag famous-brand claims such as TCS, Infosys, Wipro, and similar names for Owner/Admin review.
+- Fake job and candidate alerts use rule-based risk scoring, not a trained machine learning model.
+- Suspicious user detection uses a rule-based user risk scoring engine, not a trained machine learning model.
+- Review eligibility checks allow only applied candidates to review companies or recruiters, reducing random fake reviews.
+- Anonymous reviews hide the reviewer name publicly while Owner/Admin users can still see reviewer identity for moderation.
+- Owner/Admin users can hide, show, or flag company and recruiter reviews.
 - In production, the backend requires a strong `JWT_SECRET` and does not allow wildcard CORS origins.
 - Swagger/OpenAPI documentation is disabled in production.
 - Email delivery for password resets, cloud file storage, upload scanning, and Redis-backed rate limiting are planned future improvements.
@@ -202,7 +225,7 @@ python seed.py
 ```
 
 The seed script creates one protected Owner, one normal admin, two job seekers, two recruiters, fifteen jobs, sample applications, and sample swipes.
-It also creates verified and pending company/recruiter examples plus a sample company review.
+It also creates verified and pending company/recruiter examples plus company reviews, recruiter reviews, and one hidden review for moderation demo.
 
 ## Demo Credentials
 
@@ -228,6 +251,8 @@ It also creates verified and pending company/recruiter examples plus a sample co
 - A company profile is a separate employer record. Multiple recruiter profiles can belong to the same company.
 - Company records store name, logo, type, industry, website, official email domain, description, headquarters, founded year, size, registration number, verification status, rating totals, and audit fields.
 - Recruiter profiles store the recruiter user, company, designation, department, official email, recruiter verification status, verification note, verifier, and verification time.
+- Company members add company-level permissions: `COMPANY_OWNER`, `COMPANY_ADMIN`, and `COMPANY_RECRUITER`.
+- Recruiters can request to join an existing verified company, and Company Owner/Admin users can approve or reject pending members.
 - New companies and recruiters start as `PENDING`.
 - Owner/Admin users verify or reject companies from the Admin Dashboard.
 - Owner/Admin users verify or reject recruiters from the Admin Dashboard.
@@ -235,6 +260,17 @@ It also creates verified and pending company/recruiter examples plus a sample co
 - A verified recruiter can receive a blue tick or verified badge beside trusted job information.
 - Rejected or pending companies cannot publish public trusted jobs.
 - Recruiters see clear warnings when their company or recruiter profile is pending or rejected.
+
+## Company Claim And Fake Alert System
+
+- Recruiters cannot publish public jobs under a company until the company is verified and the recruiter is an approved company member.
+- If a recruiter claims a new company, the backend validates that the official email domain matches the requested company domain.
+- Development mode logs the demo verification token/link to the backend console; production should use SMTP and official document verification.
+- Claims for reserved or similar famous company names are marked high risk and require Owner/Admin review before the company receives a blue tick.
+- Verified companies cannot be duplicated; recruiters must send a join request instead.
+- Job create/update runs a rule-based risk scoring engine for money-request phrases, suspicious domains, unverified recruiter/company state, duplicate spam, reports, and unrealistic fresher salary signals.
+- High or critical risk jobs are sent to admin review and hidden from the public feed through moderation controls.
+- Recruiters can report suspicious candidates from received applications, and Owner/Admin users can review the candidate risk queue.
 
 ## Role-Based Login
 
@@ -266,6 +302,8 @@ It also creates verified and pending company/recruiter examples plus a sample co
 - Match score is rule-based weighted scoring using skills, experience level, job type, location, and work mode. It is not a machine learning model.
 - Duplicate applications are blocked so one job seeker cannot apply to the same job more than once.
 - Duplicate company reviews are blocked so one job seeker can review one company only once.
+- Duplicate recruiter reviews are blocked so one job seeker can review one recruiter only once.
+- Company/recruiter review analytics are visible to Owner/Admin users for trust and quality review.
 
 ## API Docs
 
@@ -285,6 +323,12 @@ http://localhost:8000/docs
 - `API_SUMMARY.md`: Key API groups and endpoints.
 - `DEMO_SCRIPT.md`: 10-minute demo flow with speaking lines.
 - `VIVA_PREP.md`: Common mentor questions and short answers.
+
+## Cold-Start Demo Data
+
+Because this is a final year prototype, `backend/seed.py` creates seeded verified companies and sample jobs to demonstrate how the platform behaves after onboarding. The seed includes verified companies, pending/rejected trust states, verified recruiters, pending recruiter join requests, safe jobs, a suspicious auto-paused job, reports, notifications, company reviews, recruiter reviews, a hidden review for moderation, and sample applications.
+
+This does not claim the real-market cold-start problem is fully solved. A production launch would still require employer onboarding, partnership building, company verification operations, and continuous moderation.
 
 ## Privacy And Terms
 
@@ -307,15 +351,32 @@ Frontend and backend are separated for independent deployment:
 ## Future Scope
 
 - SMTP email delivery for password resets.
+- Production CAPTCHA provider integration such as Google reCAPTCHA, hCaptcha, or Cloudflare Turnstile.
 - Resume parsing and skill matching.
 - Cloud file storage with signed URLs.
 - Redis-backed rate limiting for multi-instance production deployments.
 - Automated company verification workflows.
+- SMTP-backed company claim emails and official document verification.
+- Automated domain/DNS verification.
+- Real company document verification and operational review workflows.
 - Advanced machine-learning-based recommendation.
+- ML-ready fake job/candidate detection if a trained model and labeled dataset are added later.
+- ML-based fake job classifier after collecting labeled fraud data.
+- Trained ML model for fake-user detection after collecting labeled abuse data.
+- Mobile app for swipe-first fresher discovery.
 - Analytics for recruiter job performance.
 - Video interview scheduling.
 - Advanced fraud detection for fake recruiters or suspicious posts.
 - Exportable admin reports.
+
+## Known Limitations
+
+- The project is not ready to compete directly with large job portals.
+- Real company verification needs actual SMTP, domain, DNS, and document validation.
+- Risk scoring is rule-based, not ML-trained.
+- Cold-start requires company and recruiter onboarding in a real launch.
+- Production resume handling should use cloud storage and signed URLs.
+- Production scale should use Redis-backed rate limiting and background workers.
 
 ## Final Year Project Explanation
 

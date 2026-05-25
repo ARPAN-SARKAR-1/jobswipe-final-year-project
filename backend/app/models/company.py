@@ -33,3 +33,5 @@ class Company(TimestampMixin, Base):
     recruiters = relationship("RecruiterProfile", back_populates="company")
     jobs = relationship("Job", back_populates="company")
     reviews = relationship("CompanyReview", back_populates="company", cascade="all, delete-orphan")
+    members = relationship("CompanyMember", back_populates="company", cascade="all, delete-orphan")
+    claim_requests = relationship("CompanyClaimRequest", back_populates="company")

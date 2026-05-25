@@ -116,6 +116,10 @@ export type AdminRecruiterVerification = CompanyProfile & {
 };
 
 export type VerificationStatus = "PENDING" | "VERIFIED" | "REJECTED";
+export type CompanyRole = "COMPANY_OWNER" | "COMPANY_ADMIN" | "COMPANY_RECRUITER";
+export type ClaimStatus = "PENDING" | "VERIFIED" | "REJECTED" | "EXPIRED";
+export type RiskLevel = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+export type RiskAutoAction = "NONE" | "FLAGGED" | "PAUSED";
 
 export type CompanyType = "MNC" | "Startup" | "Product-based" | "Service-based" | "Consultancy" | "Government" | "Non-profit" | "Other";
 
@@ -155,6 +159,8 @@ export type CompanyRecruiter = {
   recruiter_verification_status: VerificationStatus;
   account_status: "ACTIVE" | "SUSPENDED";
   verified_at?: string | null;
+  average_rating: number;
+  total_reviews: number;
 };
 
 export type CompanyDetail = Company & {
@@ -166,12 +172,200 @@ export type CompanyReview = {
   id: number;
   company_id: number;
   job_seeker_id: number;
+  application_id?: number | null;
   rating: number;
+  overall_rating: number;
+  work_culture_rating: number;
+  interview_process_rating: number;
+  salary_transparency_rating: number;
+  growth_opportunity_rating: number;
+  review_title?: string | null;
   review_text?: string | null;
+  pros?: string | null;
+  cons?: string | null;
+  is_anonymous: boolean;
   is_visible: boolean;
+  moderation_status: "VISIBLE" | "HIDDEN" | "FLAGGED";
   reviewer_name?: string | null;
   reviewer_email?: string | null;
   company_name?: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CompanyReviewSummary = {
+  company_id: number;
+  average_overall_rating: number;
+  work_culture_average: number;
+  interview_process_average: number;
+  salary_transparency_average: number;
+  growth_opportunity_average: number;
+  total_reviews: number;
+  flagged_reviews: number;
+  hidden_reviews: number;
+  top_positive_keywords: string[];
+  top_negative_keywords: string[];
+};
+
+export type RecruiterPublicProfile = {
+  id: number;
+  name: string;
+  company_id?: number | null;
+  company_name?: string | null;
+  company_logo_url?: string | null;
+  company_verification_status?: VerificationStatus | null;
+  designation?: string | null;
+  department?: string | null;
+  recruiter_verification_status: VerificationStatus;
+  average_rating: number;
+  total_reviews: number;
+  active_jobs_count: number;
+  created_at: string;
+};
+
+export type RecruiterReview = {
+  id: number;
+  recruiter_id: number;
+  job_seeker_id: number;
+  application_id?: number | null;
+  overall_rating: number;
+  communication_rating: number;
+  response_time_rating: number;
+  professionalism_rating: number;
+  transparency_rating: number;
+  review_title?: string | null;
+  review_text?: string | null;
+  is_anonymous: boolean;
+  is_visible: boolean;
+  moderation_status: "VISIBLE" | "HIDDEN" | "FLAGGED";
+  reviewer_name?: string | null;
+  recruiter_name?: string | null;
+  recruiter_email?: string | null;
+  company_name?: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type RecruiterReviewSummary = {
+  recruiter_id: number;
+  average_overall_rating: number;
+  communication_average: number;
+  response_time_average: number;
+  professionalism_average: number;
+  transparency_average: number;
+  total_reviews: number;
+  flagged_reviews: number;
+  hidden_reviews: number;
+  top_feedback_keywords: string[];
+};
+
+export type ReviewAnalytics = {
+  highest_rated_companies: Record<string, unknown>[];
+  lowest_rated_companies: Record<string, unknown>[];
+  most_reviewed_companies: Record<string, unknown>[];
+  low_rated_recruiters: Record<string, unknown>[];
+  recent_company_reviews: Record<string, unknown>[];
+  recent_recruiter_reviews: Record<string, unknown>[];
+  hidden_reviews_count: number;
+  flagged_reviews_count: number;
+};
+
+export type CompanyClaim = {
+  id: number;
+  company_id?: number | null;
+  requested_company_name: string;
+  requested_domain: string;
+  requester_user_id: number;
+  official_email: string;
+  claim_status: ClaimStatus;
+  email_verified_at?: string | null;
+  reviewed_by_admin_id?: number | null;
+  admin_note?: string | null;
+  risk_score: number;
+  risk_level: RiskLevel;
+  requires_admin_review: boolean;
+  risk_reasons?: string | null;
+  company_name?: string | null;
+  requester_name?: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CompanyMember = {
+  id: number;
+  company_id: number;
+  user_id: number;
+  company_role: CompanyRole;
+  verification_status: VerificationStatus;
+  requested_at?: string | null;
+  verified_at?: string | null;
+  verified_by_user_id?: number | null;
+  note?: string | null;
+  user_name?: string | null;
+  user_email?: string | null;
+  company_name?: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type JobRiskAssessment = {
+  id: number;
+  job_id: number;
+  risk_score: number;
+  risk_level: RiskLevel;
+  reasons?: string | null;
+  auto_action: RiskAutoAction;
+  reviewed_by_admin_id?: number | null;
+  reviewed_at?: string | null;
+  job_title?: string | null;
+  company_name?: string | null;
+  recruiter_id?: number | null;
+  recruiter_name?: string | null;
+  moderation_status?: Job["moderation_status"] | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CandidateRiskAssessment = {
+  id: number;
+  job_seeker_id: number;
+  risk_score: number;
+  risk_level: RiskLevel;
+  reasons?: string | null;
+  reviewed_by_admin_id?: number | null;
+  reviewed_at?: string | null;
+  admin_note?: string | null;
+  job_seeker_name?: string | null;
+  job_seeker_email?: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type UserRiskAssessment = {
+  id: number;
+  user_id: number;
+  risk_score: number;
+  risk_level: RiskLevel;
+  reasons?: string | null;
+  last_evaluated_at?: string | null;
+  reviewed_by_admin_id?: number | null;
+  reviewed_at?: string | null;
+  admin_note?: string | null;
+  user_name?: string | null;
+  user_email?: string | null;
+  user_role?: Role | null;
+  account_status?: User["account_status"] | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type SecuritySettings = {
+  id: number;
+  captcha_login_enabled: boolean;
+  captcha_signup_enabled: boolean;
+  captcha_forgot_password_enabled: boolean;
+  captcha_reports_enabled: boolean;
+  captcha_company_claims_enabled: boolean;
   created_at: string;
   updated_at: string;
 };

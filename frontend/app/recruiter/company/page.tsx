@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2, Upload } from "lucide-react";
+import { KeyRound, Loader2, ShieldCheck, Upload, UsersRound } from "lucide-react";
 import { FormEvent, useEffect, useState } from "react";
 import toast from "react-hot-toast";
 
@@ -11,7 +11,7 @@ import { apiFetch, assetUrl } from "@/lib/api";
 import { companyTypes } from "@/lib/options";
 import { uploadRules, validateUploadFile } from "@/lib/uploadValidation";
 import { useAuth } from "@/hooks/useAuth";
-import type { CompanyProfile, CompanyType } from "@/types";
+import type { CompanyClaim, CompanyMember, CompanyProfile, CompanyType } from "@/types";
 
 const emptyForm = {
   company_name: "",
@@ -32,7 +32,11 @@ const emptyForm = {
 export default function CompanyProfilePage() {
   const { loading } = useAuth(["RECRUITER"]);
   const [company, setCompany] = useState<CompanyProfile | null>(null);
+  const [members, setMembers] = useState<CompanyMember[]>([]);
   const [saving, setSaving] = useState(false);
+  const [claiming, setClaiming] = useState(false);
+  const [claimToken, setClaimToken] = useState("");
+  const [claimForm, setClaimForm] = useState({ requested_company_name: "", requested_domain: "", official_email: "" });
   const [form, setForm] = useState(emptyForm);
 
   const load = () => {
@@ -58,9 +62,26 @@ export default function CompanyProfilePage() {
       .catch((error) => toast.error(error instanceof Error ? error.message : "Company profile failed"));
   };
 
+  const loadMembers = (companyId?: number | null) => {
+    if (!companyId) return;
+    apiFetch<CompanyMember[]>(`/companies/${companyId}/members`)
+      .then(setMembers)
+      .catch(() => setMembers([]));
+  };
+
   useEffect(() => {
     if (!loading) load();
   }, [loading]);
+
+  useEffect(() => {
+    if (company?.company_id) loadMembers(company.company_id);
+  }, [company?.company_id]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const token = new URLSearchParams(window.location.search).get("claimToken");
+    if (token) setClaimToken(token);
+  }, []);
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -97,6 +118,61 @@ export default function CompanyProfilePage() {
       load();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Upload failed");
+    }
+  };
+
+  const submitClaim = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setClaiming(true);
+    try {
+      const claim = await apiFetch<CompanyClaim>("/companies/claim", {
+        method: "POST",
+        body: JSON.stringify(claimForm)
+      });
+      toast.success(claim.requires_admin_review ? "Claim created and sent for admin review" : "Claim created. Check backend console for the demo verification link.");
+      setClaimForm({ requested_company_name: "", requested_domain: "", official_email: "" });
+      load();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Company claim failed");
+    } finally {
+      setClaiming(false);
+    }
+  };
+
+  const verifyClaim = async () => {
+    const token = claimToken.trim();
+    if (!token) {
+      toast.error("Enter the claim verification token");
+      return;
+    }
+    try {
+      const result = await apiFetch<{ message: string; claim: CompanyClaim }>(`/companies/claim/${token}/verify`, { method: "POST" });
+      toast.success(result.message);
+      setClaimToken("");
+      load();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Claim verification failed");
+    }
+  };
+
+  const approveMember = async (memberId: number) => {
+    try {
+      await apiFetch(`/companies/members/${memberId}/approve`, { method: "PUT", body: JSON.stringify({ note: "Approved from company dashboard." }) });
+      toast.success("Member approved");
+      loadMembers(company?.company_id);
+      load();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Approval failed");
+    }
+  };
+
+  const rejectMember = async (memberId: number) => {
+    try {
+      await apiFetch(`/companies/members/${memberId}/reject`, { method: "PUT", body: JSON.stringify({ note: "Rejected from company dashboard." }) });
+      toast.success("Member rejected");
+      loadMembers(company?.company_id);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Rejection failed");
     }
   };
 
@@ -179,6 +255,79 @@ export default function CompanyProfilePage() {
           </button>
         </form>
       </div>
+
+      <section className="mt-6 grid gap-5 lg:grid-cols-2">
+        <form onSubmit={submitClaim} className="panel grid gap-4 p-5">
+          <div className="flex items-center gap-3">
+            <ShieldCheck className="text-teal-700" size={22} />
+            <h2 className="text-xl font-black">Claim Company</h2>
+          </div>
+          <Input label="Company name to claim" value={claimForm.requested_company_name} onChange={(value) => setClaimForm({ ...claimForm, requested_company_name: value })} />
+          <Input label="Company website/domain" value={claimForm.requested_domain} onChange={(value) => setClaimForm({ ...claimForm, requested_domain: value })} />
+          <Input label="Official company email" type="email" value={claimForm.official_email} onChange={(value) => setClaimForm({ ...claimForm, official_email: value })} />
+          <button className="btn-primary" disabled={claiming} type="submit">
+            {claiming && <Loader2 className="animate-spin" size={18} />}
+            Request claim verification
+          </button>
+        </form>
+
+        <div className="panel grid gap-4 p-5">
+          <div className="flex items-center gap-3">
+            <KeyRound className="text-teal-700" size={22} />
+            <h2 className="text-xl font-black">Verify Claim Token</h2>
+          </div>
+          <Input label="Verification token" value={claimToken} onChange={setClaimToken} />
+          <button className="btn-secondary" type="button" onClick={verifyClaim}>
+            Verify company claim
+          </button>
+          <p className="text-sm font-bold leading-6 text-[#6b767d]">Development mode logs the demo token in the backend console. Reserved brand claims still wait for Owner/Admin review.</p>
+        </div>
+      </section>
+
+      {members.length > 0 && (
+        <section className="panel mt-6 overflow-hidden">
+          <div className="flex items-center gap-3 p-5">
+            <UsersRound className="text-teal-700" size={22} />
+            <h2 className="text-xl font-black">Company Members</h2>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[760px] text-left text-sm">
+              <thead className="bg-[#fbfaf7] text-xs font-black uppercase text-[#526069]">
+                <tr>
+                  <th className="p-4">Member</th>
+                  <th className="p-4">Company role</th>
+                  <th className="p-4">Status</th>
+                  <th className="p-4">Note</th>
+                  <th className="p-4">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {members.map((member) => (
+                  <tr key={member.id} className="border-t border-black/5">
+                    <td className="p-4">
+                      <p className="font-black">{member.user_name || "Recruiter"}</p>
+                      <p className="font-bold text-[#6b767d]">{member.user_email}</p>
+                    </td>
+                    <td className="p-4 font-black">{member.company_role.replace("COMPANY_", "")}</td>
+                    <td className="p-4"><VerificationStatusBadge status={member.verification_status} /></td>
+                    <td className="p-4 font-bold text-[#6b767d]">{member.note || "-"}</td>
+                    <td className="p-4">
+                      {member.verification_status === "PENDING" ? (
+                        <div className="flex flex-wrap gap-2">
+                          <button className="btn-secondary !py-2" type="button" onClick={() => approveMember(member.id)}>Approve</button>
+                          <button className="btn-secondary !py-2 border-rose-200 bg-rose-50 text-rose-700" type="button" onClick={() => rejectMember(member.id)}>Reject</button>
+                        </div>
+                      ) : (
+                        <span className="font-bold text-[#6b767d]">Reviewed</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
     </main>
   );
 }

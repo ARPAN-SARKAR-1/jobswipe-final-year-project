@@ -5,12 +5,15 @@ import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 import toast from "react-hot-toast";
 
+import CaptchaBox, { type CaptchaValue } from "@/components/CaptchaBox";
 import { apiFetch } from "@/lib/api";
 
 export default function ResetPasswordPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({ token: "", new_password: "", confirm_new_password: "" });
+  const [captcha, setCaptcha] = useState<CaptchaValue>({ captcha_id: "", captcha_answer: "" });
+  const [captchaRefresh, setCaptchaRefresh] = useState(0);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -28,12 +31,13 @@ export default function ResetPasswordPage() {
     try {
       await apiFetch<{ message: string }>("/auth/reset-password", {
         method: "POST",
-        body: JSON.stringify(form)
+        body: JSON.stringify({ ...form, ...captcha })
       });
       toast.success("Password reset successful");
       router.push("/login");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Reset failed");
+      setCaptchaRefresh((value) => value + 1);
     } finally {
       setLoading(false);
     }
@@ -63,6 +67,7 @@ export default function ResetPasswordPage() {
             </label>
             <input id="confirm_new_password" className="field" minLength={8} required type="password" value={form.confirm_new_password} onChange={(event) => setForm({ ...form, confirm_new_password: event.target.value })} />
           </div>
+          <CaptchaBox value={captcha} onChange={setCaptcha} refreshSignal={captchaRefresh} />
           <button className="btn-primary" disabled={loading} type="submit">
             {loading && <Loader2 className="animate-spin" size={18} />}
             Reset password

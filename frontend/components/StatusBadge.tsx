@@ -12,6 +12,8 @@ const styles: Record<string, string> = {
   CLOSED: "bg-stone-100 text-stone-700 border-stone-200",
   REMOVED: "bg-stone-100 text-stone-700 border-stone-200",
   HIDDEN: "bg-stone-100 text-stone-700 border-stone-200",
+  VISIBLE: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  FLAGGED: "bg-amber-50 text-amber-800 border-amber-200",
   PENDING: "bg-amber-50 text-amber-800 border-amber-200",
   REVIEWED: "bg-sky-50 text-sky-700 border-sky-200",
   RESOLVED: "bg-emerald-50 text-emerald-700 border-emerald-200",

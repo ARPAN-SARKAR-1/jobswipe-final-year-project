@@ -22,6 +22,7 @@ from app.models.user import User
 from app.schemas.application import ApplicationCreate, ApplicationRead, ApplicationTimelineRead
 from app.services.job_visibility import ensure_public_job_available
 from app.services.timeline import add_timeline_event
+from app.services.user_risk_assessment import update_user_risk
 from app.utils.match_score import calculate_match_score
 
 router = APIRouter(prefix="/applications", tags=["Applications"])
@@ -59,6 +60,7 @@ def create_or_reactivate_application(db: Session, user: User, job: Job, payload:
         note="Application submitted",
         created_by_user_id=user.id,
     )
+    update_user_risk(db, user)
     db.commit()
     db.refresh(application)
     return application

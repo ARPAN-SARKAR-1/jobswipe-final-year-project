@@ -4,6 +4,7 @@ import { Loader2 } from "lucide-react";
 import { FormEvent, useState } from "react";
 import toast from "react-hot-toast";
 
+import CaptchaBox, { type CaptchaValue } from "@/components/CaptchaBox";
 import { apiFetch } from "@/lib/api";
 
 type ForgotResponse = {
@@ -14,6 +15,8 @@ export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [response, setResponse] = useState<ForgotResponse | null>(null);
+  const [captcha, setCaptcha] = useState<CaptchaValue>({ captcha_id: "", captcha_answer: "" });
+  const [captchaRefresh, setCaptchaRefresh] = useState(0);
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -21,12 +24,13 @@ export default function ForgotPasswordPage() {
     try {
       const data = await apiFetch<ForgotResponse>("/auth/forgot-password", {
         method: "POST",
-        body: JSON.stringify({ email })
+        body: JSON.stringify({ email, ...captcha })
       });
       setResponse(data);
       toast.success("Password reset instructions generated");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Request failed");
+      setCaptchaRefresh((value) => value + 1);
     } finally {
       setLoading(false);
     }
@@ -45,6 +49,7 @@ export default function ForgotPasswordPage() {
             </label>
             <input id="email" className="field" required type="email" value={email} onChange={(event) => setEmail(event.target.value)} />
           </div>
+          <CaptchaBox value={captcha} onChange={setCaptcha} refreshSignal={captchaRefresh} />
           <button className="btn-primary" disabled={loading} type="submit">
             {loading && <Loader2 className="animate-spin" size={18} />}
             Request reset instructions

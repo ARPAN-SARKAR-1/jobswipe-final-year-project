@@ -9,8 +9,8 @@ import BlueTick from "@/components/BlueTick";
 import EmptyState from "@/components/EmptyState";
 import PageHeader from "@/components/PageHeader";
 import VerificationStatusBadge from "@/components/VerificationStatusBadge";
-import { apiFetch, assetUrl } from "@/lib/api";
-import type { Company } from "@/types";
+import { apiFetch, assetUrl, getStoredUser } from "@/lib/api";
+import type { Company, User } from "@/types";
 
 const PAGE_LIMIT = 20;
 
@@ -18,13 +18,24 @@ export default function CompaniesPage() {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
+  const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
+    setUser(getStoredUser());
     apiFetch<Company[]>(`/companies?page=${page}&limit=${PAGE_LIMIT}`)
       .then(setCompanies)
       .catch((error) => toast.error(error instanceof Error ? error.message : "Companies failed"))
       .finally(() => setLoading(false));
   }, [page]);
+
+  const requestJoin = async (companyId: number) => {
+    try {
+      await apiFetch(`/companies/${companyId}/join-request`, { method: "POST" });
+      toast.success("Join request sent");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Join request failed");
+    }
+  };
 
   if (loading) return <main className="page-shell">Loading companies...</main>;
 
@@ -47,7 +58,8 @@ export default function CompaniesPage() {
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
           {companies.map((company) => (
-            <Link key={company.id} href={`/companies/${company.id}`} className="panel block p-5 transition hover:-translate-y-0.5 hover:border-teal-300">
+            <article key={company.id} className="panel p-5 transition hover:-translate-y-0.5 hover:border-teal-300">
+              <Link href={`/companies/${company.id}`} className="block">
               <div className="flex items-start gap-4">
                 <div className="grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded-lg border border-black/10 bg-white">
                   {company.company_logo_url ? (
@@ -79,7 +91,13 @@ export default function CompaniesPage() {
                 <span>{company.recruiter_count} recruiters</span>
                 <span>{company.company_type}</span>
               </div>
-            </Link>
+              </Link>
+              {user?.role === "RECRUITER" && company.verification_status === "VERIFIED" && (
+                <button className="btn-secondary mt-4 w-full !py-2" type="button" onClick={() => requestJoin(company.id)}>
+                  Request to join company
+                </button>
+              )}
+            </article>
           ))}
         </div>
       )}

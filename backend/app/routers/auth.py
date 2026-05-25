@@ -14,7 +14,8 @@ from app.core.database import get_db
 from app.core.security import bearer_scheme, create_access_token, decode_access_token, get_current_user, hash_password, verify_password
 from app.models.company import Company
 from app.models.company_profile import CompanyProfile
-from app.models.enums import AccountStatus, UserRole
+from app.models.company_member import CompanyMember
+from app.models.enums import AccountStatus, CompanyMemberRole, UserRole
 from app.models.job_seeker_profile import JobSeekerProfile
 from app.models.recruiter_profile import RecruiterProfile
 from app.models.password_reset_token import PasswordResetToken
@@ -28,8 +29,11 @@ from app.schemas.auth import (
     TokenResponse,
     UserRead,
 )
+from app.services.captcha import verify_captcha
+from app.services.login_attempts import record_login_attempt
 from app.services.rate_limiter import rate_limit_key, rate_limiter
 from app.services.token_revocation import token_denylist
+from app.services.user_risk_assessment import update_user_risk
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 PASSWORD_RESET_MESSAGE = "If an account exists with this email, password reset instructions have been generated."
@@ -42,6 +46,7 @@ def hash_reset_token(token: str) -> str:
 
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 def register(payload: RegisterRequest, db: Annotated[Session, Depends(get_db)]) -> TokenResponse:
+    verify_captcha(db, payload.captcha_id, payload.captcha_answer, "signup")
     existing = db.scalar(select(User).where(User.email == payload.email.lower()))
     if existing:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email is already registered")
@@ -66,8 +71,18 @@ def register(payload: RegisterRequest, db: Annotated[Session, Depends(get_db)]) 
         db.add(company)
         db.flush()
         db.add(RecruiterProfile(user_id=user.id, company_id=company.id, official_email=user.email))
+        db.add(
+            CompanyMember(
+                company_id=company.id,
+                user_id=user.id,
+                company_role=CompanyMemberRole.COMPANY_OWNER.value,
+                verification_status="PENDING",
+            )
+        )
         db.add(CompanyProfile(recruiter_id=user.id))
 
+    db.commit()
+    update_user_risk(db, user)
     db.commit()
     db.refresh(user)
     access_token = create_access_token(str(user.id), user.role)
@@ -77,19 +92,33 @@ def register(payload: RegisterRequest, db: Annotated[Session, Depends(get_db)]) 
 @router.post("/login", response_model=TokenResponse)
 def login(payload: LoginRequest, request: Request, db: Annotated[Session, Depends(get_db)]) -> TokenResponse:
     rate_limiter.check(rate_limit_key("auth:login", request, payload.email), max_attempts=5, window_seconds=10 * 60)
+    verify_captcha(db, payload.captcha_id, payload.captcha_answer, "login")
     user = db.scalar(select(User).where(User.email == payload.email.lower()))
     if user is None or not verify_password(payload.password, user.password_hash):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials.")
+        record_login_attempt(db, request, str(payload.email), payload.selected_role.value, False, "invalid_credentials")
+        if user is not None:
+            update_user_risk(db, user)
+        db.commit()
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials or selected role.")
     if user.role != payload.selected_role.value:
+        record_login_attempt(db, request, str(payload.email), payload.selected_role.value, False, "role_mismatch")
+        update_user_risk(db, user)
+        db.commit()
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="No account found for the selected role or credentials.",
+            detail="Invalid credentials or selected role.",
         )
     if user.account_status == AccountStatus.SUSPENDED.value:
+        record_login_attempt(db, request, str(payload.email), payload.selected_role.value, False, "account_suspended")
+        update_user_risk(db, user)
+        db.commit()
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Your account is suspended. Please contact support.",
         )
+    record_login_attempt(db, request, str(payload.email), payload.selected_role.value, True)
+    update_user_risk(db, user)
+    db.commit()
     access_token = create_access_token(str(user.id), user.role)
     return TokenResponse(access_token=access_token, user=user)
 
@@ -113,6 +142,7 @@ def forgot_password(
     db: Annotated[Session, Depends(get_db)],
 ) -> ForgotPasswordResponse:
     rate_limiter.check(rate_limit_key("auth:forgot-password", request, payload.email), max_attempts=3, window_seconds=15 * 60)
+    verify_captcha(db, payload.captcha_id, payload.captcha_answer, "forgot_password")
     user = db.scalar(select(User).where(User.email == payload.email.lower()))
     if user is None:
         return ForgotPasswordResponse(message=PASSWORD_RESET_MESSAGE)
@@ -141,6 +171,7 @@ def reset_password(
     db: Annotated[Session, Depends(get_db)],
 ) -> dict[str, str]:
     rate_limiter.check(rate_limit_key("auth:reset-password", request, payload.token[:16]), max_attempts=5, window_seconds=15 * 60)
+    verify_captcha(db, payload.captcha_id, payload.captcha_answer, "reset_password")
     token_hash = hash_reset_token(payload.token)
     record = db.scalar(
         select(PasswordResetToken)

@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, String, Text
+from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -20,6 +20,8 @@ class RecruiterProfile(TimestampMixin, Base):
     verification_note: Mapped[str | None] = mapped_column(Text, nullable=True)
     verified_by_admin_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     verified_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    average_rating: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    total_reviews: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
     recruiter = relationship("User", foreign_keys=[user_id], back_populates="recruiter_profile")
     company = relationship("Company", back_populates="recruiters")

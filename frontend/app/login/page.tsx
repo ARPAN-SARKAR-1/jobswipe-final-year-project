@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 import toast from "react-hot-toast";
 
+import CaptchaBox, { type CaptchaValue } from "@/components/CaptchaBox";
 import { apiFetch, roleHome, saveAuth } from "@/lib/api";
 import { loginRoleOptions } from "@/lib/options";
 import { cx } from "@/lib/utils";
@@ -23,6 +24,8 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [selectedRole, setSelectedRole] = useState<Role>("JOB_SEEKER");
   const [form, setForm] = useState({ email: "", password: "" });
+  const [captcha, setCaptcha] = useState<CaptchaValue>({ captcha_id: "", captcha_answer: "" });
+  const [captchaRefresh, setCaptchaRefresh] = useState(0);
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -30,13 +33,14 @@ export default function LoginPage() {
     try {
       const auth = await apiFetch<AuthResponse>("/auth/login", {
         method: "POST",
-        body: JSON.stringify({ ...form, selected_role: selectedRole })
+        body: JSON.stringify({ ...form, selected_role: selectedRole, ...captcha })
       });
       saveAuth(auth);
       toast.success("Welcome back");
       router.push(roleHome(auth.user.role));
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Login failed");
+      setCaptchaRefresh((value) => value + 1);
     } finally {
       setLoading(false);
     }
@@ -85,6 +89,7 @@ export default function LoginPage() {
               Forgot password?
             </Link>
           </div>
+          <CaptchaBox value={captcha} onChange={setCaptcha} refreshSignal={captchaRefresh} />
           <button className="btn-primary" disabled={loading} type="submit">
             {loading && <Loader2 className="animate-spin" size={18} />}
             Login

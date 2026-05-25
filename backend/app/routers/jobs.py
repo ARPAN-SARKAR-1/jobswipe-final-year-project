@@ -9,8 +9,10 @@ from app.core.database import get_db
 from app.core.security import get_optional_current_user, require_roles
 from app.models.application import Application
 from app.models.company import Company
+from app.models.company_member import CompanyMember
 from app.models.enums import (
     AccountStatus,
+    CompanyMemberRole,
     CompanyVerificationStatus,
     JobModerationStatus,
     RecruiterVerificationStatus,
@@ -23,6 +25,8 @@ from app.models.swipe import Swipe
 from app.models.user import User
 from app.schemas.job import JobCreate, JobRead, JobUpdate
 from app.services.job_visibility import ensure_public_job_available
+from app.services.risk_assessment import assess_job_risk
+from app.services.user_risk_assessment import update_user_risk
 from app.utils.match_score import calculate_match_score
 from app.utils.pagination import LimitQuery, PageQuery, pagination_offset
 from app.utils.skills import split_skills
@@ -102,6 +106,26 @@ def ensure_recruiter_can_publish(db: Session, recruiter: User) -> tuple[Recruite
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Your company must be verified before posting jobs.",
+        )
+    member = db.scalar(
+        select(CompanyMember)
+        .where(CompanyMember.company_id == profile.company_id)
+        .where(CompanyMember.user_id == recruiter.id)
+        .where(CompanyMember.verification_status == RecruiterVerificationStatus.VERIFIED.value)
+        .where(
+            CompanyMember.company_role.in_(
+                [
+                    CompanyMemberRole.COMPANY_OWNER.value,
+                    CompanyMemberRole.COMPANY_ADMIN.value,
+                    CompanyMemberRole.COMPANY_RECRUITER.value,
+                ]
+            )
+        )
+    )
+    if member is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Your company membership must be approved before posting jobs.",
         )
     if not profile.company.company_name:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Complete your company profile before posting jobs.")
@@ -215,6 +239,9 @@ def create_job(
     data["company_logo_url"] = company.company_logo_url or data.get("company_logo_url")
     job = Job(recruiter_id=current_user.id, **data)
     db.add(job)
+    db.flush()
+    assessment = assess_job_risk(db, job)
+    update_user_risk(db, current_user)
     db.commit()
     db.refresh(job)
     return job
@@ -253,6 +280,9 @@ def update_job(
         update_data["bond_details"] = None
     for key, value in update_data.items():
         setattr(job, key, value)
+    db.flush()
+    assessment = assess_job_risk(db, job)
+    update_user_risk(db, current_user)
     db.commit()
     db.refresh(job)
     return job

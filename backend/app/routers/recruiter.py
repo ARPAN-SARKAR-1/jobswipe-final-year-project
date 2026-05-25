@@ -9,10 +9,12 @@ from app.core.database import get_db
 from app.core.security import require_roles
 from app.models.application import Application
 from app.models.company import Company
+from app.models.company_member import CompanyMember
 from app.models.enums import (
     ApplicationAdminStatus,
     ApplicationStatus,
     CompanyVerificationStatus,
+    CompanyMemberRole,
     JobModerationStatus,
     RecruiterVerificationStatus,
     UserRole,
@@ -21,10 +23,14 @@ from app.models.job import Job
 from app.models.job_seeker_profile import JobSeekerProfile
 from app.models.recruiter_profile import RecruiterProfile
 from app.models.user import User
-from app.schemas.application import ApplicationStatusUpdate, RecruiterApplicationRead
+from app.schemas.application import ApplicationStatusUpdate, CandidateReportCreate, RecruiterApplicationRead
 from app.schemas.job import JobRead
 from app.schemas.profile import CompanyProfileRead, CompanyProfileUpdate, UploadResponse
 from app.services.notifications import create_notification
+from app.services.company_claims import ensure_company_member, find_company_by_normalized_name
+from app.services.risk_assessment import assess_candidate_risk
+from app.services.recruiter_reviews import recruiter_review_summary
+from app.services.user_risk_assessment import update_user_risk
 from app.services.timeline import add_timeline_event
 from app.utils.file_upload import save_image
 from app.utils.pagination import LimitQuery, PageQuery, pagination_offset
@@ -53,6 +59,16 @@ def get_or_create_recruiter_profile(db: Session, user: User) -> RecruiterProfile
         profile.company_id = company.id
         db.commit()
         db.refresh(profile)
+    if profile.company_id:
+        ensure_company_member(
+            db,
+            profile.company_id,
+            user.id,
+            CompanyMemberRole.COMPANY_RECRUITER.value,
+            profile.recruiter_verification_status,
+            "Synced from recruiter profile.",
+        )
+        db.commit()
     return profile
 
 
@@ -123,6 +139,7 @@ def dashboard(
         "applications_received": applications,
         "posted_jobs": [JobRead.model_validate(job).model_dump(mode="json") for job in jobs],
         "company_profile": company_profile_response(profile).model_dump(mode="json"),
+        "recruiter_review_summary": recruiter_review_summary(db, current_user.id),
     }
 
 
@@ -147,6 +164,15 @@ def update_company_profile(
         company = db.get(Company, payload_data["company_id"])
         if company is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Company not found")
+        if company.verification_status == CompanyVerificationStatus.VERIFIED.value:
+            ensure_company_member(
+                db,
+                company.id,
+                current_user.id,
+                CompanyMemberRole.COMPANY_RECRUITER.value,
+                RecruiterVerificationStatus.PENDING.value,
+                "Recruiter requested to join this verified company.",
+            )
         profile.company_id = company.id
         profile.recruiter_verification_status = RecruiterVerificationStatus.PENDING.value
         profile.verification_note = "Recruiter requested to join this company."
@@ -177,6 +203,13 @@ def update_company_profile(
             if key == "headquarters_location" and value is None:
                 value = payload_data.get("location")
             if key in payload_data or (key == "headquarters_location" and "location" in payload_data):
+                if key == "company_name" and value and company.verification_status != CompanyVerificationStatus.VERIFIED.value:
+                    duplicate = find_company_by_normalized_name(db, value)
+                    if duplicate and duplicate.id != company.id and duplicate.verification_status == CompanyVerificationStatus.VERIFIED.value:
+                        raise HTTPException(
+                            status_code=status.HTTP_409_CONFLICT,
+                            detail="A verified company with this name already exists. Request to join that company instead.",
+                        )
                 setattr(company, key, value)
                 changed_company = True
         if changed_company and company.verification_status == CompanyVerificationStatus.REJECTED.value:
@@ -320,6 +353,7 @@ def update_application_status(
         notification_type,
         "/jobseeker/applications",
     )
+    update_user_risk(db, application.job_seeker)
     db.commit()
     db.refresh(application)
     profile = application.job_seeker.job_seeker_profile
@@ -343,3 +377,33 @@ def update_application_status(
         applicant_resume_pdf_url=(profile.resume_pdf_url if profile else None) or application.resume_pdf_url,
         job_title=application.job.title,
     )
+
+
+@router.post("/applications/{application_id}/report-candidate")
+def report_candidate(
+    application_id: int,
+    payload: CandidateReportCreate,
+    current_user: Annotated[User, Depends(require_roles(UserRole.RECRUITER.value))],
+    db: Annotated[Session, Depends(get_db)],
+) -> dict[str, str]:
+    application = db.scalar(
+        select(Application)
+        .join(Job)
+        .options(joinedload(Application.job_seeker), joinedload(Application.job))
+        .where(Application.id == application_id)
+        .where(Job.recruiter_id == current_user.id)
+    )
+    if application is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found")
+    assess_candidate_risk(db, application.job_seeker, payload.reason)
+    create_notification(
+        db,
+        application.job_seeker_id,
+        "Application reviewed",
+        "A recruiter submitted feedback for admin review.",
+        "CANDIDATE_REPORTED",
+        "/jobseeker/applications",
+    )
+    update_user_risk(db, application.job_seeker)
+    db.commit()
+    return {"message": "Candidate report submitted for admin review."}

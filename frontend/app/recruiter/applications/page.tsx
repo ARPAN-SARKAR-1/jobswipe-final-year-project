@@ -1,6 +1,6 @@
 "use client";
 
-import { ExternalLink, MessageCircle, Send } from "lucide-react";
+import { ExternalLink, MessageCircle, Send, ShieldAlert } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { FormEvent } from "react";
 import { useEffect, useState } from "react";
@@ -86,6 +86,23 @@ export default function RecruiterApplicationsPage() {
     }
   };
 
+  const reportCandidate = async (application: Application) => {
+    const reason = window.prompt(`Why is ${application.applicant_name || "this candidate"} suspicious?`);
+    if (!reason || reason.trim().length < 10) {
+      toast.error("Please enter at least 10 characters");
+      return;
+    }
+    try {
+      await apiFetch(`/recruiter/applications/${application.id}/report-candidate`, {
+        method: "POST",
+        body: JSON.stringify({ reason: reason.trim() })
+      });
+      toast.success("Candidate report sent for admin review");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Report failed");
+    }
+  };
+
   if (loading) return <main className="page-shell">Loading applications...</main>;
 
   return (
@@ -141,6 +158,10 @@ export default function RecruiterApplicationsPage() {
                       Resume PDF
                     </button>
                   )}
+                  <button className="btn-secondary !py-2 border-amber-200 bg-amber-50 text-amber-800" type="button" onClick={() => reportCandidate(application)}>
+                    <ShieldAlert size={16} />
+                    Report Candidate
+                  </button>
                 </div>
               </div>
               <div className="rounded-lg bg-[#fbfaf7] p-4">

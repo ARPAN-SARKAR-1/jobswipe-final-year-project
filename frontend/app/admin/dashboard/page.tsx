@@ -21,13 +21,33 @@ import { FormEvent, useEffect, useState } from "react";
 import toast from "react-hot-toast";
 
 import PageHeader from "@/components/PageHeader";
+import ReviewAnalyticsPanel from "@/components/ReviewAnalyticsPanel";
 import StatCard from "@/components/StatCard";
 import StatusBadge from "@/components/StatusBadge";
 import VerificationStatusBadge from "@/components/VerificationStatusBadge";
 import { apiFetch } from "@/lib/api";
 import { formatDate } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
-import type { AdminActionLog, AdminRecruiterVerification, Application, ChatThread, Company, CompanyReview, Job, Report, Swipe, User } from "@/types";
+import type {
+  AdminActionLog,
+  AdminRecruiterVerification,
+  Application,
+  CandidateRiskAssessment,
+  ChatThread,
+  Company,
+  CompanyClaim,
+  CompanyMember,
+  CompanyReview,
+  Job,
+  JobRiskAssessment,
+  RecruiterReview,
+  Report,
+  ReviewAnalytics,
+  SecuritySettings,
+  Swipe,
+  User,
+  UserRiskAssessment
+} from "@/types";
 
 type AdminStats = {
   total_users: number;
@@ -45,7 +65,7 @@ type ConfirmAction = {
   endpoint: string;
   success: string;
   method?: "PUT" | "POST";
-  bodyKey?: "reason" | "admin_note";
+  bodyKey?: "reason" | "admin_note" | "note";
   fixedBody?: Record<string, string>;
   label?: string;
 };
@@ -63,8 +83,16 @@ export default function AdminDashboardPage() {
   const [applications, setApplications] = useState<Application[]>([]);
   const [chats, setChats] = useState<ChatThread[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
+  const [companyClaims, setCompanyClaims] = useState<CompanyClaim[]>([]);
+  const [companyMembers, setCompanyMembers] = useState<CompanyMember[]>([]);
   const [verifications, setVerifications] = useState<AdminRecruiterVerification[]>([]);
   const [companyReviews, setCompanyReviews] = useState<CompanyReview[]>([]);
+  const [recruiterReviews, setRecruiterReviews] = useState<RecruiterReview[]>([]);
+  const [reviewAnalytics, setReviewAnalytics] = useState<ReviewAnalytics | null>(null);
+  const [jobRisks, setJobRisks] = useState<JobRiskAssessment[]>([]);
+  const [candidateRisks, setCandidateRisks] = useState<CandidateRiskAssessment[]>([]);
+  const [userRisks, setUserRisks] = useState<UserRiskAssessment[]>([]);
+  const [securitySettings, setSecuritySettings] = useState<SecuritySettings | null>(null);
   const [reports, setReports] = useState<Report[]>([]);
   const [swipes, setSwipes] = useState<Swipe[]>([]);
   const [logs, setLogs] = useState<AdminActionLog[]>([]);
@@ -84,22 +112,38 @@ export default function AdminDashboardPage() {
       apiFetch<Application[]>(`/admin/applications?${pagedQuery}`),
       apiFetch<ChatThread[]>(`/admin/chats?${pagedQuery}`),
       apiFetch<Company[]>(`/admin/companies?${pagedQuery}`),
+      apiFetch<CompanyClaim[]>(`/admin/company-claims?${pagedQuery}`),
+      apiFetch<CompanyMember[]>(`/admin/company-members?${new URLSearchParams({ page: String(page), limit: String(PAGE_LIMIT), verification_status: "PENDING" }).toString()}`),
       apiFetch<AdminRecruiterVerification[]>(`/admin/recruiters?${pagedQuery}`),
       apiFetch<CompanyReview[]>(`/admin/company-reviews?${pagedQuery}`),
+      apiFetch<RecruiterReview[]>(`/admin/recruiter-reviews?${pagedQuery}`),
+      apiFetch<ReviewAnalytics>("/admin/analytics/reviews"),
+      apiFetch<JobRiskAssessment[]>(`/admin/risk/jobs?${pagedQuery}`),
+      apiFetch<CandidateRiskAssessment[]>(`/admin/risk/candidates?${pagedQuery}`),
+      apiFetch<UserRiskAssessment[]>(`/admin/risk/users?${pagedQuery}`),
+      apiFetch<SecuritySettings>("/admin/security-settings"),
       apiFetch<Report[]>(`/admin/reports?${pagedQuery}`),
       apiFetch<Swipe[]>(`/admin/swipes?${pagedQuery}`),
       isOwner ? apiFetch<User[]>("/admin/admins") : Promise.resolve([]),
       isOwner ? apiFetch<AdminActionLog[]>("/admin/action-logs") : Promise.resolve([])
     ])
-      .then(([dashboard, userRows, jobRows, applicationRows, chatRows, companyRows, verificationRows, reviewRows, reportRows, swipeRows, adminRows, logRows]) => {
+      .then(([dashboard, userRows, jobRows, applicationRows, chatRows, companyRows, claimRows, memberRows, verificationRows, reviewRows, recruiterReviewRows, reviewAnalyticsRows, jobRiskRows, candidateRiskRows, userRiskRows, securityRows, reportRows, swipeRows, adminRows, logRows]) => {
         setStats(dashboard);
         setUsers(userRows);
         setJobs(jobRows);
         setApplications(applicationRows);
         setChats(chatRows);
         setCompanies(companyRows);
+        setCompanyClaims(claimRows);
+        setCompanyMembers(memberRows);
         setVerifications(verificationRows);
         setCompanyReviews(reviewRows);
+        setRecruiterReviews(recruiterReviewRows);
+        setReviewAnalytics(reviewAnalyticsRows);
+        setJobRisks(jobRiskRows);
+        setCandidateRisks(candidateRiskRows);
+        setUserRisks(userRiskRows);
+        setSecuritySettings(securityRows);
         setReports(reportRows);
         setSwipes(swipeRows);
         setAdmins(adminRows);
@@ -179,7 +223,34 @@ export default function AdminDashboardPage() {
     return `/admin/users/${target.id}/${action}`;
   };
 
-  const hasMoreRows = [users, jobs, applications, chats, companies, verifications, companyReviews, reports, swipes].some((rows) => rows.length === PAGE_LIMIT);
+  const riskReasons = (value?: string | null) => {
+    if (!value) return [];
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed.map(String) : [String(parsed)];
+    } catch {
+      return [value];
+    }
+  };
+
+  const updateSecuritySetting = async (key: keyof Pick<SecuritySettings, "captcha_login_enabled" | "captcha_signup_enabled" | "captcha_forgot_password_enabled" | "captcha_reports_enabled" | "captcha_company_claims_enabled">, value: boolean) => {
+    if (!securitySettings) return;
+    const optimistic = { ...securitySettings, [key]: value };
+    setSecuritySettings(optimistic);
+    try {
+      const updated = await apiFetch<SecuritySettings>("/admin/security-settings", {
+        method: "PUT",
+        body: JSON.stringify({ [key]: value })
+      });
+      setSecuritySettings(updated);
+      toast.success("Security setting updated");
+    } catch (error) {
+      setSecuritySettings(securitySettings);
+      toast.error(error instanceof Error ? error.message : "Security setting failed");
+    }
+  };
+
+  const hasMoreRows = [users, jobs, applications, chats, companies, companyClaims, companyMembers, verifications, companyReviews, recruiterReviews, jobRisks, candidateRisks, userRisks, reports, swipes].some((rows) => rows.length === PAGE_LIMIT);
 
   if (loading || !stats || !currentUser) return <main className="page-shell">Loading admin dashboard...</main>;
 
@@ -210,6 +281,169 @@ export default function AdminDashboardPage() {
           </button>
         </div>
       </div>
+
+      <section className="mt-7 grid gap-6 lg:grid-cols-2">
+        <div className="panel p-5">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-black">Security Settings</h2>
+              <p className="mt-1 text-sm font-bold text-[#6b767d]">CAPTCHA controls for sensitive flows.</p>
+            </div>
+            <ShieldAlert className="text-teal-700" size={24} />
+          </div>
+          {securitySettings && (
+            <div className="mt-4 grid gap-3">
+              {[
+                ["captcha_login_enabled", "Login CAPTCHA"],
+                ["captcha_signup_enabled", "Signup CAPTCHA"],
+                ["captcha_forgot_password_enabled", "Forgot/reset CAPTCHA"],
+                ["captcha_reports_enabled", "Reports CAPTCHA"],
+                ["captcha_company_claims_enabled", "Company claims CAPTCHA"]
+              ].map(([key, label]) => (
+                <label key={key} className="flex items-center justify-between gap-3 rounded-lg border border-black/5 bg-[#fbfaf7] p-3 text-sm font-black text-[#526069]">
+                  <span>{label}</span>
+                  <input
+                    className="h-5 w-5 accent-teal-600"
+                    type="checkbox"
+                    checked={Boolean(securitySettings[key as keyof SecuritySettings])}
+                    onChange={(event) => updateSecuritySetting(key as keyof Pick<SecuritySettings, "captcha_login_enabled" | "captcha_signup_enabled" | "captcha_forgot_password_enabled" | "captcha_reports_enabled" | "captcha_company_claims_enabled">, event.target.checked)}
+                  />
+                </label>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="panel overflow-hidden">
+          <div className="p-5">
+            <h2 className="text-xl font-black">Suspicious Users</h2>
+            <p className="mt-1 text-sm font-bold text-[#6b767d]">Rule-based user risk scoring for fake or spam behavior.</p>
+          </div>
+          <div className="grid gap-3 p-5 pt-0">
+            {userRisks.slice(0, 5).map((risk) => (
+              <div key={risk.id} className="rounded-lg border border-black/5 bg-[#fbfaf7] p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="font-black">{risk.user_name || `User #${risk.user_id}`}</p>
+                  <StatusBadge status={risk.risk_level} />
+                </div>
+                <p className="mt-1 text-xs font-bold text-[#6b767d]">{risk.user_email} / {risk.user_role} / score {risk.risk_score}</p>
+                <ul className="mt-2 list-disc pl-5 text-xs font-bold leading-5 text-[#526069]">
+                  {riskReasons(risk.reasons).slice(0, 2).map((reasonText) => <li key={reasonText}>{reasonText}</li>)}
+                </ul>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button className="btn-secondary !py-2" type="button" onClick={() => openAction({ title: "Review user risk", message: "Mark this user risk reviewed?", endpoint: `/admin/risk/users/${risk.user_id}/review`, success: "User risk reviewed", bodyKey: "admin_note" })}>Review</button>
+                  {risk.account_status !== "SUSPENDED" ? (
+                    <button className="btn-secondary !py-2 border-rose-200 bg-rose-50 text-rose-700" type="button" onClick={() => openAction({ title: "Suspend suspicious user", message: `Suspend ${risk.user_name || "this user"}?`, endpoint: `/admin/risk/users/${risk.user_id}/suspend`, success: "User suspended", bodyKey: "reason" })}>Suspend</button>
+                  ) : (
+                    <button className="btn-secondary !py-2" type="button" onClick={() => openAction({ title: "Activate user", message: `Activate ${risk.user_name || "this user"}?`, endpoint: `/admin/users/${risk.user_id}/activate`, success: "User activated" })}>Activate</button>
+                  )}
+                </div>
+              </div>
+            ))}
+            {userRisks.length === 0 && <p className="text-sm font-bold text-[#6b767d]">No suspicious users found.</p>}
+          </div>
+        </div>
+      </section>
+
+      <section className="mt-7 grid gap-6 xl:grid-cols-4">
+        <div className="panel overflow-hidden">
+          <div className="p-5">
+            <h2 className="text-xl font-black">Join Requests</h2>
+            <p className="mt-1 text-sm font-bold text-[#6b767d]">Pending recruiters waiting for company approval.</p>
+          </div>
+          <div className="grid gap-3 p-5 pt-0">
+            {companyMembers.slice(0, 5).map((member) => (
+              <div key={member.id} className="rounded-lg border border-black/5 bg-[#fbfaf7] p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="font-black">{member.user_name || `Recruiter #${member.user_id}`}</p>
+                  <VerificationStatusBadge status={member.verification_status} />
+                </div>
+                <p className="mt-1 text-xs font-bold text-[#6b767d]">{member.company_name} / {member.company_role}</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button className="btn-secondary !py-2" type="button" onClick={() => openAction({ title: "Approve join request", message: `Approve ${member.user_name || "this recruiter"} for ${member.company_name || "this company"}?`, endpoint: `/companies/members/${member.id}/approve`, success: "Join request approved", bodyKey: "note" })}>Approve</button>
+                  <button className="btn-secondary !py-2 border-rose-200 bg-rose-50 text-rose-700" type="button" onClick={() => openAction({ title: "Reject join request", message: `Reject ${member.user_name || "this recruiter"}?`, endpoint: `/companies/members/${member.id}/reject`, success: "Join request rejected", bodyKey: "note" })}>Reject</button>
+                </div>
+              </div>
+            ))}
+            {companyMembers.length === 0 && <p className="text-sm font-bold text-[#6b767d]">No recruiter join requests waiting.</p>}
+          </div>
+        </div>
+
+        <div className="panel overflow-hidden">
+          <div className="p-5">
+            <h2 className="text-xl font-black">Company Claims</h2>
+            <p className="mt-1 text-sm font-bold text-[#6b767d]">Official-domain claims and reserved-name review queue.</p>
+          </div>
+          <div className="grid gap-3 p-5 pt-0">
+            {companyClaims.slice(0, 5).map((claim) => (
+              <div key={claim.id} className="rounded-lg border border-black/5 bg-[#fbfaf7] p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="font-black">{claim.requested_company_name}</p>
+                  <StatusBadge status={claim.claim_status} />
+                </div>
+                <p className="mt-1 text-xs font-bold text-[#6b767d]">{claim.official_email} · risk {claim.risk_score}</p>
+                {claim.claim_status === "PENDING" && claim.email_verified_at && (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button className="btn-secondary !py-2" type="button" onClick={() => openAction({ title: "Approve company claim", message: `Verify ${claim.requested_company_name}?`, endpoint: `/admin/company-claims/${claim.id}/approve`, success: "Company claim approved", bodyKey: "admin_note" })}>Approve</button>
+                    <button className="btn-secondary !py-2 border-rose-200 bg-rose-50 text-rose-700" type="button" onClick={() => openAction({ title: "Reject company claim", message: `Reject ${claim.requested_company_name}?`, endpoint: `/admin/company-claims/${claim.id}/reject`, success: "Company claim rejected", bodyKey: "admin_note" })}>Reject</button>
+                  </div>
+                )}
+              </div>
+            ))}
+            {companyClaims.length === 0 && <p className="text-sm font-bold text-[#6b767d]">No company claims waiting.</p>}
+          </div>
+        </div>
+
+        <div className="panel overflow-hidden">
+          <div className="p-5">
+            <h2 className="text-xl font-black">Suspicious Jobs</h2>
+            <p className="mt-1 text-sm font-bold text-[#6b767d]">Rule-based fake job risk scoring queue.</p>
+          </div>
+          <div className="grid gap-3 p-5 pt-0">
+            {jobRisks.slice(0, 5).map((risk) => (
+              <div key={risk.id} className="rounded-lg border border-black/5 bg-[#fbfaf7] p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="font-black">{risk.job_title || `Job #${risk.job_id}`}</p>
+                  <StatusBadge status={risk.risk_level} />
+                </div>
+                <p className="mt-1 text-xs font-bold text-[#6b767d]">{risk.company_name} · score {risk.risk_score} · {risk.moderation_status}</p>
+                <ul className="mt-2 list-disc pl-5 text-xs font-bold leading-5 text-[#526069]">
+                  {riskReasons(risk.reasons).slice(0, 2).map((reason) => <li key={reason}>{reason}</li>)}
+                </ul>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button className="btn-secondary !py-2" type="button" onClick={() => openAction({ title: "Approve job", message: "Approve this flagged job?", endpoint: `/admin/risk/jobs/${risk.job_id}/approve`, success: "Job approved" })}>Approve</button>
+                  <button className="btn-secondary !py-2" type="button" onClick={() => openAction({ title: "Pause job", message: "Keep this job paused?", endpoint: `/admin/risk/jobs/${risk.job_id}/pause`, success: "Job paused" })}>Pause</button>
+                  <button className="btn-secondary !py-2 border-rose-200 bg-rose-50 text-rose-700" type="button" onClick={() => openAction({ title: "Remove job", message: "Remove this job?", endpoint: `/admin/risk/jobs/${risk.job_id}/remove`, success: "Job removed" })}>Remove</button>
+                  {risk.recruiter_id && (
+                    <button className="btn-secondary !py-2 border-rose-200 bg-rose-50 text-rose-700" type="button" onClick={() => openAction({ title: "Suspend recruiter", message: `Suspend ${risk.recruiter_name || "this recruiter"}?`, endpoint: `/admin/users/${risk.recruiter_id}/suspend`, success: "Recruiter suspended", bodyKey: "reason" })}>Suspend Recruiter</button>
+                  )}
+                </div>
+              </div>
+            ))}
+            {jobRisks.length === 0 && <p className="text-sm font-bold text-[#6b767d]">No suspicious jobs found.</p>}
+          </div>
+        </div>
+
+        <div className="panel overflow-hidden">
+          <div className="p-5">
+            <h2 className="text-xl font-black">Suspicious Candidates</h2>
+            <p className="mt-1 text-sm font-bold text-[#6b767d]">Candidate reports and profile risk signals.</p>
+          </div>
+          <div className="grid gap-3 p-5 pt-0">
+            {candidateRisks.slice(0, 5).map((risk) => (
+              <div key={risk.id} className="rounded-lg border border-black/5 bg-[#fbfaf7] p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="font-black">{risk.job_seeker_name || `Candidate #${risk.job_seeker_id}`}</p>
+                  <StatusBadge status={risk.risk_level} />
+                </div>
+                <p className="mt-1 text-xs font-bold text-[#6b767d]">{risk.job_seeker_email} · score {risk.risk_score}</p>
+                <button className="btn-secondary mt-3 !py-2" type="button" onClick={() => openAction({ title: "Review candidate risk", message: "Mark this candidate risk item reviewed?", endpoint: `/admin/risk/candidates/${risk.id}/review`, success: "Candidate risk reviewed", bodyKey: "admin_note" })}>Mark reviewed</button>
+              </div>
+            ))}
+            {candidateRisks.length === 0 && <p className="text-sm font-bold text-[#6b767d]">No suspicious candidates found.</p>}
+          </div>
+        </div>
+      </section>
 
       <div className="mt-7 grid gap-6">
         {isOwner && (
@@ -393,7 +627,9 @@ export default function AdminDashboardPage() {
         <ModerationChatsTable chats={chats} openAction={openAction} />
         <CompanyVerificationTable companies={companies} openAction={openAction} />
         <RecruiterVerificationTable verifications={verifications} openAction={openAction} />
+        <ReviewAnalyticsPanel analytics={reviewAnalytics} />
         <CompanyReviewsTable reviews={companyReviews} openAction={openAction} />
+        <RecruiterReviewsTable reviews={recruiterReviews} openAction={openAction} />
         <ReportsTable reports={reports} openAction={openAction} />
         <Table title="Swipes" headers={["ID", "Job seeker", "Job", "Action"]} rows={swipes.map((swipe) => [swipe.id, swipe.job_seeker_id, swipe.job?.title || swipe.job_id, swipe.action])} />
 
@@ -658,9 +894,12 @@ function CompanyReviewsTable({ reviews, openAction }: { reviews: CompanyReview[]
                   <p className="font-black text-[#172026]">{review.reviewer_name || review.job_seeker_id}</p>
                   <p className="font-bold text-[#6b767d]">{review.reviewer_email || ""}</p>
                 </td>
-                <td className="p-4 font-black text-amber-700">{review.rating} / 5</td>
-                <td className="p-4 max-w-sm font-bold leading-6 text-[#6b767d]">{review.review_text || "-"}</td>
-                <td className="p-4"><StatusBadge status={review.is_visible ? "ACTIVE" : "HIDDEN"} /></td>
+                <td className="p-4 font-black text-amber-700">{review.overall_rating} / 5</td>
+                <td className="p-4 max-w-sm font-bold leading-6 text-[#6b767d]">
+                  <span className="block text-[#172026]">{review.review_title || "-"}</span>
+                  {review.review_text || "-"}
+                </td>
+                <td className="p-4"><StatusBadge status={review.moderation_status} /></td>
                 <td className="p-4">
                   <div className="flex flex-wrap gap-2">
                     <button
@@ -692,6 +931,91 @@ function CompanyReviewsTable({ reviews, openAction }: { reviews: CompanyReview[]
                     >
                       <Eye size={15} />
                       Show
+                    </button>
+                    <button
+                      className="btn-secondary !px-3 !py-2 border-amber-200 bg-amber-50 text-amber-700"
+                      type="button"
+                      onClick={() =>
+                        openAction({
+                          title: "Flag review",
+                          message: "Flag this company review for moderation?",
+                          endpoint: `/admin/company-reviews/${review.id}/flag`,
+                          success: "Review flagged successfully"
+                        })
+                      }
+                    >
+                      <ShieldAlert size={15} />
+                      Flag
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function RecruiterReviewsTable({ reviews, openAction }: { reviews: RecruiterReview[]; openAction: (action: ConfirmAction) => void }) {
+  return (
+    <div className="panel overflow-hidden">
+      <div className="flex items-center gap-2 p-5">
+        <Star size={19} />
+        <h2 className="text-xl font-black">Recruiter Reviews</h2>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[1100px] text-left text-sm">
+          <thead className="bg-[#fbfaf7] text-xs font-black uppercase text-[#526069]">
+            <tr>
+              <th className="p-4">Recruiter</th>
+              <th className="p-4">Reviewer</th>
+              <th className="p-4">Rating</th>
+              <th className="p-4">Review</th>
+              <th className="p-4">Status</th>
+              <th className="p-4">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {reviews.map((review) => (
+              <tr key={review.id} className="border-t border-black/5 align-top">
+                <td className="p-4">
+                  <p className="font-black text-[#172026]">{review.recruiter_name || review.recruiter_id}</p>
+                  <p className="font-bold text-[#6b767d]">{review.company_name || review.recruiter_email || ""}</p>
+                </td>
+                <td className="p-4 font-bold text-[#526069]">{review.reviewer_name || review.job_seeker_id}</td>
+                <td className="p-4 font-black text-amber-700">{review.overall_rating} / 5</td>
+                <td className="p-4 max-w-sm font-bold leading-6 text-[#6b767d]">
+                  <span className="block text-[#172026]">{review.review_title || "-"}</span>
+                  {review.review_text || "-"}
+                </td>
+                <td className="p-4"><StatusBadge status={review.moderation_status} /></td>
+                <td className="p-4">
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      className="btn-secondary !px-3 !py-2 border-rose-200 bg-rose-50 text-rose-700"
+                      type="button"
+                      onClick={() => openAction({ title: "Hide recruiter review", message: "Hide this recruiter review?", endpoint: `/admin/recruiter-reviews/${review.id}/hide`, success: "Recruiter review hidden" })}
+                    >
+                      <EyeOff size={15} />
+                      Hide
+                    </button>
+                    <button
+                      className="btn-secondary !px-3 !py-2 border-emerald-200 bg-emerald-50 text-emerald-700"
+                      type="button"
+                      onClick={() => openAction({ title: "Show recruiter review", message: "Show this recruiter review publicly?", endpoint: `/admin/recruiter-reviews/${review.id}/show`, success: "Recruiter review shown" })}
+                    >
+                      <Eye size={15} />
+                      Show
+                    </button>
+                    <button
+                      className="btn-secondary !px-3 !py-2 border-amber-200 bg-amber-50 text-amber-700"
+                      type="button"
+                      onClick={() => openAction({ title: "Flag recruiter review", message: "Flag this recruiter review?", endpoint: `/admin/recruiter-reviews/${review.id}/flag`, success: "Recruiter review flagged" })}
+                    >
+                      <ShieldAlert size={15} />
+                      Flag
                     </button>
                   </div>
                 </td>

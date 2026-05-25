@@ -13,6 +13,7 @@ from app.models.user import User
 from app.schemas.report import ReportCreate, ReportRead
 from app.services.notifications import notify_admins
 from app.services.rate_limiter import rate_limit_key, rate_limiter
+from app.services.user_risk_assessment import update_user_risk
 
 router = APIRouter(prefix="/reports", tags=["Reports"])
 
@@ -46,6 +47,9 @@ def report_job(
         "JOB_REPORTED",
         "/admin/dashboard",
     )
+    recruiter = db.get(User, job.recruiter_id)
+    if recruiter:
+        update_user_risk(db, recruiter)
     db.commit()
     db.refresh(report)
     return report
@@ -79,6 +83,7 @@ def report_recruiter(
         "JOB_REPORTED",
         "/admin/dashboard",
     )
+    update_user_risk(db, recruiter)
     db.commit()
     db.refresh(report)
     return report

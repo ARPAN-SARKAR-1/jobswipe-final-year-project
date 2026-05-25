@@ -8,11 +8,12 @@ import toast from "react-hot-toast";
 import EmptyState from "@/components/EmptyState";
 import JobCard from "@/components/JobCard";
 import PageHeader from "@/components/PageHeader";
+import RatingSummary from "@/components/RatingSummary";
 import StatCard from "@/components/StatCard";
 import VerificationStatusBadge from "@/components/VerificationStatusBadge";
 import { apiFetch } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
-import type { CompanyProfile, Job } from "@/types";
+import type { CompanyProfile, Job, RecruiterReviewSummary } from "@/types";
 
 type RecruiterDashboard = {
   total_jobs: number;
@@ -21,6 +22,7 @@ type RecruiterDashboard = {
   applications_received: number;
   posted_jobs: Job[];
   company_profile: CompanyProfile;
+  recruiter_review_summary: RecruiterReviewSummary;
 };
 
 export default function RecruiterDashboardPage() {
@@ -77,6 +79,20 @@ export default function RecruiterDashboardPage() {
       </section>
 
       <section className="mt-7">
+        <RatingSummary
+          title="Candidate Feedback"
+          average={data.recruiter_review_summary.average_overall_rating}
+          total={data.recruiter_review_summary.total_reviews}
+          rows={[
+            { label: "Communication", value: data.recruiter_review_summary.communication_average },
+            { label: "Response Time", value: data.recruiter_review_summary.response_time_average },
+            { label: "Professionalism", value: data.recruiter_review_summary.professionalism_average },
+            { label: "Transparency", value: data.recruiter_review_summary.transparency_average }
+          ]}
+        />
+      </section>
+
+      <section className="mt-7">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-2xl font-black">Manage jobs</h2>
           <Link href="/recruiter/applications" className="btn-secondary !py-2">
@@ -88,7 +104,14 @@ export default function RecruiterDashboardPage() {
         ) : (
           <div className="grid gap-4 lg:grid-cols-2">
             {data.posted_jobs.map((job) => (
-              <JobCard key={job.id} job={job} />
+              <div key={job.id} className="grid gap-2">
+                {job.moderation_status === "PAUSED" && job.moderation_reason?.toLowerCase().includes("safety") && (
+                  <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm font-bold text-amber-800">
+                    Your job has been sent for review due to safety checks.
+                  </div>
+                )}
+                <JobCard job={job} />
+              </div>
             ))}
           </div>
         )}

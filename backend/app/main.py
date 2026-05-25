@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app.core.config import settings
-from app.routers import admin, applications, auth, chats, companies, files, jobs, jobseeker, notifications, recruiter, reports, swipes
+from app.routers import admin, applications, auth, chats, companies, files, jobs, jobseeker, notifications, recruiter, recruiters, reports, security, swipes
 
 app = FastAPI(
     title="JobSwipe API",
@@ -29,10 +29,12 @@ for public_subfolder in ("profile-pictures", "company-logos"):
     app.mount(f"/uploads/{public_subfolder}", StaticFiles(directory=public_dir), name=f"uploads-{public_subfolder}")
 
 app.include_router(auth.router, prefix="/api")
+app.include_router(security.router, prefix="/api")
 app.include_router(jobseeker.router, prefix="/api")
 app.include_router(recruiter.router, prefix="/api")
 app.include_router(files.router, prefix="/api")
 app.include_router(companies.router, prefix="/api")
+app.include_router(recruiters.router, prefix="/api")
 app.include_router(jobs.router, prefix="/api")
 app.include_router(swipes.router, prefix="/api")
 app.include_router(applications.router, prefix="/api")

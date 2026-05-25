@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 import toast from "react-hot-toast";
 
+import CaptchaBox, { type CaptchaValue } from "@/components/CaptchaBox";
 import { apiFetch, roleHome, saveAuth } from "@/lib/api";
 import { roleOptions } from "@/lib/options";
 import type { AuthResponse, Role } from "@/types";
@@ -13,6 +14,8 @@ import type { AuthResponse, Role } from "@/types";
 export default function RegisterPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [captcha, setCaptcha] = useState<CaptchaValue>({ captcha_id: "", captcha_answer: "" });
+  const [captchaRefresh, setCaptchaRefresh] = useState(0);
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -37,13 +40,14 @@ export default function RegisterPage() {
     try {
       const auth = await apiFetch<AuthResponse>("/auth/register", {
         method: "POST",
-        body: JSON.stringify(form)
+        body: JSON.stringify({ ...form, ...captcha })
       });
       saveAuth(auth);
       toast.success("Signup successful");
       router.push(roleHome(auth.user.role));
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Signup failed");
+      setCaptchaRefresh((value) => value + 1);
     } finally {
       setLoading(false);
     }
@@ -112,6 +116,7 @@ export default function RegisterPage() {
               .
             </span>
           </label>
+          <CaptchaBox value={captcha} onChange={setCaptcha} refreshSignal={captchaRefresh} />
           <button className="btn-primary" disabled={loading} type="submit">
             {loading && <Loader2 className="animate-spin" size={18} />}
             Create account

@@ -1,35 +1,44 @@
 "use client";
 
-import { Building2, Globe2, Loader2, MapPin, Send, Star, UsersRound } from "lucide-react";
+import { Building2, Globe2, MapPin, Star, UsersRound } from "lucide-react";
 import { useParams } from "next/navigation";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 
 import BlueTick from "@/components/BlueTick";
 import EmptyState from "@/components/EmptyState";
 import JobCard from "@/components/JobCard";
 import PageHeader from "@/components/PageHeader";
+import RatingSummary from "@/components/RatingSummary";
+import ReviewCard from "@/components/ReviewCard";
+import ReviewFormModal, { type CompanyReviewPayload } from "@/components/ReviewFormModal";
 import VerificationStatusBadge from "@/components/VerificationStatusBadge";
 import { apiFetch, assetUrl, getStoredUser } from "@/lib/api";
-import { formatDate } from "@/lib/utils";
-import type { Application, CompanyDetail, CompanyReview, User } from "@/types";
+import type { Application, CompanyDetail, CompanyReview, CompanyReviewSummary, User } from "@/types";
 
 export default function CompanyDetailPage() {
   const params = useParams<{ id: string }>();
   const [company, setCompany] = useState<CompanyDetail | null>(null);
   const [reviews, setReviews] = useState<CompanyReview[]>([]);
+  const [summary, setSummary] = useState<CompanyReviewSummary | null>(null);
   const [applications, setApplications] = useState<Application[]>([]);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({ rating: 5, review_text: "" });
+  const [reviewOpen, setReviewOpen] = useState(false);
 
   const load = () => {
     if (!params.id) return;
-    Promise.all([apiFetch<CompanyDetail>(`/companies/${params.id}`), apiFetch<CompanyReview[]>(`/companies/${params.id}/reviews`)])
-      .then(([companyData, reviewRows]) => {
+    Promise.all([
+      apiFetch<CompanyDetail>(`/companies/${params.id}`),
+      apiFetch<CompanyReview[]>(`/companies/${params.id}/reviews`),
+      apiFetch<CompanyReviewSummary>(`/companies/${params.id}/review-summary`)
+    ])
+      .then(([companyData, reviewRows, summaryData]) => {
         setCompany(companyData);
         setReviews(reviewRows);
+        setSummary(summaryData);
       })
       .catch((error) => toast.error(error instanceof Error ? error.message : "Company failed"))
       .finally(() => setLoading(false));
@@ -56,17 +65,16 @@ export default function CompanyDetailPage() {
     return reviews.some((review) => review.job_seeker_id === user.id);
   }, [reviews, user]);
 
-  const submitReview = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const submitReview = async (payload: CompanyReviewPayload) => {
     if (!company) return;
     setSaving(true);
     try {
       await apiFetch<CompanyReview>(`/companies/${company.id}/reviews`, {
         method: "POST",
-        body: JSON.stringify({ rating: form.rating, review_text: form.review_text || null })
+        body: JSON.stringify(payload)
       });
       toast.success("Review submitted");
-      setForm({ rating: 5, review_text: "" });
+      setReviewOpen(false);
       load();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Review failed");
@@ -108,6 +116,20 @@ export default function CompanyDetailPage() {
         </aside>
 
         <div className="grid gap-5">
+          {summary && (
+            <RatingSummary
+              title="Company Rating"
+              average={summary.average_overall_rating}
+              total={summary.total_reviews}
+              rows={[
+                { label: "Work Culture", value: summary.work_culture_average },
+                { label: "Interview Process", value: summary.interview_process_average },
+                { label: "Salary Transparency", value: summary.salary_transparency_average },
+                { label: "Growth Opportunity", value: summary.growth_opportunity_average }
+              ]}
+            />
+          )}
+
           <section className="panel p-5">
             <h2 className="text-xl font-black">Active jobs</h2>
             {company.active_jobs.length === 0 ? (
@@ -126,10 +148,15 @@ export default function CompanyDetailPage() {
             <div className="mt-4 grid gap-3 md:grid-cols-2">
               {company.recruiters.map((recruiter) => (
                 <div key={recruiter.id} className="rounded-lg border border-black/10 bg-white/70 p-4">
-                  <p className="font-black text-[#172026]">{recruiter.recruiter_name}</p>
+                  <Link href={`/recruiters/${recruiter.user_id}`} className="font-black text-[#172026] hover:text-teal-700">
+                    {recruiter.recruiter_name}
+                  </Link>
                   <p className="text-sm font-bold text-[#6b767d]">{recruiter.designation || "Recruiter"}{recruiter.department ? `, ${recruiter.department}` : ""}</p>
                   <div className="mt-3 flex flex-wrap gap-2">
                     <VerificationStatusBadge status={recruiter.recruiter_verification_status} />
+                    <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-black text-amber-700">
+                      {recruiter.average_rating.toFixed(1)} ({recruiter.total_reviews})
+                    </span>
                   </div>
                 </div>
               ))}
@@ -146,31 +173,30 @@ export default function CompanyDetailPage() {
                 <p className="text-sm font-bold text-[#6b767d]">No visible reviews yet.</p>
               ) : (
                 reviews.map((review) => (
-                  <div key={review.id} className="rounded-lg border border-black/10 bg-white/70 p-4">
-                    <div className="flex flex-wrap justify-between gap-2">
-                      <p className="font-black text-[#172026]">{review.reviewer_name || "Job seeker"}</p>
-                      <span className="font-black text-amber-700">{review.rating} / 5</span>
-                    </div>
-                    {review.review_text && <p className="mt-2 text-sm font-medium leading-6 text-[#526069]">{review.review_text}</p>}
-                    <p className="mt-2 text-xs font-bold text-[#8a949a]">{formatDate(review.created_at)}</p>
-                  </div>
+                  <ReviewCard
+                    key={review.id}
+                    reviewerName={review.reviewer_name}
+                    title={review.review_title}
+                    text={review.review_text}
+                    rating={review.overall_rating}
+                    pros={review.pros}
+                    cons={review.cons}
+                    createdAt={review.created_at}
+                    badges={[
+                      `Culture ${review.work_culture_rating}`,
+                      `Interview ${review.interview_process_rating}`,
+                      `Salary ${review.salary_transparency_rating}`,
+                      `Growth ${review.growth_opportunity_rating}`
+                    ]}
+                  />
                 ))
               )}
             </div>
 
             {user?.role === "JOB_SEEKER" && canReview && !alreadyReviewed && (
-              <form onSubmit={submitReview} className="mt-5 grid gap-3 rounded-lg border border-black/10 bg-[#fbfaf7] p-4">
-                <select className="field" value={form.rating} onChange={(event) => setForm({ ...form, rating: Number(event.target.value) })}>
-                  {[5, 4, 3, 2, 1].map((rating) => (
-                    <option key={rating} value={rating}>{rating} star{rating === 1 ? "" : "s"}</option>
-                  ))}
-                </select>
-                <textarea className="field min-h-28" placeholder="Share your experience" value={form.review_text} onChange={(event) => setForm({ ...form, review_text: event.target.value })} />
-                <button className="btn-primary" type="submit" disabled={saving}>
-                  {saving ? <Loader2 className="animate-spin" size={18} /> : <Send size={18} />}
-                  Write Review
-                </button>
-              </form>
+              <button className="btn-primary mt-5" type="button" onClick={() => setReviewOpen(true)}>
+                Write Review
+              </button>
             )}
             {user?.role === "JOB_SEEKER" && !canReview && (
               <p className="mt-5 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm font-bold text-amber-800">
@@ -185,6 +211,14 @@ export default function CompanyDetailPage() {
           </section>
         </div>
       </section>
+      <ReviewFormModal
+        open={reviewOpen}
+        mode="company"
+        title={`Review ${company.company_name}`}
+        saving={saving}
+        onClose={() => setReviewOpen(false)}
+        onSubmit={(payload) => submitReview(payload as CompanyReviewPayload)}
+      />
     </main>
   );
 }

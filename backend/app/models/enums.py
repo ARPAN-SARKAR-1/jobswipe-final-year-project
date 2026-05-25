@@ -30,6 +30,19 @@ class RecruiterVerificationStatus(str, Enum):
     REJECTED = "REJECTED"
 
 
+class CompanyMemberRole(str, Enum):
+    COMPANY_OWNER = "COMPANY_OWNER"
+    COMPANY_ADMIN = "COMPANY_ADMIN"
+    COMPANY_RECRUITER = "COMPANY_RECRUITER"
+
+
+class CompanyClaimStatus(str, Enum):
+    PENDING = "PENDING"
+    VERIFIED = "VERIFIED"
+    REJECTED = "REJECTED"
+    EXPIRED = "EXPIRED"
+
+
 class CompanyVerificationStatus(str, Enum):
     PENDING = "PENDING"
     VERIFIED = "VERIFIED"
@@ -81,6 +94,25 @@ class ReportStatus(str, Enum):
     REVIEWED = "REVIEWED"
     RESOLVED = "RESOLVED"
     DISMISSED = "DISMISSED"
+
+
+class RiskLevel(str, Enum):
+    LOW = "LOW"
+    MEDIUM = "MEDIUM"
+    HIGH = "HIGH"
+    CRITICAL = "CRITICAL"
+
+
+class RiskAutoAction(str, Enum):
+    NONE = "NONE"
+    FLAGGED = "FLAGGED"
+    PAUSED = "PAUSED"
+
+
+class ReviewModerationStatus(str, Enum):
+    VISIBLE = "VISIBLE"
+    HIDDEN = "HIDDEN"
+    FLAGGED = "FLAGGED"
 
 
 class JobType(str, Enum):

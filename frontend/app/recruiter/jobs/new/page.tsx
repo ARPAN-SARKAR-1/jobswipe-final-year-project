@@ -11,7 +11,7 @@ import VerificationStatusBadge from "@/components/VerificationStatusBadge";
 import { apiFetch } from "@/lib/api";
 import { experienceLevels, jobTypes, workModes } from "@/lib/options";
 import { useAuth } from "@/hooks/useAuth";
-import type { CompanyProfile } from "@/types";
+import type { CompanyProfile, Job } from "@/types";
 
 const initial = {
   title: "",
@@ -73,7 +73,7 @@ export default function PostJobPage() {
     }
     setSaving(true);
     try {
-      await apiFetch("/jobs", {
+      const job = await apiFetch<Job>("/jobs", {
         method: "POST",
         body: JSON.stringify({
           ...form,
@@ -84,7 +84,7 @@ export default function PostJobPage() {
           bond_details: form.has_bond ? form.bond_details || null : null
         })
       });
-      toast.success("Job posted");
+      toast.success(job.moderation_status === "PAUSED" ? "Your job has been sent for review due to safety checks." : "Job posted");
       router.push("/recruiter/dashboard");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Post failed");
