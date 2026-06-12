@@ -1,0 +1,74 @@
+import json
+import smtplib
+from email.message import EmailMessage
+from urllib import request
+
+from fastapi import HTTPException, status
+
+from app.core.config import settings
+
+
+def ensure_email_provider_configured() -> None:
+    provider = settings.email_provider.lower()
+    if not settings.is_production and provider == "console":
+        return
+    if provider == "resend" and settings.resend_api_key and settings.email_from:
+        return
+    if provider == "smtp" and settings.smtp_host and settings.email_from:
+        return
+    raise HTTPException(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        detail="Email delivery is not configured for this environment",
+    )
+
+
+def send_security_code(to_email: str, code: str, subject: str) -> None:
+    provider = settings.email_provider.lower()
+    if not settings.is_production and provider == "console":
+        print(f"[Swipe for Success] {subject} for {to_email}: {code}")
+        return
+    ensure_email_provider_configured()
+    if provider == "resend":
+        send_resend_email(to_email, code, subject)
+        return
+    if provider == "smtp":
+        send_smtp_email(to_email, code, subject)
+        return
+    raise HTTPException(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        detail="Unsupported email provider",
+    )
+
+
+def send_smtp_email(to_email: str, code: str, subject: str) -> None:
+    message = EmailMessage()
+    message["Subject"] = subject
+    message["From"] = settings.email_from or ""
+    message["To"] = to_email
+    message.set_content(f"Your Swipe for Success verification code is {code}. It expires in {settings.otp_expire_minutes} minutes.")
+    with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=20) as smtp:
+        smtp.starttls()
+        if settings.smtp_user and settings.smtp_password:
+            smtp.login(settings.smtp_user, settings.smtp_password)
+        smtp.send_message(message)
+
+
+def send_resend_email(to_email: str, code: str, subject: str) -> None:
+    payload = {
+        "from": settings.email_from,
+        "to": [to_email],
+        "subject": subject,
+        "text": f"Your Swipe for Success verification code is {code}. It expires in {settings.otp_expire_minutes} minutes.",
+    }
+    req = request.Request(
+        "https://api.resend.com/emails",
+        data=json.dumps(payload).encode("utf-8"),
+        headers={
+            "Authorization": f"Bearer {settings.resend_api_key}",
+            "Content-Type": "application/json",
+        },
+        method="POST",
+    )
+    with request.urlopen(req, timeout=20) as response:
+        if response.status >= 400:
+            raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Email provider rejected the message")

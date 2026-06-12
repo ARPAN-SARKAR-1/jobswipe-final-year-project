@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 import toast from "react-hot-toast";
 
+import CaptchaBox, { type CaptchaValue } from "@/components/CaptchaBox";
 import { apiFetch, roleHome, saveAuth } from "@/lib/api";
 import { roleOptions } from "@/lib/options";
 import type { AuthResponse, Role } from "@/types";
@@ -13,6 +14,7 @@ import type { AuthResponse, Role } from "@/types";
 export default function RegisterPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [captcha, setCaptcha] = useState<CaptchaValue>({ challengeId: "", answer: "" });
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -37,11 +39,20 @@ export default function RegisterPage() {
     try {
       const auth = await apiFetch<AuthResponse>("/auth/register", {
         method: "POST",
-        body: JSON.stringify(form)
+        body: JSON.stringify({
+          ...form,
+          captcha_challenge_id: captcha.challengeId,
+          captcha_answer: captcha.answer
+        })
       });
+      if (auth.requires_email_verification) {
+        toast.success("Check your email for the verification OTP");
+        router.push(`/verify-email?email=${encodeURIComponent(auth.user?.email || form.email)}`);
+        return;
+      }
       saveAuth(auth);
       toast.success("Signup successful");
-      router.push(roleHome(auth.user.role));
+      router.push(roleHome(auth.user!.role));
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Signup failed");
     } finally {
@@ -112,6 +123,7 @@ export default function RegisterPage() {
               .
             </span>
           </label>
+          <CaptchaBox disabled={loading} onChange={setCaptcha} purpose="signup" />
           <button className="btn-primary" disabled={loading} type="submit">
             {loading && <Loader2 className="animate-spin" size={18} />}
             Create account

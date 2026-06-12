@@ -20,6 +20,9 @@ class User(TimestampMixin, Base):
     accepted_terms_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     accepted_privacy: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     accepted_privacy_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    email_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    email_verified_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    twofa_enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     account_status: Mapped[str] = mapped_column(String(30), default="ACTIVE", nullable=False)
     suspension_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_protected_owner: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
@@ -36,6 +39,9 @@ class User(TimestampMixin, Base):
     applications = relationship("Application", back_populates="job_seeker", cascade="all, delete-orphan")
     swipes = relationship("Swipe", back_populates="job_seeker", cascade="all, delete-orphan")
     password_reset_tokens = relationship("PasswordResetToken", back_populates="user", cascade="all, delete-orphan")
+    email_otps = relationship("EmailOTP", back_populates="user", cascade="all, delete-orphan")
+    login_otp_challenges = relationship("LoginOTPChallenge", back_populates="user", cascade="all, delete-orphan")
+    trusted_devices = relationship("TrustedDevice", back_populates="user", cascade="all, delete-orphan")
     recruiter_chat_threads = relationship(
         "ChatThread",
         foreign_keys="ChatThread.recruiter_id",

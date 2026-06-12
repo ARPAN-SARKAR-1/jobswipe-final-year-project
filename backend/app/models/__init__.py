@@ -4,26 +4,34 @@ from app.models.application_timeline import ApplicationTimeline
 from app.models.chat_message import ChatMessage
 from app.models.chat_thread import ChatThread
 from app.models.company_profile import CompanyProfile
+from app.models.captcha_challenge import CaptchaChallenge
+from app.models.email_otp import EmailOTP
 from app.models.job import Job
 from app.models.job_seeker_profile import JobSeekerProfile
+from app.models.login_otp_challenge import LoginOTPChallenge
 from app.models.notification import Notification
 from app.models.password_reset_token import PasswordResetToken
 from app.models.report import Report
 from app.models.swipe import Swipe
+from app.models.trusted_device import TrustedDevice
 from app.models.user import User
 
 __all__ = [
     "Application",
     "ApplicationTimeline",
     "AdminActionLog",
+    "CaptchaChallenge",
     "ChatMessage",
     "ChatThread",
     "CompanyProfile",
+    "EmailOTP",
     "Job",
     "JobSeekerProfile",
+    "LoginOTPChallenge",
     "Notification",
     "PasswordResetToken",
     "Report",
     "Swipe",
+    "TrustedDevice",
     "User",
 ]

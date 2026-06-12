@@ -5,6 +5,7 @@ import Link from "next/link";
 import { FormEvent, useState } from "react";
 import toast from "react-hot-toast";
 
+import CaptchaBox, { type CaptchaValue } from "@/components/CaptchaBox";
 import { apiFetch } from "@/lib/api";
 
 type ForgotResponse = {
@@ -17,6 +18,8 @@ export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [response, setResponse] = useState<ForgotResponse | null>(null);
+  const [captcha, setCaptcha] = useState<CaptchaValue>({ challengeId: "", answer: "" });
+  const isDevelopment = process.env.NODE_ENV !== "production";
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -24,10 +27,14 @@ export default function ForgotPasswordPage() {
     try {
       const data = await apiFetch<ForgotResponse>("/auth/forgot-password", {
         method: "POST",
-        body: JSON.stringify({ email })
+        body: JSON.stringify({
+          email,
+          captcha_challenge_id: captcha.challengeId,
+          captcha_answer: captcha.answer
+        })
       });
       setResponse(data);
-      toast.success("Reset token generated for demo");
+      toast.success("If the account exists, reset instructions were generated");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Request failed");
     } finally {
@@ -48,12 +55,13 @@ export default function ForgotPasswordPage() {
             </label>
             <input id="email" className="field" required type="email" value={email} onChange={(event) => setEmail(event.target.value)} />
           </div>
+          <CaptchaBox disabled={loading} onChange={setCaptcha} purpose="forgot_password" />
           <button className="btn-primary" disabled={loading} type="submit">
             {loading && <Loader2 className="animate-spin" size={18} />}
             Generate reset token
           </button>
         </div>
-        {response?.reset_token && (
+        {isDevelopment && response?.reset_token && (
           <div className="mt-5 rounded-lg border border-teal-200 bg-teal-50 p-4 text-sm font-bold text-teal-800">
             <p className="break-all">Token: {response.reset_token}</p>
             {response.reset_url && (

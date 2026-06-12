@@ -26,3 +26,35 @@ services:
         sync: false
       - key: CLOUDINARY_API_SECRET
         sync: false
+      - key: CAPTCHA_ENABLED
+        value: "true"
+      - key: EMAIL_VERIFICATION_REQUIRED
+        value: "true"
+      - key: TWOFA_REQUIRED_ROLES
+        value: OWNER,ADMIN,RECRUITER
+      - key: EMAIL_PROVIDER
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        sync: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+      - key: OTP_EXPIRE_MINUTES
+        value: "5"
+      - key: OTP_MAX_ATTEMPTS
+        value: "5"
+      - key: EMAIL_OTP_RESEND_COOLDOWN_SECONDS
+        value: "60"
+      - key: CAPTCHA_EXPIRE_MINUTES
+        value: "5"
+      - key: TRUSTED_DEVICE_DAYS
+        value: "30"
+      - key: TRUSTED_DEVICE_COOKIE_NAME
+        value: swipe_trusted_device

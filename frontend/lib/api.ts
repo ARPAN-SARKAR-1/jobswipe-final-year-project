@@ -30,6 +30,9 @@ export function getStoredUser(): User | null {
 }
 
 export function saveAuth(auth: AuthResponse) {
+  if (!auth.access_token || !auth.user) {
+    throw new ApiError("Authentication is not complete", 401);
+  }
   window.localStorage.setItem("jobswipe_token", auth.access_token);
   window.localStorage.setItem("jobswipe_user", JSON.stringify(auth.user));
   window.dispatchEvent(new Event("jobswipe-auth"));

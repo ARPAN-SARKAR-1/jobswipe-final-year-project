@@ -11,7 +11,7 @@ Freshers and early-career job seekers often spend too much time scrolling throug
 ## Features
 
 - Landing page with the tagline "Swipe Less. Apply Smarter."
-- Register and login with JWT authentication, bcrypt password hashing, role redirects, validation, loaders, and toasts.
+- Register and login with JWT authentication, bcrypt password hashing, email OTP verification, CAPTCHA checks, protected-role login 2FA, role redirects, validation, loaders, and toasts.
 - Forgot password and reset password demo flow with development reset token return.
 - Job Seeker dashboard, editable profile, profile picture upload, GitHub URL, education details, experience level, resume PDF upload, saved jobs, applications, and withdraw action.
 - Swipe Jobs page with Framer Motion drag animation, reject, save, apply, undo, and progress indicator.
@@ -127,6 +127,19 @@ ACCESS_TOKEN_EXPIRE_MINUTES=1440
 UPLOAD_DIR=uploads
 FRONTEND_URL=http://localhost:3000
 ENV=development
+CLOUDINARY_CLOUD_NAME=
+CLOUDINARY_API_KEY=
+CLOUDINARY_API_SECRET=
+CAPTCHA_ENABLED=true
+EMAIL_VERIFICATION_REQUIRED=true
+TWOFA_REQUIRED_ROLES=OWNER,ADMIN,RECRUITER
+EMAIL_PROVIDER=console
+EMAIL_FROM=
+RESEND_API_KEY=
+SMTP_HOST=
+SMTP_PORT=587
+SMTP_USER=
+SMTP_PASSWORD=
 ```
 
 Frontend `.env.example`:
@@ -197,12 +210,12 @@ Frontend and backend are separated for independent deployment:
 - Deploy frontend to Vercel.
 - Deploy backend to Render, Railway, Fly.io, or a VPS.
 - Use a managed MySQL database or platform MySQL add-on.
-- Set `DATABASE_URL`, `JWT_SECRET`, `FRONTEND_URL`, and upload-related configuration through environment variables.
+- Set `DATABASE_URL`, `JWT_SECRET`, `FRONTEND_URL`, upload-related configuration, and security email/CAPTCHA/2FA variables through environment variables.
 - For production uploads, replace local `backend/uploads` with S3, Cloudinary, Supabase Storage, or equivalent object storage.
 
 ## Future Scope
 
-- SMTP email delivery for password resets.
+- Email provider monitoring, templates, and deliverability improvements.
 - Resume parsing and skill matching.
 - Cloud file storage with signed URLs.
 - Analytics for recruiter job performance.

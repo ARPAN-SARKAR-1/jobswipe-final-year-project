@@ -24,6 +24,22 @@ class Settings(BaseSettings):
     cloudinary_cloud_name: str | None = Field(default=None, alias="CLOUDINARY_CLOUD_NAME")
     cloudinary_api_key: str | None = Field(default=None, alias="CLOUDINARY_API_KEY")
     cloudinary_api_secret: str | None = Field(default=None, alias="CLOUDINARY_API_SECRET")
+    captcha_enabled: bool = Field(default=True, alias="CAPTCHA_ENABLED")
+    email_verification_required: bool = Field(default=True, alias="EMAIL_VERIFICATION_REQUIRED")
+    twofa_required_roles: str = Field(default="OWNER,ADMIN,RECRUITER", alias="TWOFA_REQUIRED_ROLES")
+    email_provider: str = Field(default="console", alias="EMAIL_PROVIDER")
+    email_from: str | None = Field(default=None, alias="EMAIL_FROM")
+    resend_api_key: str | None = Field(default=None, alias="RESEND_API_KEY")
+    smtp_host: str | None = Field(default=None, alias="SMTP_HOST")
+    smtp_port: int = Field(default=587, alias="SMTP_PORT")
+    smtp_user: str | None = Field(default=None, alias="SMTP_USER")
+    smtp_password: str | None = Field(default=None, alias="SMTP_PASSWORD")
+    otp_expire_minutes: int = Field(default=5, alias="OTP_EXPIRE_MINUTES")
+    otp_max_attempts: int = Field(default=5, alias="OTP_MAX_ATTEMPTS")
+    email_otp_resend_cooldown_seconds: int = Field(default=60, alias="EMAIL_OTP_RESEND_COOLDOWN_SECONDS")
+    captcha_expire_minutes: int = Field(default=5, alias="CAPTCHA_EXPIRE_MINUTES")
+    trusted_device_days: int = Field(default=30, alias="TRUSTED_DEVICE_DAYS")
+    trusted_device_cookie_name: str = Field(default="swipe_trusted_device", alias="TRUSTED_DEVICE_COOKIE_NAME")
 
     model_config = SettingsConfigDict(
         env_file=str(ENV_FILE if ENV_FILE.exists() else EXAMPLE_ENV_FILE),
@@ -61,6 +77,10 @@ class Settings(BaseSettings):
                 self.cloudinary_api_secret,
             ]
         )
+
+    @property
+    def twofa_required_role_set(self) -> set[str]:
+        return {role.strip().upper() for role in self.twofa_required_roles.split(",") if role.strip()}
 
 
 @lru_cache

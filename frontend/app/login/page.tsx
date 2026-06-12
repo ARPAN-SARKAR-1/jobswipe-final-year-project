@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 import toast from "react-hot-toast";
 
+import CaptchaBox, { type CaptchaValue } from "@/components/CaptchaBox";
 import { apiFetch, roleHome, saveAuth } from "@/lib/api";
 import type { AuthResponse } from "@/types";
 
@@ -13,6 +14,7 @@ export default function LoginPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({ email: "", password: "" });
+  const [captcha, setCaptcha] = useState<CaptchaValue>({ challengeId: "", answer: "" });
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -20,11 +22,32 @@ export default function LoginPage() {
     try {
       const auth = await apiFetch<AuthResponse>("/auth/login", {
         method: "POST",
-        body: JSON.stringify(form)
+        body: JSON.stringify({
+          ...form,
+          captcha_challenge_id: captcha.challengeId,
+          captcha_answer: captcha.answer
+        })
       });
+      if (auth.requires_email_verification) {
+        toast.error(auth.message || "Verify your email before logging in");
+        router.push(`/verify-email?email=${encodeURIComponent(auth.user?.email || form.email)}`);
+        return;
+      }
+      if (auth.requires_2fa && auth.login_challenge_id) {
+        window.sessionStorage.setItem(
+          "swipe_pending_login",
+          JSON.stringify({
+            email: auth.user?.email || form.email,
+            login_challenge_id: auth.login_challenge_id
+          })
+        );
+        toast.success("Enter the OTP sent to your email");
+        router.push("/verify-login");
+        return;
+      }
       saveAuth(auth);
       toast.success("Welcome back");
-      router.push(roleHome(auth.user.role));
+      router.push(roleHome(auth.user!.role));
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Login failed");
     } finally {
@@ -37,6 +60,9 @@ export default function LoginPage() {
       <form onSubmit={submit} className="panel mx-auto max-w-md p-6 md:p-8">
         <p className="mb-2 text-sm font-black uppercase text-teal-700">Login</p>
         <h1 className="text-3xl font-black tracking-normal">Continue to Swipe for Success</h1>
+        <p className="mt-3 text-sm font-bold leading-6 text-[#6b767d]">
+          Owner, Admin, and Recruiter accounts require email OTP verification for secure login.
+        </p>
         <div className="mt-6 grid gap-4">
           <div>
             <label className="label" htmlFor="email">
@@ -55,6 +81,7 @@ export default function LoginPage() {
               Forgot password?
             </Link>
           </div>
+          <CaptchaBox disabled={loading} onChange={setCaptcha} purpose="login" />
           <button className="btn-primary" disabled={loading} type="submit">
             {loading && <Loader2 className="animate-spin" size={18} />}
             Login

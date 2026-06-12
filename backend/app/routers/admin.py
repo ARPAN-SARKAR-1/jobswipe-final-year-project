@@ -353,6 +353,10 @@ def create_admin(
         role=UserRole.ADMIN.value,
         accepted_terms=True,
         accepted_terms_at=datetime.now(timezone.utc).replace(tzinfo=None),
+        accepted_privacy=True,
+        accepted_privacy_at=datetime.now(timezone.utc).replace(tzinfo=None),
+        email_verified=True,
+        email_verified_at=datetime.now(timezone.utc).replace(tzinfo=None),
         account_status=AccountStatus.ACTIVE.value,
         is_protected_owner=False,
     )

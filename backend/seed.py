@@ -24,6 +24,8 @@ def get_or_create_user(db, name: str, email: str, password: str, role: UserRole)
         user.role = role.value
         if user.account_status is None:
             user.account_status = "ACTIVE"
+        user.email_verified = True
+        user.email_verified_at = user.email_verified_at or datetime.now(timezone.utc).replace(tzinfo=None)
         return user
     user = User(
         name=name,
@@ -35,6 +37,8 @@ def get_or_create_user(db, name: str, email: str, password: str, role: UserRole)
         accepted_privacy=True,
         accepted_privacy_at=datetime.now(timezone.utc).replace(tzinfo=None),
         account_status="ACTIVE",
+        email_verified=True,
+        email_verified_at=datetime.now(timezone.utc).replace(tzinfo=None),
     )
     db.add(user)
     db.flush()

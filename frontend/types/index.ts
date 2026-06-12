@@ -10,6 +10,9 @@ export type User = {
   accepted_terms_at?: string | null;
   accepted_privacy: boolean;
   accepted_privacy_at?: string | null;
+  email_verified: boolean;
+  email_verified_at?: string | null;
+  twofa_enabled: boolean;
   account_status: "ACTIVE" | "SUSPENDED";
   suspension_reason?: string | null;
   is_protected_owner: boolean;
@@ -123,9 +126,14 @@ export type Application = {
 };
 
 export type AuthResponse = {
-  access_token: string;
+  access_token?: string | null;
   token_type: string;
-  user: User;
+  user?: User | null;
+  requires_email_verification?: boolean;
+  requires_2fa?: boolean;
+  twofa_recommended?: boolean;
+  login_challenge_id?: string | null;
+  message: string;
 };
 
 export type AdminActionLog = {

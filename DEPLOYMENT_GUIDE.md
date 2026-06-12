@@ -34,6 +34,22 @@ UPLOAD_DIR=uploads
 CLOUDINARY_CLOUD_NAME=<cloudinary-cloud-name>
 CLOUDINARY_API_KEY=<cloudinary-api-key>
 CLOUDINARY_API_SECRET=<cloudinary-api-secret>
+CAPTCHA_ENABLED=true
+EMAIL_VERIFICATION_REQUIRED=true
+TWOFA_REQUIRED_ROLES=OWNER,ADMIN,RECRUITER
+EMAIL_PROVIDER=smtp
+EMAIL_FROM=no-reply@example.com
+RESEND_API_KEY=<resend-api-key-if-using-resend>
+SMTP_HOST=<smtp-host-if-using-smtp>
+SMTP_PORT=587
+SMTP_USER=<smtp-user-if-using-smtp>
+SMTP_PASSWORD=<smtp-password-if-using-smtp>
+OTP_EXPIRE_MINUTES=5
+OTP_MAX_ATTEMPTS=5
+EMAIL_OTP_RESEND_COOLDOWN_SECONDS=60
+CAPTCHA_EXPIRE_MINUTES=5
+TRUSTED_DEVICE_DAYS=30
+TRUSTED_DEVICE_COOKIE_NAME=swipe_trusted_device
 ```
 
 Do not add backend secrets to Vercel.
