@@ -1,4 +1,4 @@
-"""Initial JobSwipe schema.
+"""Initial Swipe for Success schema.
 
 Revision ID: 202605010001
 Revises:

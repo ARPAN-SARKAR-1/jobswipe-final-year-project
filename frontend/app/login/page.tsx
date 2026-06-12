@@ -36,7 +36,7 @@ export default function LoginPage() {
     <main className="page-shell">
       <form onSubmit={submit} className="panel mx-auto max-w-md p-6 md:p-8">
         <p className="mb-2 text-sm font-black uppercase text-teal-700">Login</p>
-        <h1 className="text-3xl font-black tracking-normal">Continue to JobSwipe</h1>
+        <h1 className="text-3xl font-black tracking-normal">Continue to Swipe for Success</h1>
         <div className="mt-6 grid gap-4">
           <div>
             <label className="label" htmlFor="email">

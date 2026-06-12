@@ -35,7 +35,7 @@ export default function LandingPage() {
             </div>
             <h1 className="max-w-3xl text-5xl font-black tracking-normal text-[#172026] md:text-7xl">Swipe Less. Apply Smarter.</h1>
             <p className="mt-6 max-w-2xl text-lg font-medium leading-8 text-[#526069]">
-              JobSwipe turns job discovery into a focused one-card-at-a-time experience, helping job seekers avoid endless scrolling while recruiters get cleaner application intent.
+              Swipe for Success is a swipe-based job discovery and recruitment platform that turns job discovery into a focused one-card-at-a-time experience.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <Link href="/login" className="btn-primary">

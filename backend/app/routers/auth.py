@@ -90,7 +90,7 @@ def forgot_password(payload: ForgotPasswordRequest, db: Annotated[Session, Depen
 
     reset_url = f"{settings.frontend_url.split(',')[0].rstrip('/')}/reset-password?token={reset_token}"
     if settings.env == "development":
-        print(f"[JobSwipe] Password reset token for {user.email}: {reset_token}")
+        print(f"[Swipe for Success] Password reset token for {user.email}: {reset_token}")
         return ForgotPasswordResponse(message=message, reset_token=reset_token, reset_url=reset_url)
     return ForgotPasswordResponse(message=message)
 

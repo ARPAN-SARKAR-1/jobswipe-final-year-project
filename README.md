@@ -1,12 +1,12 @@
-# JobSwipe
+# Swipe for Success
 
 ## Project Overview
 
-JobSwipe is a modern full-stack final year project for job seekers, freshers, recruiters, admins, and an Owner account. Its main idea is to reduce job-search fatigue with a Tinder-style job discovery flow: one active job card at a time, swipe right to apply, swipe left to skip, and save jobs for later.
+Swipe for Success is a swipe-based job discovery and recruitment platform. This modern full-stack final year project supports job seekers, freshers, recruiters, admins, and an Owner account. Its main idea is to reduce job-search fatigue with a Tinder-style job discovery flow: one active job card at a time, swipe right to apply, swipe left to skip, and save jobs for later.
 
 ## Problem Statement
 
-Freshers and early-career job seekers often spend too much time scrolling through repetitive listings. JobSwipe turns discovery into a focused workflow so users can quickly express intent, bookmark good roles, and track applications from one dashboard.
+Freshers and early-career job seekers often spend too much time scrolling through repetitive listings. Swipe for Success turns discovery into a focused workflow so users can quickly express intent, bookmark good roles, and track applications from one dashboard.
 
 ## Features
 
@@ -212,4 +212,4 @@ Frontend and backend are separated for independent deployment:
 
 ## Final Year Project Explanation
 
-JobSwipe demonstrates a complete, deployable full-stack system with authentication, role-based access, CRUD operations, file uploads, relational data modeling, REST APIs, database migrations, and a distinctive swipe-based user experience. The project is suitable for explaining real-world job portal workflows while presenting a visually polished frontend and a maintainable Python backend.
+Swipe for Success demonstrates a complete, deployable full-stack system with authentication, role-based access, CRUD operations, file uploads, relational data modeling, REST APIs, database migrations, and a distinctive swipe-based user experience. The project is suitable for explaining real-world recruitment workflows while presenting a visually polished frontend and a maintainable Python backend.

@@ -80,7 +80,7 @@ export default function Navbar() {
           <span className="grid h-9 w-9 place-items-center rounded-lg bg-[#172026] text-white">
             <Sparkles size={18} />
           </span>
-          <span className="text-lg">JobSwipe</span>
+          <span className="text-lg">Swipe for Success</span>
         </Link>
 
         <nav className="hidden items-center gap-1 lg:flex">

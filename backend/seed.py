@@ -260,7 +260,7 @@ def main() -> None:
             db.add(
                 Notification(
                     user_id=seeker.id,
-                    title="Welcome to JobSwipe",
+                    title="Welcome to Swipe for Success",
                     message="Complete your profile to improve job match scores.",
                     type="ADMIN_ACTION",
                     link_url="/jobseeker/profile",

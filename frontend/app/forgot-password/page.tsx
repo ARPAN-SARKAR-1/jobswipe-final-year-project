@@ -40,7 +40,7 @@ export default function ForgotPasswordPage() {
       <form onSubmit={submit} className="panel mx-auto max-w-md p-6 md:p-8">
         <p className="mb-2 text-sm font-black uppercase text-teal-700">Password help</p>
         <h1 className="text-3xl font-black tracking-normal">Forgot password</h1>
-        <p className="mt-3 text-sm font-medium leading-6 text-[#6b767d]">Enter your email. In development mode, JobSwipe returns a reset token for demo.</p>
+        <p className="mt-3 text-sm font-medium leading-6 text-[#6b767d]">Enter your email. In development mode, Swipe for Success returns a reset token for demo.</p>
         <div className="mt-6 grid gap-4">
           <div>
             <label className="label" htmlFor="email">

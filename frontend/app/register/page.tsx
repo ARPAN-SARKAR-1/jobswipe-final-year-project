@@ -53,7 +53,7 @@ export default function RegisterPage() {
     <main className="page-shell">
       <form onSubmit={submit} className="panel mx-auto max-w-xl p-6 md:p-8">
         <p className="mb-2 text-sm font-black uppercase text-teal-700">Create account</p>
-        <h1 className="text-3xl font-black tracking-normal">Join JobSwipe</h1>
+        <h1 className="text-3xl font-black tracking-normal">Join Swipe for Success</h1>
         <div className="mt-6 grid gap-4">
           <div>
             <label className="label" htmlFor="name">

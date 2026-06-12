@@ -1,6 +1,6 @@
-# JobSwipe Backend
+# Swipe for Success Backend
 
-FastAPI backend for JobSwipe. It uses MySQL, SQLAlchemy ORM, Alembic migrations, JWT authentication, bcrypt password hashing, and local file uploads for development.
+FastAPI backend for Swipe for Success. Swipe for Success is a swipe-based job discovery and recruitment platform. It uses MySQL, SQLAlchemy ORM, Alembic migrations, JWT authentication, bcrypt password hashing, and local file uploads for development.
 
 ## Setup
 

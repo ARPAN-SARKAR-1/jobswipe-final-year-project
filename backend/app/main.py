@@ -6,8 +6,8 @@ from app.core.config import settings
 from app.routers import admin, applications, auth, chats, jobs, jobseeker, notifications, recruiter, reports, swipes
 
 app = FastAPI(
-    title="JobSwipe API",
-    description="FastAPI backend for the JobSwipe swipe-based job and internship portal.",
+    title="Swipe for Success API",
+    description="FastAPI backend for Swipe for Success, a swipe-based job discovery and recruitment platform.",
     version="1.0.0",
 )
 
@@ -33,6 +33,11 @@ app.include_router(reports.router, prefix="/api")
 app.include_router(admin.router, prefix="/api")
 
 
+@app.get("/health")
+def health() -> dict[str, str]:
+    return {"status": "ok", "service": "Swipe for Success API"}
+
+
 @app.get("/")
 def root() -> dict[str, str]:
-    return {"message": "JobSwipe API is running", "docs": "/docs"}
+    return {"message": "Swipe for Success API is running", "docs": "/docs"}

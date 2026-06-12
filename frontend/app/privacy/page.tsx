@@ -7,15 +7,15 @@ const sections = [
   ["Chat visibility", "Chat is visible to the recruiter and job seeker participating in the thread. Owner/Admin may access chat metadata, and moderation access may be used only for safety and abuse review."],
   ["Security", "Passwords are hashed, JWT authentication is used, and role-based access control protects job seeker, recruiter, admin, and owner workflows."],
   ["Data deletion", "Users may request account or data deletion in future scope. Production deployments should add a formal data deletion workflow."],
-  ["Cookies and local storage", "JobSwipe may store a token/session in browser local storage to keep users logged in."],
-  ["Disclaimer", "JobSwipe is a final year project/demo platform. Users should verify job authenticity before sharing sensitive personal or financial information."]
+  ["Cookies and local storage", "Swipe for Success may store a token/session in browser local storage to keep users logged in."],
+  ["Disclaimer", "Swipe for Success is a final year project/demo platform. Users should verify job authenticity before sharing sensitive personal or financial information."]
 ];
 
 export default function PrivacyPage() {
   return (
     <main className="page-shell">
       <div className="panel mx-auto max-w-3xl p-8">
-        <p className="mb-2 text-sm font-black uppercase text-teal-700">JobSwipe</p>
+        <p className="mb-2 text-sm font-black uppercase text-teal-700">Swipe for Success</p>
         <h1 className="text-4xl font-black tracking-normal">Privacy Policy</h1>
         <div className="mt-6 grid gap-4">
           {sections.map(([title, text]) => (
