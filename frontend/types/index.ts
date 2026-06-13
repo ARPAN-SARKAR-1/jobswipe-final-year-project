@@ -7,10 +7,14 @@ export type ReviewModerationStatus = "VISIBLE" | "HIDDEN" | "FLAGGED" | "REMOVED
 
 export type User = {
   id: number;
+  public_user_id?: string | null;
+  username?: string | null;
   name: string;
   email: string;
   role: Role;
   profile_picture_url?: string | null;
+  bio?: string | null;
+  profile_visibility: "PUBLIC" | "PRIVATE";
   accepted_terms: boolean;
   accepted_terms_at?: string | null;
   accepted_privacy: boolean;
@@ -26,8 +30,11 @@ export type User = {
 
 export type Job = {
   id: number;
+  job_public_id?: string | null;
   recruiter_id: number;
   company_id?: number | null;
+  company_public_id?: string | null;
+  company_slug?: string | null;
   title: string;
   company_name: string;
   company_logo_url?: string | null;
@@ -66,12 +73,17 @@ export type Job = {
 export type JobSeekerProfile = {
   id: number;
   user_id: number;
+  public_user_id?: string | null;
+  username?: string | null;
   name: string;
   email: string;
   profile_picture_url?: string | null;
   resume_pdf_url?: string | null;
   phone?: string | null;
   github_url?: string | null;
+  about?: string | null;
+  verification_status?: "PENDING" | "VERIFIED" | "REJECTED" | "SUSPENDED";
+  certificates_public?: boolean;
   education?: string | null;
   degree?: string | null;
   college?: string | null;
@@ -88,6 +100,8 @@ export type JobSeekerProfile = {
 
 export type CompanyProfile = {
   id: number;
+  public_company_id?: string | null;
+  slug?: string | null;
   recruiter_id: number;
   name?: string | null;
   company_name?: string | null;
@@ -135,9 +149,77 @@ export type RecruiterCompanyMember = {
   verified_at?: string | null;
   verified_by_admin_id?: number | null;
   verified_by_company_owner_id?: number | null;
+  approved_by_admin_id?: number | null;
+  approved_at?: string | null;
   admin_note?: string | null;
   created_at: string;
   updated_at: string;
+};
+
+export type UserDocument = {
+  id: number;
+  owner_user_id: number;
+  owner_name?: string | null;
+  owner_email?: string | null;
+  owner_role?: Role | null;
+  document_type: string;
+  original_filename?: string | null;
+  is_public: boolean;
+  verification_status: "PENDING" | "VERIFIED" | "REJECTED";
+  reviewed_by?: number | null;
+  reviewed_at?: string | null;
+  review_note?: string | null;
+  file_url?: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type PublicDocumentSummary = {
+  id: number;
+  document_type: string;
+  title: string;
+  verification_status: "PENDING" | "VERIFIED" | "REJECTED";
+  created_at: string;
+};
+
+export type PublicCompanySummary = {
+  id: number;
+  public_company_id?: string | null;
+  slug?: string | null;
+  name?: string | null;
+  logo_url?: string | null;
+  designation?: string | null;
+  verification_status?: CompanyVerificationStatus | null;
+  recruiter_verification_status?: RecruiterVerificationStatus | null;
+  recruiter_verified: boolean;
+  company_verified: boolean;
+};
+
+export type PublicProfile = {
+  public_user_id: string;
+  username?: string | null;
+  name: string;
+  role: Role;
+  profile_picture_url?: string | null;
+  profile_visibility: "PUBLIC" | "PRIVATE";
+  is_limited: boolean;
+  verified_profile: boolean;
+  verification_label?: string | null;
+  bio?: string | null;
+  skills?: string | null;
+  skills_list: string[];
+  education?: string | null;
+  degree?: string | null;
+  college?: string | null;
+  experience_level?: string | null;
+  preferred_location?: string | null;
+  preferred_job_type?: string | null;
+  github_url?: string | null;
+  job_seeker_verification_status?: "PENDING" | "VERIFIED" | "REJECTED" | "SUSPENDED" | null;
+  company?: PublicCompanySummary | null;
+  public_documents: PublicDocumentSummary[];
+  private_documents: UserDocument[];
+  created_at: string;
 };
 
 export type CompanyReview = {

@@ -25,6 +25,7 @@ const recruiterLinks = [
   ["Post Job", "/recruiter/jobs/new"],
   ["Applications", "/recruiter/applications"],
   ["Messages", "/messages"],
+  ["Profile", "/recruiter/profile"],
   ["Company", "/recruiter/company"]
 ];
 

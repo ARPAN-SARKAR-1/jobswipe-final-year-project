@@ -23,7 +23,7 @@ import VerificationStatusBadge from "@/components/VerificationStatusBadge";
 import { apiFetch } from "@/lib/api";
 import { formatDate } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
-import type { AdminActionLog, AdminRecruiterVerification, Application, ChatThread, CompanyReview, Job, RecruiterCompanyMember, Report, Swipe, User } from "@/types";
+import type { AdminActionLog, AdminRecruiterVerification, Application, ChatThread, CompanyReview, Job, RecruiterCompanyMember, Report, Swipe, User, UserDocument } from "@/types";
 
 type AdminStats = {
   total_users: number;
@@ -60,6 +60,8 @@ export default function AdminDashboardPage() {
   const [verifications, setVerifications] = useState<AdminRecruiterVerification[]>([]);
   const [companyVerifications, setCompanyVerifications] = useState<AdminRecruiterVerification[]>([]);
   const [memberships, setMemberships] = useState<RecruiterCompanyMember[]>([]);
+  const [jobseekerVerifications, setJobseekerVerifications] = useState<User[]>([]);
+  const [userDocuments, setUserDocuments] = useState<UserDocument[]>([]);
   const [suspiciousJobs, setSuspiciousJobs] = useState<Job[]>([]);
   const [companyReviews, setCompanyReviews] = useState<CompanyReview[]>([]);
   const [reports, setReports] = useState<Report[]>([]);
@@ -81,6 +83,8 @@ export default function AdminDashboardPage() {
       apiFetch<AdminRecruiterVerification[]>("/admin/recruiter-verifications"),
       apiFetch<AdminRecruiterVerification[]>("/admin/company-verifications"),
       apiFetch<RecruiterCompanyMember[]>("/admin/recruiter-memberships"),
+      apiFetch<User[]>("/admin/jobseeker-verifications"),
+      apiFetch<UserDocument[]>("/admin/user-documents"),
       apiFetch<Job[]>("/admin/suspicious-jobs"),
       apiFetch<CompanyReview[]>("/admin/company-reviews"),
       apiFetch<Report[]>("/admin/reports"),
@@ -88,7 +92,7 @@ export default function AdminDashboardPage() {
       isOwner ? apiFetch<User[]>("/admin/admins") : Promise.resolve([]),
       isOwner ? apiFetch<AdminActionLog[]>("/admin/action-logs") : Promise.resolve([])
     ])
-      .then(([dashboard, userRows, jobRows, applicationRows, chatRows, verificationRows, companyRows, membershipRows, suspiciousRows, reviewRows, reportRows, swipeRows, adminRows, logRows]) => {
+      .then(([dashboard, userRows, jobRows, applicationRows, chatRows, verificationRows, companyRows, membershipRows, jobseekerRows, documentRows, suspiciousRows, reviewRows, reportRows, swipeRows, adminRows, logRows]) => {
         setStats(dashboard);
         setUsers(userRows);
         setJobs(jobRows);
@@ -97,6 +101,8 @@ export default function AdminDashboardPage() {
         setVerifications(verificationRows);
         setCompanyVerifications(companyRows);
         setMemberships(membershipRows);
+        setJobseekerVerifications(jobseekerRows);
+        setUserDocuments(documentRows);
         setSuspiciousJobs(suspiciousRows);
         setCompanyReviews(reviewRows);
         setReports(reportRows);
@@ -379,6 +385,8 @@ export default function AdminDashboardPage() {
         <CompanyVerificationTable verifications={companyVerifications} openAction={openAction} />
         <RecruiterVerificationTable verifications={verifications} openAction={openAction} />
         <RecruiterMembershipTable memberships={memberships} openAction={openAction} />
+        <JobSeekerVerificationTable users={jobseekerVerifications} openAction={openAction} />
+        <UserDocumentsTable documents={userDocuments} openAction={openAction} />
         <SuspiciousJobsTable jobs={suspiciousJobs} openAction={openAction} />
         <CompanyReviewsTable reviews={companyReviews} openAction={openAction} />
         <ReportsTable reports={reports} openAction={openAction} />
@@ -743,6 +751,97 @@ function RecruiterMembershipTable({ memberships, openAction }: { memberships: Re
                     <button className="btn-secondary !px-3 !py-2 border-slate-200 bg-slate-50 text-slate-700" type="button" onClick={() => openAction({ title: "Suspend recruiter membership", message: "Suspend this recruiter membership?", endpoint: `/admin/recruiter-memberships/${member.id}/suspend`, success: "Recruiter membership suspended", bodyKey: "admin_note", label: "Suspension note" })}>
                       Suspend
                     </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function JobSeekerVerificationTable({ users, openAction }: { users: User[]; openAction: (action: ConfirmAction) => void }) {
+  return (
+    <div className="panel overflow-hidden">
+      <h2 className="p-5 text-xl font-black">Pending Job Seeker Verification</h2>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[920px] text-left text-sm">
+          <thead className="bg-[#fbfaf7] text-xs font-black uppercase text-[#526069]">
+            <tr>
+              <th className="p-4">Job seeker</th>
+              <th className="p-4">Public ID</th>
+              <th className="p-4">Account</th>
+              <th className="p-4">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {users.map((target) => (
+              <tr key={target.id} className="border-t border-black/5">
+                <td className="p-4">
+                  <p className="font-black text-[#172026]">{target.name}</p>
+                  <p className="font-bold text-[#6b767d]">{target.email}</p>
+                </td>
+                <td className="p-4 font-bold text-[#526069]">{target.public_user_id || "-"}</td>
+                <td className="p-4"><StatusBadge status={target.account_status} /></td>
+                <td className="p-4">
+                  <div className="flex flex-wrap gap-2">
+                    <button className="btn-secondary !px-3 !py-2 border-emerald-200 bg-emerald-50 text-emerald-700" type="button" onClick={() => openAction({ title: "Verify job seeker", message: "Verify this job seeker profile?", endpoint: `/admin/jobseekers/${target.id}/verify`, success: "Job seeker verified", bodyKey: "admin_note", label: "Verification note" })}>
+                      Verify
+                    </button>
+                    <button className="btn-secondary !px-3 !py-2 border-rose-200 bg-rose-50 text-rose-700" type="button" onClick={() => openAction({ title: "Reject job seeker", message: "Reject this job seeker verification?", endpoint: `/admin/jobseekers/${target.id}/reject`, success: "Job seeker verification rejected", bodyKey: "admin_note", label: "Rejection note" })}>
+                      Reject
+                    </button>
+                    <button className="btn-secondary !px-3 !py-2 border-slate-200 bg-slate-50 text-slate-700" type="button" onClick={() => openAction({ title: "Suspend job seeker verification", message: "Suspend this job seeker verification?", endpoint: `/admin/jobseekers/${target.id}/suspend`, success: "Job seeker verification suspended", bodyKey: "admin_note", label: "Suspension note" })}>
+                      Suspend
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function UserDocumentsTable({ documents, openAction }: { documents: UserDocument[]; openAction: (action: ConfirmAction) => void }) {
+  return (
+    <div className="panel overflow-hidden">
+      <h2 className="p-5 text-xl font-black">Private Verification Documents</h2>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[1060px] text-left text-sm">
+          <thead className="bg-[#fbfaf7] text-xs font-black uppercase text-[#526069]">
+            <tr>
+              <th className="p-4">Owner</th>
+              <th className="p-4">Document</th>
+              <th className="p-4">Visibility</th>
+              <th className="p-4">Status</th>
+              <th className="p-4">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {documents.map((document) => (
+              <tr key={document.id} className="border-t border-black/5">
+                <td className="p-4">
+                  <p className="font-black text-[#172026]">{document.owner_name || `User #${document.owner_user_id}`}</p>
+                  <p className="font-bold text-[#6b767d]">{document.owner_email || document.owner_role || "Private verification document"}</p>
+                </td>
+                <td className="p-4">
+                  <p className="font-black text-[#172026]">{document.document_type.replaceAll("_", " ")}</p>
+                  <p className="font-bold text-[#6b767d]">{document.original_filename || "-"}</p>
+                </td>
+                <td className="p-4 font-bold text-[#526069]">{document.is_public ? "Public title only" : "Private"}</td>
+                <td className="p-4"><VerificationStatusBadge status={document.verification_status} /></td>
+                <td className="p-4">
+                  <div className="flex flex-wrap gap-2">
+                    {(["VERIFIED", "REJECTED", "PENDING"] as const).map((status) => (
+                      <button key={status} className="btn-secondary !px-3 !py-2" type="button" onClick={() => openAction({ title: `${status} document`, message: `Mark this document as ${status.toLowerCase()}?`, endpoint: `/admin/user-documents/${document.id}/review`, success: "Document review updated", fixedBody: { verification_status: status } })}>
+                        {status}
+                      </button>
+                    ))}
                   </div>
                 </td>
               </tr>

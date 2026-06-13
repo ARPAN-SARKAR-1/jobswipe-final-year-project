@@ -1,7 +1,8 @@
-from sqlalchemy import ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
+from app.models.enums import JobSeekerVerificationStatus
 from app.models.mixins import TimestampMixin
 
 
@@ -13,6 +14,9 @@ class JobSeekerProfile(TimestampMixin, Base):
     phone: Mapped[str | None] = mapped_column(String(30), nullable=True)
     github_url: Mapped[str | None] = mapped_column(String(255), nullable=True)
     resume_pdf_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    about: Mapped[str | None] = mapped_column(Text, nullable=True)
+    verification_status: Mapped[str] = mapped_column(String(30), default=JobSeekerVerificationStatus.PENDING.value, nullable=False)
+    certificates_public: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     education: Mapped[str | None] = mapped_column(String(160), nullable=True)
     degree: Mapped[str | None] = mapped_column(String(160), nullable=True)
     college: Mapped[str | None] = mapped_column(String(180), nullable=True)

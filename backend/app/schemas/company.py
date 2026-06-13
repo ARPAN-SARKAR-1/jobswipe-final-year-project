@@ -20,6 +20,8 @@ class RecruiterCompanyMemberRead(BaseModel):
     verified_at: datetime | None = None
     verified_by_admin_id: int | None = None
     verified_by_company_owner_id: int | None = None
+    approved_by_admin_id: int | None = None
+    approved_at: datetime | None = None
     admin_note: str | None = None
     created_at: datetime
     updated_at: datetime
@@ -64,6 +66,8 @@ class CompanyReviewModerationRequest(BaseModel):
 
 class CompanyPublicRead(BaseModel):
     id: int
+    public_company_id: str | None = None
+    slug: str | None = None
     name: str | None = None
     company_name: str | None = None
     logo_url: str | None = None

@@ -74,11 +74,20 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}): Prom
     headers.set("Content-Type", "application/json");
   }
 
-  const response = await fetch(`${API_BASE_URL}${normalizedPath}`, {
-    ...options,
-    headers,
-    cache: "no-store"
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}${normalizedPath}`, {
+      ...options,
+      headers,
+      cache: "no-store"
+    });
+  } catch (error) {
+    console.error("API request failed", {
+      path: normalizedPath,
+      message: error instanceof Error ? error.message : "Unknown network error"
+    });
+    throw new ApiError("Could not reach Swipe for Success API. Please try again.", 0);
+  }
 
   const contentType = response.headers.get("content-type") || "";
   const data = contentType.includes("application/json") ? await response.json() : await response.text();

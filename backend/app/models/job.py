@@ -11,6 +11,7 @@ class Job(TimestampMixin, Base):
     __tablename__ = "jobs"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    job_public_id: Mapped[str | None] = mapped_column(String(12), unique=True, index=True, nullable=True)
     recruiter_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     company_id: Mapped[int | None] = mapped_column(ForeignKey("company_profiles.id", ondelete="SET NULL"), nullable=True, index=True)
     title: Mapped[str] = mapped_column(String(180), nullable=False)

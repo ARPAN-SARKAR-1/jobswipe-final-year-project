@@ -12,8 +12,8 @@ import { apiFetch } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
 import type { PublicProfile } from "@/types";
 
-export default function JobSeekerProfilePage() {
-  const { loading } = useAuth(["JOB_SEEKER"]);
+export default function RecruiterProfilePage() {
+  const { loading } = useAuth(["RECRUITER"]);
   const [profile, setProfile] = useState<PublicProfile | null>(null);
 
   useEffect(() => {
@@ -28,8 +28,8 @@ export default function JobSeekerProfilePage() {
 
   return (
     <main className="page-shell">
-      <PageHeader title="Job Seeker Profile" eyebrow="Profile preview">
-        <Link className="btn-secondary !py-2" href="/jobseeker/settings/profile">
+      <PageHeader title="Recruiter Profile" eyebrow="Profile preview">
+        <Link className="btn-secondary !py-2" href="/recruiter/settings/profile">
           <Settings size={17} />
           Settings
         </Link>

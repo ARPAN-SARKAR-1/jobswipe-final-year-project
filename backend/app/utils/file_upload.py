@@ -9,6 +9,7 @@ from app.core.config import settings
 MAX_IMAGE_BYTES = 2 * 1024 * 1024
 MAX_PDF_BYTES = 5 * 1024 * 1024
 IMAGE_TYPES = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp"}
+DOCUMENT_TYPES = {**IMAGE_TYPES, "application/pdf": ".pdf"}
 
 
 def upload_to_cloudinary(content: bytes, subfolder: str, extension: str, content_type: str | None) -> str:
@@ -72,3 +73,11 @@ async def save_resume_pdf(file: UploadFile) -> str:
     if file.filename and not Path(file.filename).suffix.lower() == ".pdf":
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Resume must be a PDF")
     return await save_upload(file, "resumes", {"application/pdf": ".pdf"}, MAX_PDF_BYTES)
+
+
+async def save_verification_document(file: UploadFile) -> str:
+    if file.filename:
+        suffix = Path(file.filename).suffix.lower()
+        if suffix not in {".pdf", ".jpg", ".jpeg", ".png", ".webp"}:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Document must be a PDF or image")
+    return await save_upload(file, "verification-documents", DOCUMENT_TYPES, MAX_PDF_BYTES)

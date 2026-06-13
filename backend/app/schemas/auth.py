@@ -7,10 +7,14 @@ from app.models.enums import AccountStatus, UserRole
 
 class UserRead(BaseModel):
     id: int
+    public_user_id: str | None = None
+    username: str | None = None
     name: str
     email: EmailStr
     role: UserRole
     profile_picture_url: str | None = None
+    bio: str | None = None
+    profile_visibility: str = "PUBLIC"
     accepted_terms: bool
     accepted_privacy: bool = False
     accepted_terms_at: datetime | None = None

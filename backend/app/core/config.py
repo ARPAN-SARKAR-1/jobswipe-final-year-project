@@ -62,6 +62,33 @@ class Settings(BaseSettings):
             raise ValueError("Invalid production DATABASE_URL. Use mysql+pymysql://...")
         return self
 
+    @model_validator(mode="after")
+    def validate_production_email_provider(self) -> "Settings":
+        if not self.is_production and not self.is_deployed_runtime:
+            return self
+        provider = self.email_provider.lower()
+        if provider == "smtp":
+            missing = [
+                name
+                for name, value in {
+                    "EMAIL_FROM": self.email_from,
+                    "SMTP_HOST": self.smtp_host,
+                    "SMTP_USER": self.smtp_user,
+                    "SMTP_PASSWORD": self.smtp_password,
+                }.items()
+                if not value
+            ]
+            if missing:
+                raise ValueError("Invalid production SMTP email configuration. Set EMAIL_FROM, SMTP_HOST, SMTP_USER, and SMTP_PASSWORD.")
+            if self.smtp_host == "smtp.gmail.com" and self.smtp_port != 587:
+                raise ValueError("Gmail SMTP requires SMTP_HOST=smtp.gmail.com and SMTP_PORT=587.")
+            return self
+        if provider == "resend":
+            if not self.email_from or not self.resend_api_key:
+                raise ValueError("Invalid production Resend email configuration. Set EMAIL_FROM and RESEND_API_KEY.")
+            return self
+        raise ValueError("Invalid production EMAIL_PROVIDER. Use smtp or resend.")
+
     @property
     def upload_path(self) -> Path:
         path = Path(self.upload_dir)

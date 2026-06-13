@@ -17,6 +17,7 @@ from app.models.swipe import Swipe
 from app.models.user import User
 from app.schemas.job import JobCreate, JobRead, JobUpdate
 from app.services.notifications import notify_admins
+from app.services.public_identity import ensure_job_public_identity
 from app.services.trust import apply_job_risk, attach_job_trust, get_recruiter_membership, recruiter_can_post_public_job
 from app.utils.match_score import calculate_match_score
 from app.utils.skills import split_skills
@@ -204,6 +205,8 @@ def create_job(
         job.company_logo_url = company.company_logo_url
     apply_job_risk(job)
     db.add(job)
+    db.flush()
+    ensure_job_public_identity(db, job)
     if job.risk_score > 0:
         notify_admins(
             db,
@@ -215,6 +218,18 @@ def create_job(
     db.commit()
     db.refresh(job)
     return attach_job_trust(db, job)
+
+
+@router.get("/id/{job_public_id}", response_model=JobRead)
+def get_job_by_public_id(
+    job_public_id: str,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User | None, Depends(get_optional_current_user)],
+) -> Job:
+    job = db.scalar(select(Job).where(Job.job_public_id == job_public_id.upper()))
+    if job is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
+    return get_job(job.id, db, current_user)
 
 
 @router.put("/{job_id}", response_model=JobRead)
@@ -240,6 +255,7 @@ def update_job(
     if company is not None:
         job.company_id = company.id
     apply_job_risk(job)
+    ensure_job_public_identity(db, job)
     if job.risk_score > 0:
         notify_admins(
             db,

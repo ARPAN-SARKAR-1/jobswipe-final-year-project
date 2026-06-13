@@ -17,6 +17,7 @@ from app.schemas.application import ApplicationStatusUpdate, RecruiterApplicatio
 from app.schemas.job import JobRead
 from app.schemas.profile import CompanyJoinRequest, CompanyProfileRead, CompanyProfileUpdate, UploadResponse
 from app.services.notifications import create_notification, notify_admins
+from app.services.public_identity import ensure_company_public_identity, unique_company_slug
 from app.services.timeline import add_timeline_event
 from app.services.trust import attach_job_trust, get_or_create_recruiter_membership, get_recruiter_membership
 from app.utils.file_upload import save_image
@@ -36,6 +37,7 @@ def get_or_create_company(db: Session, recruiter_id: int) -> CompanyProfile:
     recruiter = db.get(User, recruiter_id)
     if recruiter:
         get_or_create_recruiter_membership(db, recruiter, company)
+    ensure_company_public_identity(db, company)
     db.commit()
     db.refresh(company)
     return company
@@ -46,6 +48,8 @@ def company_profile_response(db: Session, company: CompanyProfile, recruiter: Us
     membership = get_or_create_recruiter_membership(db, profile_user, company) if profile_user else None
     return CompanyProfileRead(
         id=company.id,
+        public_company_id=company.public_company_id,
+        slug=company.slug,
         recruiter_id=profile_user.id if profile_user else company.recruiter_id,
         company_name=company.company_name,
         name=company.company_name,
@@ -137,6 +141,9 @@ def update_company_profile(
     if company.official_email_domain is None and membership.work_email and "@" in membership.work_email:
         company.official_email_domain = membership.work_email.split("@", 1)[1].lower()
     company.recruiter_verification_status = membership.verification_status
+    ensure_company_public_identity(db, company)
+    if company.company_name and company.slug in {None, "company"}:
+        company.slug = unique_company_slug(db, company.company_name)
     db.commit()
     db.refresh(company)
     return company_profile_response(db, company, current_user)

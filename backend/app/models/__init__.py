@@ -17,6 +17,7 @@ from app.models.recruiter_company_member import RecruiterCompanyMember
 from app.models.swipe import Swipe
 from app.models.trusted_device import TrustedDevice
 from app.models.user import User
+from app.models.user_document import UserDocument
 
 __all__ = [
     "Application",
@@ -38,4 +39,5 @@ __all__ = [
     "Swipe",
     "TrustedDevice",
     "User",
+    "UserDocument",
 ]

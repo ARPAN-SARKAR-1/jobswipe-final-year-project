@@ -25,9 +25,12 @@ class RecruiterCompanyMember(TimestampMixin, Base):
     verified_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     verified_by_admin_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     verified_by_company_owner_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    approved_by_admin_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     admin_note: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     recruiter = relationship("User", foreign_keys=[recruiter_id], back_populates="company_memberships")
     company = relationship("CompanyProfile", back_populates="members")
     verified_by_admin = relationship("User", foreign_keys=[verified_by_admin_id])
     verified_by_company_owner = relationship("User", foreign_keys=[verified_by_company_owner_id])
+    approved_by_admin = relationship("User", foreign_keys=[approved_by_admin_id])

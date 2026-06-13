@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, String, Text
+from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -12,6 +12,8 @@ class CompanyProfile(TimestampMixin, Base):
     __tablename__ = "company_profiles"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    public_company_id: Mapped[str | None] = mapped_column(String(12), unique=True, index=True, nullable=True)
+    slug: Mapped[str | None] = mapped_column(String(90), unique=True, index=True, nullable=True)
     recruiter_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False)
     company_name: Mapped[str | None] = mapped_column(String(160), nullable=True)
     company_logo_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
@@ -26,6 +28,8 @@ class CompanyProfile(TimestampMixin, Base):
     verification_note: Mapped[str | None] = mapped_column(Text, nullable=True)
     verified_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     verified_by_admin_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    rating_average: Mapped[float | None] = mapped_column(Float, nullable=True)
+    review_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
     recruiter = relationship("User", foreign_keys=[recruiter_id], back_populates="company_profile")
     verified_by_admin = relationship("User", foreign_keys=[verified_by_admin_id])

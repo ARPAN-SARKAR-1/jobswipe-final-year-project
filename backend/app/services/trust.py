@@ -87,4 +87,9 @@ def attach_job_trust(db: Session, job: Job) -> Job:
     setattr(job, "recruiter_verification_status", membership.verification_status if membership else None)
     if company is not None:
         job.company_id = company.id
+        setattr(job, "company_public_id", company.public_company_id)
+        setattr(job, "company_slug", company.slug)
+    else:
+        setattr(job, "company_public_id", None)
+        setattr(job, "company_slug", None)
     return job

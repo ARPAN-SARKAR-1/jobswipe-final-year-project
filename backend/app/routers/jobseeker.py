@@ -14,6 +14,7 @@ from app.models.job_seeker_profile import JobSeekerProfile
 from app.models.swipe import Swipe
 from app.models.user import User
 from app.schemas.profile import JobSeekerProfileRead, JobSeekerProfileUpdate, UploadResponse
+from app.services.public_identity import ensure_user_public_identity
 from app.utils.file_upload import save_image, save_resume_pdf
 
 router = APIRouter(prefix="/jobseeker", tags=["Job Seeker"])
@@ -33,12 +34,17 @@ def profile_response(profile: JobSeekerProfile, user: User) -> JobSeekerProfileR
     return JobSeekerProfileRead(
         id=profile.id,
         user_id=profile.user_id,
+        public_user_id=user.public_user_id,
+        username=user.username,
         name=user.name,
         email=user.email,
         profile_picture_url=user.profile_picture_url,
         resume_pdf_url=profile.resume_pdf_url,
         phone=profile.phone,
         github_url=profile.github_url,
+        about=profile.about or user.bio,
+        verification_status=profile.verification_status,
+        certificates_public=profile.certificates_public,
         education=profile.education,
         degree=profile.degree,
         college=profile.college,
@@ -104,7 +110,9 @@ def get_profile(
     current_user: Annotated[User, Depends(require_roles(UserRole.JOB_SEEKER.value))],
     db: Annotated[Session, Depends(get_db)],
 ) -> JobSeekerProfileRead:
+    ensure_user_public_identity(db, current_user)
     profile = get_or_create_profile(db, current_user.id)
+    db.commit()
     return profile_response(profile, current_user)
 
 
@@ -117,6 +125,9 @@ def update_profile(
     profile = get_or_create_profile(db, current_user.id)
     for key, value in payload.model_dump().items():
         setattr(profile, key, value)
+        if key == "about":
+            current_user.bio = value
+    ensure_user_public_identity(db, current_user)
     db.commit()
     db.refresh(profile)
     return profile_response(profile, current_user)

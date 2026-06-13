@@ -58,6 +58,8 @@ def member_response(member: RecruiterCompanyMember) -> RecruiterCompanyMemberRea
         verified_at=member.verified_at,
         verified_by_admin_id=member.verified_by_admin_id,
         verified_by_company_owner_id=member.verified_by_company_owner_id,
+        approved_by_admin_id=member.approved_by_admin_id,
+        approved_at=member.approved_at,
         admin_note=member.admin_note,
         created_at=member.created_at,
         updated_at=member.updated_at,
@@ -104,6 +106,8 @@ def company_public_response(db: Session, company: CompanyProfile, include_hidden
 
     return CompanyPublicRead(
         id=company.id,
+        public_company_id=company.public_company_id,
+        slug=company.slug,
         name=company.company_name,
         company_name=company.company_name,
         logo_url=company.company_logo_url,
@@ -125,15 +129,28 @@ def company_public_response(db: Session, company: CompanyProfile, include_hidden
     )
 
 
-@router.get("/{company_id}", response_model=CompanyPublicRead)
+def get_company_by_ref(db: Session, company_ref: str) -> CompanyProfile:
+    company = None
+    if company_ref.isdigit():
+        company = db.get(CompanyProfile, int(company_ref))
+    if company is None:
+        company = db.scalar(
+            select(CompanyProfile).where(
+                (CompanyProfile.slug == company_ref.lower()) | (CompanyProfile.public_company_id == company_ref.upper())
+            )
+        )
+    if company is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Company not found")
+    return company
+
+
+@router.get("/{company_ref}", response_model=CompanyPublicRead)
 def get_company(
-    company_id: int,
+    company_ref: str,
     db: Annotated[Session, Depends(get_db)],
     current_user: Annotated[User | None, Depends(get_optional_current_user)],
 ) -> CompanyPublicRead:
-    company = db.get(CompanyProfile, company_id)
-    if company is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Company not found")
+    company = get_company_by_ref(db, company_ref)
     include_hidden = current_user is not None and current_user.role in {UserRole.ADMIN.value, UserRole.OWNER.value}
     return company_public_response(db, company, include_hidden_reviews=include_hidden)
 

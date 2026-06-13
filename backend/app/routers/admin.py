@@ -18,17 +18,21 @@ from app.models.enums import (
     ChatThreadStatus,
     CompanyJoinStatus,
     CompanyVerificationStatus,
+    DocumentVerificationStatus,
     JobModerationStatus,
+    JobSeekerVerificationStatus,
     RecruiterVerificationStatus,
     ReviewModerationStatus,
     ReportStatus,
     UserRole,
 )
 from app.models.job import Job
+from app.models.job_seeker_profile import JobSeekerProfile
 from app.models.recruiter_company_member import RecruiterCompanyMember
 from app.models.report import Report
 from app.models.swipe import Swipe
 from app.models.user import User
+from app.models.user_document import UserDocument
 from app.schemas.admin import AdminActionLogRead, AdminCreateRequest, AdminNoteRequest, AdminReasonRequest
 from app.schemas.application import ApplicationRead
 from app.schemas.chat import ChatThreadRead
@@ -36,9 +40,11 @@ from app.schemas.auth import UserRead
 from app.schemas.company import CompanyReviewModerationRequest, CompanyReviewRead, RecruiterCompanyMemberRead
 from app.schemas.job import JobRead
 from app.schemas.profile import AdminRecruiterVerificationRead
+from app.schemas.public_profile import AdminUserDocumentRead, DocumentReviewRequest
 from app.schemas.report import ReportRead, ReportStatusUpdate
 from app.schemas.swipe import SwipeRead
 from app.services.notifications import create_notification
+from app.services.public_identity import ensure_user_public_identity
 from app.services.timeline import add_timeline_event
 from app.services.trust import attach_job_trust, get_or_create_recruiter_membership
 
@@ -291,6 +297,8 @@ def membership_response(member: RecruiterCompanyMember) -> RecruiterCompanyMembe
         verified_at=member.verified_at,
         verified_by_admin_id=member.verified_by_admin_id,
         verified_by_company_owner_id=member.verified_by_company_owner_id,
+        approved_by_admin_id=member.approved_by_admin_id,
+        approved_at=member.approved_at,
         admin_note=member.admin_note,
         created_at=member.created_at,
         updated_at=member.updated_at,
@@ -358,6 +366,8 @@ def verify_recruiter(
     membership.company_join_status = CompanyJoinStatus.APPROVED.value
     membership.verified_at = company.verified_at
     membership.verified_by_admin_id = current_user.id
+    membership.approved_by_admin_id = current_user.id
+    membership.approved_at = company.verified_at
     membership.admin_note = payload.admin_note
     create_notification(
         db,
@@ -450,6 +460,8 @@ def verify_company(
     membership.company_join_status = CompanyJoinStatus.APPROVED.value
     membership.verified_at = company.verified_at
     membership.verified_by_admin_id = current_user.id
+    membership.approved_by_admin_id = current_user.id
+    membership.approved_at = company.verified_at
     membership.admin_note = payload.admin_note
     log_action(db, current_user, "VERIFY_COMPANY", "COMPANY", company.id, payload.admin_note)
     db.commit()
@@ -550,6 +562,8 @@ def verify_recruiter_membership(
     member.company_join_status = CompanyJoinStatus.APPROVED.value
     member.verified_at = datetime.now(timezone.utc).replace(tzinfo=None)
     member.verified_by_admin_id = current_user.id
+    member.approved_by_admin_id = current_user.id
+    member.approved_at = member.verified_at
     member.admin_note = payload.admin_note
     member.company.recruiter_verification_status = RecruiterVerificationStatus.VERIFIED.value
     log_action(db, current_user, "VERIFY_RECRUITER_MEMBERSHIP", "RECRUITER_COMPANY_MEMBER", member.id, payload.admin_note)
@@ -651,6 +665,135 @@ def moderate_company_review(
     return review_response(review)
 
 
+def user_document_response(document: UserDocument) -> AdminUserDocumentRead:
+    return AdminUserDocumentRead(
+        id=document.id,
+        owner_user_id=document.owner_user_id,
+        owner_name=document.owner.name if document.owner else None,
+        owner_email=document.owner.email if document.owner else None,
+        owner_role=document.owner.role if document.owner else None,
+        document_type=document.document_type,
+        original_filename=document.original_filename,
+        is_public=document.is_public,
+        verification_status=document.verification_status,
+        reviewed_by=document.reviewed_by,
+        reviewed_at=document.reviewed_at,
+        review_note=document.review_note,
+        file_url=document.file_url,
+        created_at=document.created_at,
+        updated_at=document.updated_at,
+    )
+
+
+@router.get("/jobseeker-verifications", response_model=list[UserRead])
+def jobseeker_verifications(
+    _current_user: Annotated[User, Depends(require_admin_or_owner)],
+    db: Annotated[Session, Depends(get_db)],
+) -> list[User]:
+    return list(
+        db.scalars(
+            select(User)
+            .join(JobSeekerProfile, JobSeekerProfile.user_id == User.id)
+            .where(User.role == UserRole.JOB_SEEKER.value)
+            .where(JobSeekerProfile.verification_status == JobSeekerVerificationStatus.PENDING.value)
+            .order_by(User.updated_at.desc())
+        ).all()
+    )
+
+
+def set_jobseeker_verification(
+    user_id: int,
+    status_value: JobSeekerVerificationStatus,
+    payload: AdminNoteRequest,
+    current_user: User,
+    db: Session,
+) -> User:
+    user = db.scalar(
+        select(User)
+        .options(joinedload(User.job_seeker_profile))
+        .where(User.id == user_id)
+        .where(User.role == UserRole.JOB_SEEKER.value)
+    )
+    if user is None or user.job_seeker_profile is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job seeker not found")
+    user.job_seeker_profile.verification_status = status_value.value
+    log_action(db, current_user, f"JOBSEEKER_{status_value.value}", "USER", user.id, payload.admin_note)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+@router.put("/jobseekers/{user_id}/verify", response_model=UserRead)
+def verify_jobseeker(
+    user_id: int,
+    payload: AdminNoteRequest,
+    current_user: Annotated[User, Depends(require_admin_or_owner)],
+    db: Annotated[Session, Depends(get_db)],
+) -> User:
+    return set_jobseeker_verification(user_id, JobSeekerVerificationStatus.VERIFIED, payload, current_user, db)
+
+
+@router.put("/jobseekers/{user_id}/reject", response_model=UserRead)
+def reject_jobseeker(
+    user_id: int,
+    payload: AdminNoteRequest,
+    current_user: Annotated[User, Depends(require_admin_or_owner)],
+    db: Annotated[Session, Depends(get_db)],
+) -> User:
+    return set_jobseeker_verification(user_id, JobSeekerVerificationStatus.REJECTED, payload, current_user, db)
+
+
+@router.put("/jobseekers/{user_id}/suspend", response_model=UserRead)
+def suspend_jobseeker_verification(
+    user_id: int,
+    payload: AdminNoteRequest,
+    current_user: Annotated[User, Depends(require_admin_or_owner)],
+    db: Annotated[Session, Depends(get_db)],
+) -> User:
+    return set_jobseeker_verification(user_id, JobSeekerVerificationStatus.SUSPENDED, payload, current_user, db)
+
+
+@router.get("/user-documents", response_model=list[AdminUserDocumentRead])
+def user_documents(
+    _current_user: Annotated[User, Depends(require_admin_or_owner)],
+    db: Annotated[Session, Depends(get_db)],
+) -> list[AdminUserDocumentRead]:
+    documents = db.scalars(
+        select(UserDocument)
+        .options(joinedload(UserDocument.owner))
+        .order_by(UserDocument.verification_status.asc(), UserDocument.created_at.desc())
+    ).all()
+    return [user_document_response(document) for document in documents]
+
+
+@router.put("/user-documents/{document_id}/review", response_model=AdminUserDocumentRead)
+def review_user_document(
+    document_id: int,
+    payload: DocumentReviewRequest,
+    current_user: Annotated[User, Depends(require_admin_or_owner)],
+    db: Annotated[Session, Depends(get_db)],
+) -> AdminUserDocumentRead:
+    document = db.scalar(
+        select(UserDocument).options(joinedload(UserDocument.owner)).where(UserDocument.id == document_id)
+    )
+    if document is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+    if payload.verification_status not in {
+        DocumentVerificationStatus.PENDING,
+        DocumentVerificationStatus.VERIFIED,
+        DocumentVerificationStatus.REJECTED,
+    }:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported document status")
+    document.verification_status = payload.verification_status.value
+    document.review_note = payload.review_note
+    document.reviewed_by = current_user.id
+    document.reviewed_at = datetime.now(timezone.utc).replace(tzinfo=None)
+    log_action(db, current_user, f"DOCUMENT_{payload.verification_status.value}", "USER_DOCUMENT", document.id, payload.review_note)
+    db.commit()
+    db.refresh(document)
+    return user_document_response(document)
+
+
 @router.post("/admins", response_model=UserRead, status_code=status.HTTP_201_CREATED)
 def create_admin(
     payload: AdminCreateRequest,
@@ -677,6 +820,7 @@ def create_admin(
     )
     db.add(user)
     db.flush()
+    ensure_user_public_identity(db, user)
     log_action(db, current_user, "CREATE_ADMIN", "USER", user.id, "Owner created admin account")
     db.commit()
     db.refresh(user)

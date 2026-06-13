@@ -11,6 +11,7 @@ import type { Job } from "@/types";
 export default function JobCard({ job, actions, detailsHref }: { job: Job; actions?: React.ReactNode; detailsHref?: string }) {
   const logo = assetUrl(job.company_logo_url);
   const skills = job.required_skills_list?.length ? job.required_skills_list : splitSkills(job.required_skills);
+  const companyRef = job.company_slug || job.company_public_id || job.company_id;
 
   return (
     <article className="panel overflow-hidden p-5">
@@ -26,8 +27,8 @@ export default function JobCard({ job, actions, detailsHref }: { job: Job; actio
         <div className="min-w-0 flex-1">
           <h3 className="text-xl font-black tracking-normal text-[#172026]">{job.title}</h3>
           <div className="mt-1 flex flex-wrap items-center gap-2 text-sm font-bold text-[#6b767d]">
-            {job.company_id ? (
-              <Link href={`/companies/${job.company_id}`} className="text-teal-700">
+            {companyRef ? (
+              <Link href={`/companies/${companyRef}`} className="text-teal-700">
                 {job.company_name}
               </Link>
             ) : (

@@ -1,11 +1,20 @@
 import json
+import logging
 import smtplib
 from email.message import EmailMessage
 from urllib import request
+from urllib.error import HTTPError, URLError
 
 from fastapi import HTTPException, status
 
 from app.core.config import settings
+
+logger = logging.getLogger(__name__)
+EMAIL_DELIVERY_ERROR = "Could not send verification email. Please try again later."
+
+
+def recipient_domain(email: str) -> str:
+    return email.rsplit("@", 1)[-1].lower() if "@" in email else "unknown"
 
 
 def ensure_email_provider_configured() -> None:
@@ -14,11 +23,11 @@ def ensure_email_provider_configured() -> None:
         return
     if provider == "resend" and settings.resend_api_key and settings.email_from:
         return
-    if provider == "smtp" and settings.smtp_host and settings.email_from:
+    if provider == "smtp" and settings.smtp_host and settings.email_from and settings.smtp_user and settings.smtp_password:
         return
     raise HTTPException(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        detail="Email delivery is not configured for this environment",
+        detail=EMAIL_DELIVERY_ERROR,
     )
 
 
@@ -27,17 +36,29 @@ def send_security_code(to_email: str, code: str, subject: str) -> None:
     if not settings.is_production and provider == "console":
         print(f"[Swipe for Success] {subject} for {to_email}: {code}")
         return
-    ensure_email_provider_configured()
-    if provider == "resend":
-        send_resend_email(to_email, code, subject)
-        return
-    if provider == "smtp":
-        send_smtp_email(to_email, code, subject)
-        return
-    raise HTTPException(
-        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        detail="Unsupported email provider",
-    )
+    try:
+        ensure_email_provider_configured()
+        if provider == "resend":
+            send_resend_email(to_email, code, subject)
+            return
+        if provider == "smtp":
+            send_smtp_email(to_email, code, subject)
+            return
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=EMAIL_DELIVERY_ERROR,
+        )
+    except HTTPException:
+        raise
+    except (OSError, smtplib.SMTPException, HTTPError, URLError) as exc:
+        logger.error(
+            "Security email delivery failed provider=%s recipient_domain=%s error_class=%s error=%s",
+            provider,
+            recipient_domain(to_email),
+            exc.__class__.__name__,
+            str(exc).splitlines()[0],
+        )
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=EMAIL_DELIVERY_ERROR) from exc
 
 
 def send_smtp_email(to_email: str, code: str, subject: str) -> None:
@@ -48,8 +69,7 @@ def send_smtp_email(to_email: str, code: str, subject: str) -> None:
     message.set_content(f"Your Swipe for Success verification code is {code}. It expires in {settings.otp_expire_minutes} minutes.")
     with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=20) as smtp:
         smtp.starttls()
-        if settings.smtp_user and settings.smtp_password:
-            smtp.login(settings.smtp_user, settings.smtp_password)
+        smtp.login(settings.smtp_user, settings.smtp_password)
         smtp.send_message(message)
 
 
@@ -71,4 +91,4 @@ def send_resend_email(to_email: str, code: str, subject: str) -> None:
     )
     with request.urlopen(req, timeout=20) as response:
         if response.status >= 400:
-            raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Email provider rejected the message")
+            raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=EMAIL_DELIVERY_ERROR)

@@ -18,6 +18,7 @@ from app.models.report import Report
 from app.models.recruiter_company_member import RecruiterCompanyMember
 from app.models.swipe import Swipe
 from app.models.user import User
+from app.services.public_identity import ensure_company_public_identity, ensure_job_public_identity, ensure_user_public_identity
 
 TRUE_VALUES = {"1", "true", "yes", "y", "on"}
 
@@ -80,6 +81,7 @@ def seed_team_account(db, email: str, role: UserRole, initial_password: str, res
         )
         db.add(user)
         db.flush()
+        ensure_user_public_identity(db, user)
     else:
         if user.is_protected_owner and role != UserRole.OWNER:
             raise RuntimeError(f"Refusing to downgrade protected owner account: {email}")
@@ -95,6 +97,7 @@ def seed_team_account(db, email: str, role: UserRole, initial_password: str, res
         user.is_protected_owner = role == UserRole.OWNER
         if reset_passwords:
             user.password_hash = hash_password(initial_password)
+        ensure_user_public_identity(db, user)
     db.flush()
     role_label = "owner" if role == UserRole.OWNER else "admin"
     action = "created" if created else "verified"
@@ -157,6 +160,7 @@ def get_or_create_user(db, name: str, email: str, password: str, role: UserRole)
     )
     db.add(user)
     db.flush()
+    ensure_user_public_identity(db, user)
     return user
 
 
@@ -251,6 +255,7 @@ def main() -> None:
             company.industry = company.industry or industry
             company.company_type = company.company_type or company_type
             company.official_email_domain = company.official_email_domain or domain
+            ensure_company_public_identity(db, company)
             company.verification_status = (
                 CompanyVerificationStatus.VERIFIED.value
                 if company_owner.id == recruiter.id
@@ -313,8 +318,7 @@ def main() -> None:
                 owner = recruiter if index % 2 == 0 else recruiter_two
                 company = company_by_recruiter_id[owner.id]
                 company_name = "NovaWorks Labs" if owner.id == recruiter.id else "CloudNest Systems"
-                db.add(
-                    Job(
+                job = Job(
                         recruiter_id=owner.id,
                         company_id=company.id,
                         title=title,
@@ -336,7 +340,9 @@ def main() -> None:
                         bond_years=bond_years,
                         bond_details=bond_details,
                     )
-                )
+                db.add(job)
+                db.flush()
+                ensure_job_public_identity(db, job)
         else:
             for title, _required_skills, _job_type, _work_mode, _exp, _location, has_bond, bond_years, bond_details in sample_jobs:
                 job = db.scalar(select(Job).where(Job.title == title))
@@ -346,6 +352,7 @@ def main() -> None:
                     job.has_bond = has_bond
                     job.bond_years = bond_years
                     job.bond_details = bond_details
+                    ensure_job_public_identity(db, job)
         db.commit()
 
         first_jobs = db.scalars(select(Job).order_by(Job.id).limit(5)).all()

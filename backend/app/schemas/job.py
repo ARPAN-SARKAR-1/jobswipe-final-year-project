@@ -86,8 +86,11 @@ class JobUpdate(BaseModel):
 
 class JobRead(JobBase):
     id: int
+    job_public_id: str | None = None
     recruiter_id: int
     company_id: int | None = None
+    company_public_id: str | None = None
+    company_slug: str | None = None
     moderation_status: JobModerationStatus = JobModerationStatus.ACTIVE
     moderation_reason: str | None = None
     risk_score: int = 0

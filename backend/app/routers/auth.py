@@ -16,6 +16,8 @@ from app.models.job_seeker_profile import JobSeekerProfile
 from app.services.trust import get_or_create_recruiter_membership
 from app.models.password_reset_token import PasswordResetToken
 from app.models.user import User
+from app.services.email_service import EMAIL_DELIVERY_ERROR
+from app.services.public_identity import ensure_company_public_identity, ensure_user_public_identity
 from app.schemas.auth import (
     AuthResponse,
     CaptchaResponse,
@@ -112,6 +114,7 @@ def register(payload: RegisterRequest, db: Annotated[Session, Depends(get_db)]) 
     )
     db.add(user)
     db.flush()
+    ensure_user_public_identity(db, user)
 
     if payload.role == UserRole.JOB_SEEKER:
         db.add(JobSeekerProfile(user_id=user.id))
@@ -119,6 +122,7 @@ def register(payload: RegisterRequest, db: Annotated[Session, Depends(get_db)]) 
         company = CompanyProfile(recruiter_id=user.id)
         db.add(company)
         db.flush()
+        ensure_company_public_identity(db, company)
         get_or_create_recruiter_membership(db, user, company)
 
     if settings.email_verification_required:
@@ -159,7 +163,28 @@ def login(
         if has_valid_trusted_device(db, user, trusted_token):
             db.commit()
             return token_response(user, message="Trusted device recognized")
-        login_challenge_id = create_login_otp_challenge(db, user)
+        try:
+            login_challenge_id = create_login_otp_challenge(db, user)
+        except HTTPException as exc:
+            db.rollback()
+            if exc.status_code >= 500:
+                logger.error(
+                    "Login 2FA email failed role=%s error_class=%s error=%s",
+                    user.role,
+                    exc.__class__.__name__,
+                    str(exc.detail).splitlines()[0],
+                )
+                raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=EMAIL_DELIVERY_ERROR) from exc
+            raise
+        except Exception as exc:
+            db.rollback()
+            logger.error(
+                "Login 2FA email failed role=%s error_class=%s error=%s",
+                user.role,
+                exc.__class__.__name__,
+                str(exc).splitlines()[0],
+            )
+            raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=EMAIL_DELIVERY_ERROR) from exc
         db.commit()
         return AuthResponse(
             user=user,

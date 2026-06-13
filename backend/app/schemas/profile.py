@@ -10,6 +10,7 @@ from app.utils.skills import normalize_skills, split_skills
 class JobSeekerProfileUpdate(BaseModel):
     phone: str | None = Field(default=None, max_length=30)
     github_url: str | None = Field(default=None, max_length=255)
+    about: str | None = Field(default=None, max_length=2000)
     education: str | None = Field(default=None, max_length=160)
     degree: str | None = Field(default=None, max_length=160)
     college: str | None = Field(default=None, max_length=180)
@@ -36,10 +37,14 @@ class JobSeekerProfileUpdate(BaseModel):
 class JobSeekerProfileRead(JobSeekerProfileUpdate):
     id: int
     user_id: int
+    public_user_id: str | None = None
+    username: str | None = None
     name: str
     email: str
     profile_picture_url: str | None = None
     resume_pdf_url: str | None = None
+    verification_status: str = "PENDING"
+    certificates_public: bool = False
     created_at: datetime
     updated_at: datetime
 
@@ -66,6 +71,8 @@ class CompanyJoinRequest(BaseModel):
 
 class CompanyProfileRead(CompanyProfileUpdate):
     id: int
+    public_company_id: str | None = None
+    slug: str | None = None
     recruiter_id: int
     name: str | None = None
     company_logo_url: str | None = None

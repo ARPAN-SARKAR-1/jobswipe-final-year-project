@@ -31,6 +31,24 @@ class RecruiterVerificationStatus(str, Enum):
     SUSPENDED = "SUSPENDED"
 
 
+class JobSeekerVerificationStatus(str, Enum):
+    PENDING = "PENDING"
+    VERIFIED = "VERIFIED"
+    REJECTED = "REJECTED"
+    SUSPENDED = "SUSPENDED"
+
+
+class DocumentVerificationStatus(str, Enum):
+    PENDING = "PENDING"
+    VERIFIED = "VERIFIED"
+    REJECTED = "REJECTED"
+
+
+class ProfileVisibility(str, Enum):
+    PUBLIC = "PUBLIC"
+    PRIVATE = "PRIVATE"
+
+
 class CompanyType(str, Enum):
     STARTUP = "STARTUP"
     MNC = "MNC"
