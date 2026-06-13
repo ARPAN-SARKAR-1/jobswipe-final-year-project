@@ -30,7 +30,7 @@ from app.schemas.profile import (
 )
 from app.schemas.public_profile import DocumentVisibilityUpdate, UserDocumentRead
 from app.services.public_identity import ensure_user_public_identity
-from app.utils.file_upload import save_image, save_resume_pdf, save_verification_document
+from app.utils.file_upload import save_profile_photo, save_resume_pdf, save_verification_document
 
 router = APIRouter(prefix="/jobseeker", tags=["Job Seeker"])
 
@@ -353,7 +353,7 @@ async def upload_profile_picture(
     db: Annotated[Session, Depends(get_db)],
     file: UploadFile = File(...),
 ) -> UploadResponse:
-    url = await save_image(file, "profile-pictures")
+    url = await save_profile_photo(file)
     current_user.profile_picture_url = url
     db.commit()
     return UploadResponse(url=url, message="Profile picture uploaded")
@@ -396,7 +396,7 @@ async def upload_document(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported document type for this account.")
     requested_visibility = normalize_visibility(visibility)
     final_visibility = SectionVisibility.PRIVATE.value if normalized_type in PRIVATE_ONLY_DOCUMENT_TYPES else requested_visibility
-    url = await save_verification_document(file)
+    url = await save_verification_document(file, normalized_type)
     document = UserDocument(
         owner_user_id=current_user.id,
         document_type=normalized_type,

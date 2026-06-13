@@ -8,6 +8,7 @@ import toast from "react-hot-toast";
 import PageHeader from "@/components/PageHeader";
 import VerificationStatusBadge from "@/components/VerificationStatusBadge";
 import { apiFetch } from "@/lib/api";
+import { fileGuidance, uploadRules, validateFile } from "@/lib/fileValidation";
 import { useAuth } from "@/hooks/useAuth";
 import type { PublicProfile, UserDocument } from "@/types";
 
@@ -62,6 +63,8 @@ export default function RecruiterProfileSettingsPage() {
 
   const uploadDocument = async (file: File | undefined) => {
     if (!file) return;
+    const validationError = validateFile(file, uploadRules.verificationDocument);
+    if (validationError) return toast.error(validationError);
     const body = new FormData();
     body.append("document_type", documentType);
     body.append("is_public", "false");
@@ -128,8 +131,17 @@ export default function RecruiterProfileSettingsPage() {
             <label className="btn-secondary cursor-pointer">
               <FileText size={17} />
               Upload private document
-              <input className="hidden" type="file" accept="application/pdf,image/png,image/jpeg,image/webp" onChange={(event) => uploadDocument(event.target.files?.[0])} />
+              <input
+                className="hidden"
+                type="file"
+                accept={uploadRules.verificationDocument.accept}
+                onChange={(event) => {
+                  void uploadDocument(event.target.files?.[0]);
+                  event.currentTarget.value = "";
+                }}
+              />
             </label>
+            <p className="text-xs font-bold text-[#8a949a]">{fileGuidance(uploadRules.verificationDocument)}</p>
           </div>
           <div className="mt-4 grid gap-2">
             {documents.map((document) => (

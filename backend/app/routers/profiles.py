@@ -382,7 +382,7 @@ async def upload_my_document(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported document type for this account.")
     requested_visibility = normalize_document_visibility(visibility, is_public)
     final_visibility = SectionVisibility.PRIVATE.value if normalized_type in PRIVATE_ONLY_DOCUMENT_TYPES else requested_visibility
-    url = await save_verification_document(file)
+    url = await save_verification_document(file, normalized_type)
     document = UserDocument(
         owner_user_id=current_user.id,
         document_type=normalized_type,

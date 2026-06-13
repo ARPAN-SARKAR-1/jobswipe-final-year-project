@@ -76,12 +76,12 @@ export default function Navbar() {
 
   return (
     <header className="sticky top-0 z-40 border-b border-black/5 bg-[#f7f6f2]/82 backdrop-blur-xl">
-      <div className="mx-auto flex w-[min(1180px,calc(100%-32px))] items-center justify-between py-4">
-        <Link href={user ? roleHome(user.role) : "/"} className="flex items-center gap-2 font-black tracking-normal">
+      <div className="mx-auto flex w-[min(1180px,calc(100%-32px))] min-w-0 items-center justify-between gap-3 py-4">
+        <Link href={user ? roleHome(user.role) : "/"} className="flex min-w-0 items-center gap-2 font-black tracking-normal">
           <span className="grid h-9 w-9 place-items-center rounded-lg bg-[#172026] text-white">
             <Sparkles size={18} />
           </span>
-          <span className="text-lg">Swipe for Success</span>
+          <span className="truncate text-base sm:text-lg">Swipe for Success</span>
         </Link>
 
         <nav className="hidden items-center gap-1 lg:flex">
@@ -129,7 +129,7 @@ export default function Navbar() {
           )}
         </div>
 
-        <button className="btn-secondary !px-3 !py-2 lg:hidden" onClick={() => setOpen((value) => !value)} type="button">
+        <button className="btn-secondary shrink-0 !px-3 !py-2 lg:hidden" onClick={() => setOpen((value) => !value)} type="button">
           <Menu size={18} />
         </button>
       </div>
@@ -146,7 +146,7 @@ export default function Navbar() {
               </Link>
             ))}
           {user ? (
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <NotificationBell enabled={Boolean(user)} />
               <button className="btn-secondary flex-1" onClick={handleLogout} type="button">
                 Logout

@@ -7,6 +7,7 @@ import toast from "react-hot-toast";
 import PageHeader from "@/components/PageHeader";
 import VerificationStatusBadge from "@/components/VerificationStatusBadge";
 import { apiFetch, assetUrl } from "@/lib/api";
+import { fileGuidance, uploadRules, validateFile } from "@/lib/fileValidation";
 import { companyTypes } from "@/lib/options";
 import { useAuth } from "@/hooks/useAuth";
 import type { CompanyProfile, CompanyType } from "@/types";
@@ -69,10 +70,8 @@ export default function CompanyProfilePage() {
 
   const uploadLogo = async (file: File | undefined) => {
     if (!file) return;
-    if (file.size > 2 * 1024 * 1024) {
-      toast.error("Logo must be under 2 MB");
-      return;
-    }
+    const validationError = validateFile(file, uploadRules.companyLogo);
+    if (validationError) return toast.error(validationError);
     const body = new FormData();
     body.append("file", file);
     try {
@@ -109,8 +108,17 @@ export default function CompanyProfilePage() {
           {company.verification_note && <p className="mt-3 text-sm font-bold leading-6 text-[#6b767d]">{company.verification_note}</p>}
           <label className="btn-secondary mt-5 w-full cursor-pointer">
             Upload company logo
-            <input className="hidden" type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => uploadLogo(event.target.files?.[0])} />
+            <input
+              className="hidden"
+              type="file"
+              accept={uploadRules.companyLogo.accept}
+              onChange={(event) => {
+                void uploadLogo(event.target.files?.[0]);
+                event.currentTarget.value = "";
+              }}
+            />
           </label>
+          <p className="mt-2 text-xs font-bold text-[#8a949a]">{fileGuidance(uploadRules.companyLogo)}</p>
         </aside>
 
         <form onSubmit={submit} className="panel grid gap-4 p-5">

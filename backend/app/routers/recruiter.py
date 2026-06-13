@@ -20,7 +20,7 @@ from app.services.notifications import create_notification, notify_admins
 from app.services.public_identity import ensure_company_public_identity, unique_company_slug
 from app.services.timeline import add_timeline_event
 from app.services.trust import attach_job_trust, get_or_create_recruiter_membership, get_recruiter_membership
-from app.utils.file_upload import save_image
+from app.utils.file_upload import save_company_logo
 
 router = APIRouter(prefix="/recruiter", tags=["Recruiter"])
 
@@ -199,7 +199,7 @@ async def upload_company_logo(
     company = get_or_create_company(db, current_user.id)
     if company.recruiter_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only the company owner can update the company logo.")
-    url = await save_image(file, "company-logos")
+    url = await save_company_logo(file)
     company.company_logo_url = url
     db.commit()
     return UploadResponse(url=url, message="Company logo uploaded")

@@ -30,8 +30,8 @@ export default function PublicProfileCard({ profile, shareHref }: { profile: Pub
   ].filter(Boolean).join(" / ");
 
   return (
-    <section className="panel p-5">
-      <div className="flex flex-col gap-5 md:flex-row md:items-start">
+    <section className="panel max-w-full p-4 sm:p-5">
+      <div className="flex min-w-0 flex-col gap-5 md:flex-row md:items-start">
         <div className="grid h-28 w-28 shrink-0 place-items-center overflow-hidden rounded-lg border border-black/10 bg-white">
           {avatar ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -42,7 +42,7 @@ export default function PublicProfileCard({ profile, shareHref }: { profile: Pub
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-2xl font-black text-[#172026]">{profile.name}</h1>
+            <h1 className="min-w-0 break-words text-2xl font-black text-[#172026]">{profile.name}</h1>
             <VerifiedBadge label={profile.verification_label || "Verified profile"} verified={profile.verified_profile} />
           </div>
           <div className="mt-2 flex flex-wrap gap-2 text-xs font-black text-[#526069]">

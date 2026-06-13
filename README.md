@@ -125,6 +125,12 @@ JWT_SECRET=change_this_secret
 JWT_ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=1440
 UPLOAD_DIR=uploads
+MAX_PROFILE_PHOTO_MB=2
+MAX_COMPANY_LOGO_MB=2
+MAX_RESUME_MB=5
+MAX_VERIFICATION_DOCUMENT_MB=5
+MAX_STUDENT_PROOF_MB=3
+MAX_CERTIFICATE_MB=5
 FRONTEND_URL=http://localhost:3000
 ENV=development
 CLOUDINARY_CLOUD_NAME=
@@ -204,6 +210,15 @@ http://localhost:8000/docs
 - Resume PDFs are not public. A resume becomes visible to a recruiter only when the job seeker applies to that recruiter's job.
 - Owner/Admin users may access records for moderation or support when required.
 - The Terms page explains user responsibilities, recruiter posting rules, bond disclosure, moderation rights, and project/demo limitations.
+
+## Upload Limits
+
+- Profile photos and company logos: JPG, PNG, or WEBP under 2 MB.
+- Resumes: PDF, DOC, or DOCX under 5 MB.
+- Verification documents and certificates: PDF, JPG, PNG, or WEBP under 5 MB.
+- Student proof documents: PDF, JPG, PNG, or WEBP under 3 MB.
+
+The backend enforces these limits before Cloudinary or local storage receives a file.
 
 ## Deployment Guide
 

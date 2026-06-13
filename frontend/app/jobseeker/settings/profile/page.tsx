@@ -8,6 +8,7 @@ import PageHeader from "@/components/PageHeader";
 import SkillMultiSelect from "@/components/SkillMultiSelect";
 import VerificationStatusBadge from "@/components/VerificationStatusBadge";
 import { apiFetch, assetUrl } from "@/lib/api";
+import { fileGuidance, ruleForDocumentType, uploadRules, validateFile, type FileValidationRule } from "@/lib/fileValidation";
 import { experienceLevels, jobTypes } from "@/lib/options";
 import { splitSkills } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -336,10 +337,10 @@ export default function JobSeekerProfileSettingsPage() {
     }
   };
 
-  const upload = async (file: File | undefined, endpoint: string, maxBytes: number, pdfOnly = false) => {
+  const upload = async (file: File | undefined, endpoint: string, rule: FileValidationRule) => {
     if (!file) return;
-    if (file.size > maxBytes) return toast.error("File size is too large");
-    if (pdfOnly && file.type !== "application/pdf") return toast.error("Resume must be a PDF");
+    const validationError = validateFile(file, rule);
+    if (validationError) return toast.error(validationError);
     const body = new FormData();
     body.append("file", file);
     try {
@@ -353,6 +354,9 @@ export default function JobSeekerProfileSettingsPage() {
 
   const uploadDocument = async (file: File | undefined) => {
     if (!file) return;
+    const rule = ruleForDocumentType(documentType);
+    const validationError = validateFile(file, rule);
+    if (validationError) return toast.error(validationError);
     const body = new FormData();
     body.append("document_type", documentType);
     body.append("visibility", documentVisibility);
@@ -470,14 +474,32 @@ export default function JobSeekerProfileSettingsPage() {
 
           <label className="btn-secondary mt-5 w-full cursor-pointer">
             Upload picture
-            <input className="hidden" type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => upload(event.target.files?.[0], "/jobseeker/profile-picture", 2 * 1024 * 1024)} />
+            <input
+              className="hidden"
+              type="file"
+              accept={uploadRules.profilePhoto.accept}
+              onChange={(event) => {
+                void upload(event.target.files?.[0], "/jobseeker/profile-picture", uploadRules.profilePhoto);
+                event.currentTarget.value = "";
+              }}
+            />
           </label>
+          <p className="mt-2 text-xs font-bold text-[#8a949a]">{fileGuidance(uploadRules.profilePhoto)}</p>
 
           <label className="btn-secondary mt-3 w-full cursor-pointer">
             <FileText size={17} />
-            Upload resume PDF
-            <input className="hidden" type="file" accept="application/pdf" onChange={(event) => upload(event.target.files?.[0], "/jobseeker/resume", 5 * 1024 * 1024, true)} />
+            Upload resume
+            <input
+              className="hidden"
+              type="file"
+              accept={uploadRules.resume.accept}
+              onChange={(event) => {
+                void upload(event.target.files?.[0], "/jobseeker/resume", uploadRules.resume);
+                event.currentTarget.value = "";
+              }}
+            />
           </label>
+          <p className="mt-2 text-xs font-bold text-[#8a949a]">{fileGuidance(uploadRules.resume)}</p>
           <p className="mt-3 rounded-lg border border-teal-100 bg-teal-50 p-3 text-xs font-bold leading-6 text-teal-800">
             Student ID documents are private and used only for verification. Public profile documents list titles only.
           </p>
@@ -653,9 +675,18 @@ export default function JobSeekerProfileSettingsPage() {
               </select>
               <label className="btn-secondary cursor-pointer">
                 Upload
-                <input className="hidden" type="file" accept="application/pdf,image/png,image/jpeg,image/webp" onChange={(event) => uploadDocument(event.target.files?.[0])} />
+                <input
+                  className="hidden"
+                  type="file"
+                  accept={ruleForDocumentType(documentType).accept}
+                  onChange={(event) => {
+                    void uploadDocument(event.target.files?.[0]);
+                    event.currentTarget.value = "";
+                  }}
+                />
               </label>
             </div>
+            <p className="mt-2 text-xs font-bold text-[#8a949a]">{fileGuidance(ruleForDocumentType(documentType))}</p>
             {privateOnlyDocumentTypes.has(documentType) && (
               <p className="mt-2 text-xs font-bold text-[#8a949a]">This document type is forced private for safety.</p>
             )}

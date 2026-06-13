@@ -76,15 +76,15 @@ export default function SwipeJobsPage() {
   if (loading) return <main className="page-shell">Loading swipe feed...</main>;
 
   return (
-    <main className="page-shell">
+    <main className="page-shell pb-24 sm:pb-8">
       <PageHeader title="Swipe Jobs" eyebrow="Discover">
         <div className="rounded-lg bg-white px-4 py-2 text-sm font-black text-[#526069]">
           {jobs.length ? `${Math.min(index + 1, jobs.length)} of ${jobs.length} jobs viewed` : "0 jobs viewed"}
         </div>
       </PageHeader>
 
-      <section className="grid gap-8 lg:grid-cols-[1fr_360px] lg:items-start">
-        <div className="relative mx-auto grid h-[680px] w-full max-w-[460px] place-items-center sm:h-[700px]">
+      <section className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
+        <div className="relative mx-auto grid min-h-[620px] w-full max-w-full place-items-center sm:min-h-[680px] sm:max-w-[460px]">
           <AnimatePresence custom={direction} mode="popLayout">
             {current ? (
               <motion.article
@@ -97,10 +97,10 @@ export default function SwipeJobsPage() {
                 animate={{ opacity: 1, y: 0, x: 0, rotate: 0, scale: 1 }}
                 exit={{ opacity: 0, x: direction * 420, rotate: direction * 16, scale: 0.92 }}
                 transition={{ type: "spring", stiffness: 260, damping: 28 }}
-                className="absolute w-full cursor-grab rounded-lg border border-black/10 bg-white p-5 shadow-premium active:cursor-grabbing"
+                className="absolute w-full max-w-full cursor-grab rounded-lg border border-black/10 bg-white p-4 shadow-premium active:cursor-grabbing sm:p-5"
               >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="grid h-16 w-16 place-items-center overflow-hidden rounded-lg border border-black/10 bg-[#fbfaf7]">
+                <div className="flex min-w-0 items-start justify-between gap-3">
+                  <div className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-lg border border-black/10 bg-[#fbfaf7] sm:h-16 sm:w-16">
                     {current.company_logo_url ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={assetUrl(current.company_logo_url)} alt={current.company_name} className="h-full w-full object-cover" />
@@ -108,11 +108,11 @@ export default function SwipeJobsPage() {
                       <BriefcaseBusiness size={28} />
                     )}
                   </div>
-                  <span className="rounded-lg bg-teal-50 px-3 py-1 text-xs font-black text-teal-700">{current.work_mode}</span>
+                  <span className="max-w-[160px] break-words rounded-lg bg-teal-50 px-3 py-1 text-xs font-black text-teal-700">{current.work_mode}</span>
                 </div>
 
-                <h2 className="mt-7 text-3xl font-black tracking-normal text-[#172026]">{current.title}</h2>
-                <p className="mt-2 text-base font-black text-[#6b767d]">{current.company_name}</p>
+                <h2 className="mt-6 break-words text-2xl font-black tracking-normal text-[#172026] sm:mt-7 sm:text-3xl">{current.title}</h2>
+                <p className="mt-2 break-words text-base font-black text-[#6b767d]">{current.company_name}</p>
                 <div className="mt-3 flex flex-wrap gap-2">
                   <MatchScoreBadge job={current} />
                   {current.existing_application_status && (
@@ -146,8 +146,8 @@ export default function SwipeJobsPage() {
                   ))}
                 </div>
 
-                <p className="mt-5 text-sm font-medium leading-6 text-[#526069]">{current.description}</p>
-                {current.eligibility && <p className="mt-3 text-sm font-bold leading-6 text-[#172026]">Eligibility: {current.eligibility}</p>}
+                <p className="mt-5 max-h-40 overflow-y-auto break-words text-sm font-medium leading-6 text-[#526069] sm:max-h-none">{current.description}</p>
+                {current.eligibility && <p className="mt-3 break-words text-sm font-bold leading-6 text-[#172026]">Eligibility: {current.eligibility}</p>}
               </motion.article>
             ) : (
               <div className="w-full">
@@ -157,22 +157,22 @@ export default function SwipeJobsPage() {
           </AnimatePresence>
         </div>
 
-        <aside className="panel p-5">
+        <aside className="panel max-w-full p-4 sm:p-5">
           <h2 className="text-xl font-black">Swipe controls</h2>
-          <div className="mt-5 grid grid-cols-2 gap-3">
-            <button className="btn-secondary border-rose-200 bg-rose-50 text-rose-700" onClick={() => move("REJECT")} disabled={!current} type="button">
+          <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <button className="btn-secondary min-w-0 border-rose-200 bg-rose-50 text-rose-700" onClick={() => move("REJECT")} disabled={!current} type="button">
               <X size={18} />
               Reject
             </button>
-            <button className="btn-secondary border-amber-200 bg-amber-50 text-amber-700" onClick={() => move("SAVE")} disabled={!current} type="button">
+            <button className="btn-secondary min-w-0 border-amber-200 bg-amber-50 text-amber-700" onClick={() => move("SAVE")} disabled={!current} type="button">
               <Bookmark size={18} />
               Save
             </button>
-            <button className="btn-primary bg-emerald-600 hover:bg-emerald-700" onClick={() => move("LIKE")} disabled={!current || Boolean(current.existing_application_status)} type="button">
+            <button className="btn-primary min-w-0 bg-emerald-600 hover:bg-emerald-700" onClick={() => move("LIKE")} disabled={!current || Boolean(current.existing_application_status)} type="button">
               <Heart size={18} />
               {current?.existing_application_status ? "Already Applied" : "Apply"}
             </button>
-            <button className="btn-secondary" onClick={undo} type="button">
+            <button className="btn-secondary min-w-0" onClick={undo} type="button">
               <RotateCcw size={18} />
               Undo
             </button>
@@ -202,9 +202,9 @@ export default function SwipeJobsPage() {
 
 function Info({ icon, label }: { icon: React.ReactNode; label: string }) {
   return (
-    <div className="flex items-center gap-2 rounded-lg border border-black/10 bg-[#fbfaf7] px-3 py-3 text-sm font-black text-[#526069]">
-      {icon}
-      {label}
+    <div className="flex min-w-0 items-center gap-2 rounded-lg border border-black/10 bg-[#fbfaf7] px-3 py-3 text-sm font-black text-[#526069]">
+      <span className="shrink-0">{icon}</span>
+      <span className="min-w-0 break-words">{label}</span>
     </div>
   );
 }

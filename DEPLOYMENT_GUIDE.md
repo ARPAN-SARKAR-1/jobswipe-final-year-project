@@ -33,6 +33,12 @@ JWT_ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=1440
 FRONTEND_URL=https://your-frontend.vercel.app
 UPLOAD_DIR=uploads
+MAX_PROFILE_PHOTO_MB=2
+MAX_COMPANY_LOGO_MB=2
+MAX_RESUME_MB=5
+MAX_VERIFICATION_DOCUMENT_MB=5
+MAX_STUDENT_PROOF_MB=3
+MAX_CERTIFICATE_MB=5
 CLOUDINARY_CLOUD_NAME=<cloudinary-cloud-name>
 CLOUDINARY_API_KEY=<cloudinary-api-key>
 CLOUDINARY_API_SECRET=<cloudinary-api-secret>
@@ -93,8 +99,12 @@ The CAPTCHA request should resolve to `https://swipe-for-success-backend.onrende
 Supported uploads:
 
 - Job seeker profile images
-- Job seeker resume PDFs
+- Job seeker resumes as PDF, DOC, or DOCX
+- Job seeker verification documents as PDF, JPG, PNG, or WEBP
+- Student proof documents with a smaller default 3 MB limit
 - Recruiter company logos
+
+Upload size limits are enforced by the backend before Cloudinary/local storage. Defaults are 2 MB for profile photos and company logos, 5 MB for resumes and most verification documents, and 3 MB for student proof documents. Keep these limits in Render unless storage requirements change.
 
 ## Database Commands
 
@@ -120,7 +130,7 @@ python seed.py
 
 - CORS errors: confirm `FRONTEND_URL` exactly matches the Vercel origin, without a trailing path.
 - Database connection errors: confirm Railway allows the Render service to connect and the `DATABASE_URL` uses `mysql+pymysql` with the public TCP proxy, not `mysql://`, `mysql.railway.internal`, `localhost`, or `127.0.0.1`.
-- Upload errors: confirm all three Cloudinary variables are set in Render.
+- Upload errors: confirm all three Cloudinary variables are set in Render, the file type is allowed, and the file is below the configured max size.
 - OTP email errors on Render Free: use `EMAIL_PROVIDER=brevo_api`, `EMAIL_FROM`, `EMAIL_FROM_NAME`, and `BREVO_API_KEY`; SMTP ports may be unreachable, and `swipeforsuccess.support@gmail.com` must be verified as a Brevo sender.
 - Reset token exposure: set `ENV=production` so reset tokens are not returned in API responses.
 - Frontend API errors: confirm `NEXT_PUBLIC_API_BASE_URL` ends with `/api`.

@@ -14,6 +14,18 @@ services:
         value: "1440"
       - key: UPLOAD_DIR
         value: uploads
+      - key: MAX_PROFILE_PHOTO_MB
+        value: "2"
+      - key: MAX_COMPANY_LOGO_MB
+        value: "2"
+      - key: MAX_RESUME_MB
+        value: "5"
+      - key: MAX_VERIFICATION_DOCUMENT_MB
+        value: "5"
+      - key: MAX_STUDENT_PROOF_MB
+        value: "3"
+      - key: MAX_CERTIFICATE_MB
+        value: "5"
       - key: DATABASE_URL
         sync: false
       - key: JWT_SECRET
