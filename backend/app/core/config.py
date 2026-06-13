@@ -1,4 +1,5 @@
 from functools import lru_cache
+import os
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -7,7 +8,6 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BACKEND_DIR = Path(__file__).resolve().parents[2]
 ENV_FILE = BACKEND_DIR / ".env"
-EXAMPLE_ENV_FILE = BACKEND_DIR / ".env.example"
 LOCAL_DEVELOPMENT_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
@@ -43,14 +43,14 @@ class Settings(BaseSettings):
     trusted_device_cookie_name: str = Field(default="swipe_trusted_device", alias="TRUSTED_DEVICE_COOKIE_NAME")
 
     model_config = SettingsConfigDict(
-        env_file=str(ENV_FILE if ENV_FILE.exists() else EXAMPLE_ENV_FILE),
+        env_file=str(ENV_FILE) if ENV_FILE.exists() else None,
         env_file_encoding="utf-8",
         extra="ignore",
     )
 
     @model_validator(mode="after")
     def validate_production_database_url(self) -> "Settings":
-        if not self.is_production:
+        if not self.is_production and not self.is_deployed_runtime:
             return self
         database_url = self.database_url.strip()
         parsed = urlparse(database_url)
@@ -71,6 +71,10 @@ class Settings(BaseSettings):
     @property
     def is_production(self) -> bool:
         return self.env.lower() == "production"
+
+    @property
+    def is_deployed_runtime(self) -> bool:
+        return any(os.getenv(name) for name in ("RENDER", "RENDER_SERVICE_ID", "RENDER_EXTERNAL_HOSTNAME"))
 
     @property
     def cors_origins(self) -> list[str]:

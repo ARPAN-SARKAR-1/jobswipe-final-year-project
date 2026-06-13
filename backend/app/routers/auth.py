@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, timezone
+import logging
 from secrets import token_urlsafe
 from typing import Annotated
 
@@ -42,6 +43,7 @@ from app.services.security_challenges import (
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 PUBLIC_SIGNUP_ROLES = {UserRole.JOB_SEEKER.value, UserRole.RECRUITER.value}
+logger = logging.getLogger(__name__)
 
 
 def token_response(user: User, message: str = "Authenticated", twofa_recommended: bool = False) -> TokenResponse:
@@ -65,7 +67,13 @@ def captcha(
     db: Annotated[Session, Depends(get_db)],
     purpose: str = Query(..., min_length=3, max_length=40),
 ) -> CaptchaResponse:
-    challenge = create_captcha(db, purpose)
+    try:
+        challenge = create_captcha(db, purpose)
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("CAPTCHA challenge creation failed for purpose=%s", purpose)
+        raise
     return CaptchaResponse(
         challenge_id=challenge.id,
         question=challenge.question,
