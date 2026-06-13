@@ -17,6 +17,7 @@ import { FormEvent, useEffect, useState } from "react";
 import toast from "react-hot-toast";
 
 import PageHeader from "@/components/PageHeader";
+import PasswordInput from "@/components/PasswordInput";
 import StatCard from "@/components/StatCard";
 import StatusBadge from "@/components/StatusBadge";
 import VerificationStatusBadge from "@/components/VerificationStatusBadge";
@@ -465,7 +466,11 @@ function Input({ label, value, onChange, required, type = "text" }: { label: str
       <label className="label" htmlFor={id}>
         {label}
       </label>
-      <input id={id} className="field" required={required} type={type} value={value} onChange={(event) => onChange(event.target.value)} />
+      {type === "password" ? (
+        <PasswordInput id={id} required={required} value={value} onChange={(event) => onChange(event.target.value)} />
+      ) : (
+        <input id={id} className="field" required={required} type={type} value={value} onChange={(event) => onChange(event.target.value)} />
+      )}
     </div>
   );
 }

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 import toast from "react-hot-toast";
 
+import PasswordInput from "@/components/PasswordInput";
 import { apiFetch } from "@/lib/api";
 
 export default function ResetPasswordPage() {
@@ -55,13 +56,13 @@ export default function ResetPasswordPage() {
             <label className="label" htmlFor="new_password">
               New password
             </label>
-            <input id="new_password" className="field" minLength={8} required type="password" value={form.new_password} onChange={(event) => setForm({ ...form, new_password: event.target.value })} />
+            <PasswordInput id="new_password" minLength={8} required value={form.new_password} onChange={(event) => setForm({ ...form, new_password: event.target.value })} />
           </div>
           <div>
             <label className="label" htmlFor="confirm_new_password">
               Confirm new password
             </label>
-            <input id="confirm_new_password" className="field" minLength={8} required type="password" value={form.confirm_new_password} onChange={(event) => setForm({ ...form, confirm_new_password: event.target.value })} />
+            <PasswordInput id="confirm_new_password" minLength={8} required value={form.confirm_new_password} onChange={(event) => setForm({ ...form, confirm_new_password: event.target.value })} />
           </div>
           <button className="btn-primary" disabled={loading} type="submit">
             {loading && <Loader2 className="animate-spin" size={18} />}

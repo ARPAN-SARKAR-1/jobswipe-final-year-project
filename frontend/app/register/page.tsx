@@ -7,6 +7,7 @@ import { FormEvent, useState } from "react";
 import toast from "react-hot-toast";
 
 import CaptchaBox, { type CaptchaValue } from "@/components/CaptchaBox";
+import PasswordInput from "@/components/PasswordInput";
 import { apiFetch, roleHome, saveAuth } from "@/lib/api";
 import { roleOptions } from "@/lib/options";
 import type { AuthResponse, Role } from "@/types";
@@ -83,13 +84,13 @@ export default function RegisterPage() {
               <label className="label" htmlFor="password">
                 Password
               </label>
-              <input id="password" className="field" required minLength={8} type="password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} />
+              <PasswordInput id="password" required minLength={8} value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} />
             </div>
             <div>
               <label className="label" htmlFor="confirm_password">
                 Confirm password
               </label>
-              <input id="confirm_password" className="field" required minLength={8} type="password" value={form.confirm_password} onChange={(event) => setForm({ ...form, confirm_password: event.target.value })} />
+              <PasswordInput id="confirm_password" required minLength={8} value={form.confirm_password} onChange={(event) => setForm({ ...form, confirm_password: event.target.value })} />
             </div>
           </div>
           <div>

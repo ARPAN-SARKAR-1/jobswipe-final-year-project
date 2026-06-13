@@ -136,6 +136,27 @@ def create_login_otp_challenge(db: Session, user: User) -> str:
     return challenge_id
 
 
+def resend_login_otp_challenge(db: Session, challenge_id: str) -> str:
+    challenge = db.get(LoginOTPChallenge, challenge_id)
+    now = utcnow()
+    if challenge is None or challenge.used_at is not None or challenge.expires_at < now:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired login OTP")
+    user = db.get(User, challenge.user_id)
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    latest = db.scalar(
+        select(LoginOTPChallenge)
+        .where(LoginOTPChallenge.user_id == user.id)
+        .order_by(LoginOTPChallenge.created_at.desc(), LoginOTPChallenge.id.desc())
+        .limit(1)
+    )
+    if latest and latest.created_at and (now - latest.created_at).total_seconds() < settings.email_otp_resend_cooldown_seconds:
+        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Please wait before requesting another login OTP")
+    challenge.used_at = now
+    db.flush()
+    return create_login_otp_challenge(db, user)
+
+
 def verify_login_otp_challenge(db: Session, challenge_id: str, otp: str) -> User:
     challenge = db.get(LoginOTPChallenge, challenge_id)
     if challenge is None or challenge.used_at is not None or challenge.expires_at < utcnow():

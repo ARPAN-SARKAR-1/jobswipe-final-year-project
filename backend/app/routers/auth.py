@@ -26,6 +26,7 @@ from app.schemas.auth import (
     ForgotPasswordResponse,
     LoginRequest,
     RegisterRequest,
+    ResendLoginOTPRequest,
     ResetPasswordRequest,
     TokenResponse,
     UserRead,
@@ -38,6 +39,7 @@ from app.services.security_challenges import (
     create_login_otp_challenge,
     has_valid_trusted_device,
     remember_trusted_device,
+    resend_login_otp_challenge,
     verify_captcha,
     verify_email_otp,
     verify_login_otp_challenge,
@@ -271,6 +273,32 @@ def verify_login_otp(
     db.commit()
     db.refresh(user)
     return token_response(user, message="Two-factor verification complete")
+
+
+@router.post("/resend-login-otp")
+def resend_login_otp(payload: ResendLoginOTPRequest, db: Annotated[Session, Depends(get_db)]) -> dict[str, str]:
+    try:
+        login_challenge_id = resend_login_otp_challenge(db, payload.login_challenge_id)
+    except HTTPException as exc:
+        db.rollback()
+        if exc.status_code >= 500:
+            logger.error(
+                "Login 2FA resend email failed error_class=%s error=%s",
+                exc.__class__.__name__,
+                str(exc.detail).splitlines()[0],
+            )
+            raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=EMAIL_DELIVERY_ERROR) from exc
+        raise
+    except Exception as exc:
+        db.rollback()
+        logger.error(
+            "Login 2FA resend email failed error_class=%s error=%s",
+            exc.__class__.__name__,
+            str(exc).splitlines()[0],
+        )
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=EMAIL_DELIVERY_ERROR) from exc
+    db.commit()
+    return {"message": "New OTP sent. Check inbox or spam.", "login_challenge_id": login_challenge_id}
 
 
 @router.post("/reset-password")

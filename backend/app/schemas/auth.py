@@ -116,6 +116,10 @@ class VerifyLoginOTPRequest(BaseModel):
     remember_device: bool = False
 
 
+class ResendLoginOTPRequest(BaseModel):
+    login_challenge_id: str = Field(min_length=10, max_length=80)
+
+
 class CaptchaResponse(BaseModel):
     challenge_id: str
     question: str

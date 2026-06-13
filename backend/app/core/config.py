@@ -37,7 +37,7 @@ class Settings(BaseSettings):
     smtp_port: int = Field(default=587, alias="SMTP_PORT")
     smtp_user: str | None = Field(default=None, alias="SMTP_USER")
     smtp_password: str | None = Field(default=None, alias="SMTP_PASSWORD")
-    otp_expire_minutes: int = Field(default=5, alias="OTP_EXPIRE_MINUTES")
+    otp_expire_minutes: int = Field(default=10, alias="OTP_EXPIRE_MINUTES")
     otp_max_attempts: int = Field(default=5, alias="OTP_MAX_ATTEMPTS")
     email_otp_resend_cooldown_seconds: int = Field(default=60, alias="EMAIL_OTP_RESEND_COOLDOWN_SECONDS")
     captcha_expire_minutes: int = Field(default=5, alias="CAPTCHA_EXPIRE_MINUTES")

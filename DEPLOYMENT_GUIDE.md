@@ -48,7 +48,7 @@ SMTP_HOST=<smtp-host-if-using-smtp>
 SMTP_PORT=587
 SMTP_USER=<smtp-user-if-using-smtp>
 SMTP_PASSWORD=<smtp-password-if-using-smtp>
-OTP_EXPIRE_MINUTES=5
+OTP_EXPIRE_MINUTES=10
 OTP_MAX_ATTEMPTS=5
 EMAIL_OTP_RESEND_COOLDOWN_SECONDS=60
 CAPTCHA_EXPIRE_MINUTES=5
@@ -63,7 +63,7 @@ RESET_TEAM_PASSWORDS=false
 
 Do not add backend secrets to Vercel.
 
-Render Free commonly blocks outbound SMTP ports such as 25, 465, and 587. Use `EMAIL_PROVIDER=brevo_api` with `BREVO_API_KEY` for OTP, 2FA, and email verification delivery on Render Free. Keep SMTP only for local development or hosting providers that allow outbound SMTP.
+Render Free commonly blocks outbound SMTP ports such as 25, 465, and 587. Use `EMAIL_PROVIDER=brevo_api` with `BREVO_API_KEY` for OTP, 2FA, and email verification delivery on Render Free. Keep SMTP only for local development or hosting providers that allow outbound SMTP. Brevo must have `swipeforsuccess.support@gmail.com` verified as an authorized sender before production OTP emails can be delivered.
 
 ## Vercel Frontend
 
@@ -121,7 +121,7 @@ python seed.py
 - CORS errors: confirm `FRONTEND_URL` exactly matches the Vercel origin, without a trailing path.
 - Database connection errors: confirm Railway allows the Render service to connect and the `DATABASE_URL` uses `mysql+pymysql` with the public TCP proxy, not `mysql://`, `mysql.railway.internal`, `localhost`, or `127.0.0.1`.
 - Upload errors: confirm all three Cloudinary variables are set in Render.
-- OTP email errors on Render Free: use `EMAIL_PROVIDER=brevo_api`, `EMAIL_FROM`, `EMAIL_FROM_NAME`, and `BREVO_API_KEY`; SMTP ports may be unreachable.
+- OTP email errors on Render Free: use `EMAIL_PROVIDER=brevo_api`, `EMAIL_FROM`, `EMAIL_FROM_NAME`, and `BREVO_API_KEY`; SMTP ports may be unreachable, and `swipeforsuccess.support@gmail.com` must be verified as a Brevo sender.
 - Reset token exposure: set `ENV=production` so reset tokens are not returned in API responses.
 - Frontend API errors: confirm `NEXT_PUBLIC_API_BASE_URL` ends with `/api`.
 

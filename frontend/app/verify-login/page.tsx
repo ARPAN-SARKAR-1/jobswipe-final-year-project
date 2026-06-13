@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 import toast from "react-hot-toast";
 
-import { apiFetch, roleHome, saveAuth } from "@/lib/api";
+import { ApiError, apiFetch, roleHome, saveAuth } from "@/lib/api";
 import type { AuthResponse, Role } from "@/types";
 
 type PendingLogin = {
@@ -20,6 +20,8 @@ export default function VerifyLoginPage() {
   const [pending, setPending] = useState<PendingLogin>({ email: "", login_challenge_id: "" });
   const [otp, setOtp] = useState("");
   const [rememberDevice, setRememberDevice] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [cooldown, setCooldown] = useState(60);
 
   useEffect(() => {
     const raw = window.sessionStorage.getItem("swipe_pending_login");
@@ -38,6 +40,34 @@ export default function VerifyLoginPage() {
       login_challenge_id: params.get("challenge") || ""
     });
   }, []);
+
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const timer = window.setTimeout(() => setCooldown((value) => Math.max(0, value - 1)), 1000);
+    return () => window.clearTimeout(timer);
+  }, [cooldown]);
+
+  const showOtpError = (error: unknown) => {
+    const message = error instanceof Error ? error.message : "Verification failed";
+    const normalized = message.toLowerCase();
+    if (normalized.includes("expired")) {
+      toast.error("OTP expired. Please request a new code.");
+      return;
+    }
+    if (normalized.includes("wait")) {
+      toast.error(message);
+      return;
+    }
+    if (normalized.includes("attempt") || (error instanceof ApiError && error.status === 429)) {
+      toast.error("Too many attempts. Please request a new code.");
+      return;
+    }
+    if (normalized.includes("invalid")) {
+      toast.error("Invalid OTP.");
+      return;
+    }
+    toast.error(message);
+  };
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -61,9 +91,30 @@ export default function VerifyLoginPage() {
       toast.success("Secure login complete");
       router.push(roleHome(auth.user!.role, pending.selected_portal));
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Verification failed");
+      showOtpError(error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const resend = async () => {
+    if (!pending.login_challenge_id || cooldown > 0) return;
+    setResending(true);
+    try {
+      const response = await apiFetch<{ message: string; login_challenge_id: string }>("/auth/resend-login-otp", {
+        method: "POST",
+        body: JSON.stringify({ login_challenge_id: pending.login_challenge_id })
+      });
+      const nextPending = { ...pending, login_challenge_id: response.login_challenge_id };
+      setPending(nextPending);
+      window.sessionStorage.setItem("swipe_pending_login", JSON.stringify(nextPending));
+      setOtp("");
+      setCooldown(60);
+      toast.success("New OTP sent. Check inbox or spam.");
+    } catch (error) {
+      showOtpError(error);
+    } finally {
+      setResending(false);
     }
   };
 
@@ -72,6 +123,7 @@ export default function VerifyLoginPage() {
       <form onSubmit={submit} className="panel mx-auto max-w-md p-6 md:p-8">
         <p className="mb-2 text-sm font-black uppercase text-teal-700">Secure login</p>
         <h1 className="text-3xl font-black tracking-normal">Verify login OTP</h1>
+        <p className="mt-3 text-sm font-medium leading-6 text-[#6b767d]">OTP expires in 10 minutes.</p>
         <div className="mt-6 grid gap-4">
           <div>
             <label className="label" htmlFor="email">
@@ -92,6 +144,10 @@ export default function VerifyLoginPage() {
           <button className="btn-primary" disabled={loading} type="submit">
             {loading && <Loader2 className="animate-spin" size={18} />}
             Verify and continue
+          </button>
+          <button className="btn-secondary" disabled={resending || cooldown > 0 || !pending.login_challenge_id} onClick={resend} type="button">
+            {resending && <Loader2 className="animate-spin" size={18} />}
+            {cooldown > 0 ? `Resend in ${cooldown}s` : "Resend OTP"}
           </button>
         </div>
       </form>

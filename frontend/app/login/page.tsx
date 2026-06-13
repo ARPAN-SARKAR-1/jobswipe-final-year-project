@@ -7,6 +7,7 @@ import { FormEvent, useState } from "react";
 import toast from "react-hot-toast";
 
 import CaptchaBox, { type CaptchaValue } from "@/components/CaptchaBox";
+import PasswordInput from "@/components/PasswordInput";
 import { apiFetch, roleHome, saveAuth } from "@/lib/api";
 import { portalOptions } from "@/lib/options";
 import type { AuthResponse, Role } from "@/types";
@@ -103,7 +104,7 @@ export default function LoginPage() {
             <label className="label" htmlFor="password">
               Password
             </label>
-            <input id="password" className="field" required type="password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} />
+            <PasswordInput id="password" required value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} />
           </div>
           <div className="flex justify-end">
             <Link href="/forgot-password" className="text-sm font-black text-teal-700">

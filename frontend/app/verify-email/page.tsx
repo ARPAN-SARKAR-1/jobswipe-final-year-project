@@ -65,7 +65,7 @@ export default function VerifyEmailPage() {
       <form onSubmit={submit} className="panel mx-auto max-w-md p-6 md:p-8">
         <p className="mb-2 text-sm font-black uppercase text-teal-700">Email verification</p>
         <h1 className="text-3xl font-black tracking-normal">Verify your email</h1>
-        <p className="mt-3 text-sm font-medium leading-6 text-[#6b767d]">Enter the 6-digit OTP sent to your email address.</p>
+        <p className="mt-3 text-sm font-medium leading-6 text-[#6b767d]">Enter the 6-digit OTP sent to your email address. OTP expires in 10 minutes.</p>
         <div className="mt-6 grid gap-4">
           <div>
             <label className="label" htmlFor="email">
