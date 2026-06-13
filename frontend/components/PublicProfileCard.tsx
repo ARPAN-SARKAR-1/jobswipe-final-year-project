@@ -6,9 +6,28 @@ import VerifiedBadge from "@/components/VerifiedBadge";
 import { assetUrl } from "@/lib/api";
 import type { PublicProfile } from "@/types";
 
+const categoryLabels: Record<string, string> = {
+  UNDERGRADUATE: "Undergraduate student",
+  GRADUATE_FRESHER: "Graduate fresher",
+  GRADUATE_EXPERIENCED: "Graduate experienced"
+};
+
 export default function PublicProfileCard({ profile, shareHref }: { profile: PublicProfile; shareHref: string }) {
   const avatar = assetUrl(profile.profile_picture_url);
   const companyHref = profile.company?.slug || profile.company?.public_company_id || profile.company?.id;
+  const educationSummary = [
+    profile.degree_name || profile.highest_degree || profile.degree || profile.education,
+    profile.course_name || profile.specialization_or_branch,
+    profile.college_name || profile.college,
+    profile.university_name,
+    profile.expected_passing_year ? `Expected ${profile.expected_passing_year}` : profile.graduation_year ? `Graduated ${profile.graduation_year}` : null
+  ].filter(Boolean).join(" / ");
+  const experienceSummary = [
+    profile.current_or_last_role || profile.experience_level,
+    profile.current_or_last_company,
+    profile.total_experience_years != null ? `${profile.total_experience_years} years` : null,
+    profile.tools_technologies
+  ].filter(Boolean).join(" / ");
 
   return (
     <section className="panel p-5">
@@ -30,6 +49,7 @@ export default function PublicProfileCard({ profile, shareHref }: { profile: Pub
             <span className="rounded-lg bg-white px-2.5 py-1">{profile.role.replaceAll("_", " ")}</span>
             <span className="rounded-lg bg-white px-2.5 py-1">ID {profile.public_user_id}</span>
             {profile.username && <span className="rounded-lg bg-white px-2.5 py-1">@{profile.username}</span>}
+            {profile.job_seeker_category && <span className="rounded-lg bg-white px-2.5 py-1">{categoryLabels[profile.job_seeker_category] || profile.job_seeker_category}</span>}
           </div>
           {profile.is_limited ? (
             <p className="mt-4 flex items-center gap-2 text-sm font-bold text-[#6b767d]">
@@ -59,9 +79,14 @@ export default function PublicProfileCard({ profile, shareHref }: { profile: Pub
               <div className="mt-4 grid gap-3 md:grid-cols-2">
                 {[
                   ["Education", [profile.degree, profile.education, profile.college].filter(Boolean).join(" / ")],
-                  ["Experience", profile.experience_level],
+                  ["Education details", educationSummary],
+                  ["Experience", experienceSummary || profile.experience_level],
                   ["Preferred location", profile.preferred_location],
-                  ["Preferred job type", profile.preferred_job_type]
+                  ["Preferred job type", profile.preferred_job_type],
+                  ["Internship roles", profile.preferred_internship_roles],
+                  ["Preferred roles", profile.preferred_job_roles || profile.preferred_next_roles],
+                  ["Projects", profile.project_links],
+                  ["Achievements", profile.achievements]
                 ]
                   .filter(([, value]) => value)
                   .map(([label, value]) => (
@@ -80,6 +105,11 @@ export default function PublicProfileCard({ profile, shareHref }: { profile: Pub
                   ))}
                 </div>
               )}
+              <div className="mt-4 flex flex-wrap gap-2">
+                <VerifiedBadge label="Verified student" verified={profile.student_verification_status === "STUDENT_VERIFIED"} />
+                <VerifiedBadge label="Verified graduation" verified={profile.graduation_verification_status === "GRADUATION_VERIFIED"} />
+                <VerifiedBadge label="Verified experience" verified={profile.experience_verification_status === "EXPERIENCE_VERIFIED"} />
+              </div>
               {profile.public_documents.length > 0 && (
                 <div className="mt-5">
                   <h2 className="text-base font-black">Public certificates</h2>

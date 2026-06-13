@@ -19,11 +19,14 @@ from app.models.enums import (
     CompanyJoinStatus,
     CompanyVerificationStatus,
     DocumentVerificationStatus,
+    ExperienceVerificationStatus,
+    GraduationVerificationStatus,
     JobModerationStatus,
     JobSeekerVerificationStatus,
     RecruiterVerificationStatus,
     ReviewModerationStatus,
     ReportStatus,
+    StudentVerificationStatus,
     UserRole,
 )
 from app.models.job import Job
@@ -736,6 +739,7 @@ def user_document_response(document: UserDocument) -> AdminUserDocumentRead:
         document_type=document.document_type,
         original_filename=document.original_filename,
         is_public=document.is_public,
+        visibility=document.visibility,
         verification_status=document.verification_status,
         reviewed_by=document.reviewed_by,
         reviewed_at=document.reviewed_at,
@@ -762,6 +766,45 @@ def jobseeker_verifications(
     )
 
 
+def jobseeker_verification_queue_item(user: User) -> dict[str, object]:
+    profile = user.job_seeker_profile
+    return {
+        "id": user.id,
+        "public_user_id": user.public_user_id,
+        "username": user.username,
+        "name": user.name,
+        "email": user.email,
+        "role": user.role,
+        "account_status": user.account_status,
+        "job_seeker_category": profile.job_seeker_category if profile else None,
+        "college_name": profile.college_name or profile.college if profile else None,
+        "university_name": profile.university_name if profile else None,
+        "current_or_last_company": profile.current_or_last_company if profile else None,
+        "verification_status": profile.verification_status if profile else None,
+        "student_verification_status": profile.student_verification_status if profile else None,
+        "graduation_verification_status": profile.graduation_verification_status if profile else None,
+        "experience_verification_status": profile.experience_verification_status if profile else None,
+        "document_count": len(user.documents),
+        "pending_document_count": sum(1 for document in user.documents if document.verification_status == DocumentVerificationStatus.PENDING.value),
+        "updated_at": user.updated_at,
+    }
+
+
+@router.get("/jobseekers/verification-queue")
+def jobseeker_verification_queue(
+    _current_user: Annotated[User, Depends(require_admin_or_owner)],
+    db: Annotated[Session, Depends(get_db)],
+) -> list[dict[str, object]]:
+    users = db.scalars(
+        select(User)
+        .options(joinedload(User.job_seeker_profile), selectinload(User.documents))
+        .where(User.role == UserRole.JOB_SEEKER.value)
+        .join(JobSeekerProfile, JobSeekerProfile.user_id == User.id)
+        .order_by(JobSeekerProfile.updated_at.desc(), User.updated_at.desc())
+    ).all()
+    return [jobseeker_verification_queue_item(user) for user in users]
+
+
 def set_jobseeker_verification(
     user_id: int,
     status_value: JobSeekerVerificationStatus,
@@ -782,6 +825,30 @@ def set_jobseeker_verification(
     db.commit()
     db.refresh(user)
     return user
+
+
+def set_jobseeker_category_verification(
+    user_id: int,
+    field_name: str,
+    status_value: str,
+    action_type: str,
+    payload: AdminNoteRequest,
+    current_user: User,
+    db: Session,
+) -> dict[str, object]:
+    user = db.scalar(
+        select(User)
+        .options(joinedload(User.job_seeker_profile), selectinload(User.documents))
+        .where(User.id == user_id)
+        .where(User.role == UserRole.JOB_SEEKER.value)
+    )
+    if user is None or user.job_seeker_profile is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job seeker not found")
+    setattr(user.job_seeker_profile, field_name, status_value)
+    log_action(db, current_user, action_type, "USER", user.id, payload.admin_note)
+    db.commit()
+    db.refresh(user)
+    return jobseeker_verification_queue_item(user)
 
 
 @router.put("/jobseekers/{user_id}/verify", response_model=UserRead)
@@ -812,6 +879,114 @@ def suspend_jobseeker_verification(
     db: Annotated[Session, Depends(get_db)],
 ) -> User:
     return set_jobseeker_verification(user_id, JobSeekerVerificationStatus.SUSPENDED, payload, current_user, db)
+
+
+@router.post("/jobseekers/{user_id}/verify-student")
+def verify_student(
+    user_id: int,
+    payload: AdminNoteRequest,
+    current_user: Annotated[User, Depends(require_admin_or_owner)],
+    db: Annotated[Session, Depends(get_db)],
+) -> dict[str, object]:
+    return set_jobseeker_category_verification(
+        user_id,
+        "student_verification_status",
+        StudentVerificationStatus.STUDENT_VERIFIED.value,
+        "VERIFY_STUDENT_STATUS",
+        payload,
+        current_user,
+        db,
+    )
+
+
+@router.post("/jobseekers/{user_id}/reject-student")
+def reject_student(
+    user_id: int,
+    payload: AdminNoteRequest,
+    current_user: Annotated[User, Depends(require_admin_or_owner)],
+    db: Annotated[Session, Depends(get_db)],
+) -> dict[str, object]:
+    return set_jobseeker_category_verification(
+        user_id,
+        "student_verification_status",
+        StudentVerificationStatus.STUDENT_REJECTED.value,
+        "REJECT_STUDENT_STATUS",
+        payload,
+        current_user,
+        db,
+    )
+
+
+@router.post("/jobseekers/{user_id}/verify-graduation")
+def verify_graduation(
+    user_id: int,
+    payload: AdminNoteRequest,
+    current_user: Annotated[User, Depends(require_admin_or_owner)],
+    db: Annotated[Session, Depends(get_db)],
+) -> dict[str, object]:
+    return set_jobseeker_category_verification(
+        user_id,
+        "graduation_verification_status",
+        GraduationVerificationStatus.GRADUATION_VERIFIED.value,
+        "VERIFY_GRADUATION_STATUS",
+        payload,
+        current_user,
+        db,
+    )
+
+
+@router.post("/jobseekers/{user_id}/reject-graduation")
+def reject_graduation(
+    user_id: int,
+    payload: AdminNoteRequest,
+    current_user: Annotated[User, Depends(require_admin_or_owner)],
+    db: Annotated[Session, Depends(get_db)],
+) -> dict[str, object]:
+    return set_jobseeker_category_verification(
+        user_id,
+        "graduation_verification_status",
+        GraduationVerificationStatus.GRADUATION_REJECTED.value,
+        "REJECT_GRADUATION_STATUS",
+        payload,
+        current_user,
+        db,
+    )
+
+
+@router.post("/jobseekers/{user_id}/verify-experience")
+def verify_experience(
+    user_id: int,
+    payload: AdminNoteRequest,
+    current_user: Annotated[User, Depends(require_admin_or_owner)],
+    db: Annotated[Session, Depends(get_db)],
+) -> dict[str, object]:
+    return set_jobseeker_category_verification(
+        user_id,
+        "experience_verification_status",
+        ExperienceVerificationStatus.EXPERIENCE_VERIFIED.value,
+        "VERIFY_EXPERIENCE_STATUS",
+        payload,
+        current_user,
+        db,
+    )
+
+
+@router.post("/jobseekers/{user_id}/reject-experience")
+def reject_experience(
+    user_id: int,
+    payload: AdminNoteRequest,
+    current_user: Annotated[User, Depends(require_admin_or_owner)],
+    db: Annotated[Session, Depends(get_db)],
+) -> dict[str, object]:
+    return set_jobseeker_category_verification(
+        user_id,
+        "experience_verification_status",
+        ExperienceVerificationStatus.EXPERIENCE_REJECTED.value,
+        "REJECT_EXPERIENCE_STATUS",
+        payload,
+        current_user,
+        db,
+    )
 
 
 @router.get("/user-documents", response_model=list[AdminUserDocumentRead])

@@ -50,6 +50,25 @@ type ConfirmAction = {
   label?: string;
 };
 
+type JobSeekerVerificationQueueItem = {
+  id: number;
+  public_user_id?: string | null;
+  username?: string | null;
+  name: string;
+  email: string;
+  account_status: "ACTIVE" | "SUSPENDED";
+  job_seeker_category?: string | null;
+  college_name?: string | null;
+  university_name?: string | null;
+  current_or_last_company?: string | null;
+  verification_status?: string | null;
+  student_verification_status?: string | null;
+  graduation_verification_status?: string | null;
+  experience_verification_status?: string | null;
+  document_count: number;
+  pending_document_count: number;
+};
+
 const emptyAdminForm = { name: "", email: "", password: "", confirm_password: "" };
 
 export default function AdminDashboardPage() {
@@ -64,7 +83,7 @@ export default function AdminDashboardPage() {
   const [verifications, setVerifications] = useState<AdminRecruiterVerification[]>([]);
   const [companyVerifications, setCompanyVerifications] = useState<AdminRecruiterVerification[]>([]);
   const [memberships, setMemberships] = useState<RecruiterCompanyMember[]>([]);
-  const [jobseekerVerifications, setJobseekerVerifications] = useState<User[]>([]);
+  const [jobseekerVerifications, setJobseekerVerifications] = useState<JobSeekerVerificationQueueItem[]>([]);
   const [userDocuments, setUserDocuments] = useState<UserDocument[]>([]);
   const [suspiciousJobs, setSuspiciousJobs] = useState<Job[]>([]);
   const [companyReviews, setCompanyReviews] = useState<CompanyReview[]>([]);
@@ -95,7 +114,7 @@ export default function AdminDashboardPage() {
       apiFetch<AdminRecruiterVerification[]>("/admin/recruiter-verifications"),
       apiFetch<AdminRecruiterVerification[]>("/admin/company-verifications"),
       apiFetch<RecruiterCompanyMember[]>("/admin/recruiter-memberships"),
-      apiFetch<User[]>("/admin/jobseeker-verifications"),
+      apiFetch<JobSeekerVerificationQueueItem[]>("/admin/jobseekers/verification-queue"),
       apiFetch<UserDocument[]>("/admin/user-documents"),
       apiFetch<Job[]>("/admin/suspicious-jobs"),
       apiFetch<CompanyReview[]>("/admin/company-reviews"),
@@ -850,16 +869,22 @@ function RecruiterMembershipTable({ memberships, openAction }: { memberships: Re
   );
 }
 
-function JobSeekerVerificationTable({ users, openAction }: { users: User[]; openAction: (action: ConfirmAction) => void }) {
+function JobSeekerVerificationTable({ users, openAction }: { users: JobSeekerVerificationQueueItem[]; openAction: (action: ConfirmAction) => void }) {
   return (
     <div className="panel overflow-hidden">
-      <h2 className="p-5 text-xl font-black">Pending Job Seeker Verification</h2>
+      <h2 className="p-5 text-xl font-black">Job Seeker Verification Queue</h2>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[920px] text-left text-sm">
+        <table className="w-full min-w-[1280px] text-left text-sm">
           <thead className="bg-[#fbfaf7] text-xs font-black uppercase text-[#526069]">
             <tr>
               <th className="p-4">Job seeker</th>
               <th className="p-4">Public ID</th>
+              <th className="p-4">Category</th>
+              <th className="p-4">Claim</th>
+              <th className="p-4">Student</th>
+              <th className="p-4">Graduation</th>
+              <th className="p-4">Experience</th>
+              <th className="p-4">Documents</th>
               <th className="p-4">Account</th>
               <th className="p-4">Actions</th>
             </tr>
@@ -872,6 +897,14 @@ function JobSeekerVerificationTable({ users, openAction }: { users: User[]; open
                   <p className="font-bold text-[#6b767d]">{target.email}</p>
                 </td>
                 <td className="p-4 font-bold text-[#526069]">{target.public_user_id || "-"}</td>
+                <td className="p-4 font-bold text-[#526069]">{target.job_seeker_category?.replaceAll("_", " ") || "-"}</td>
+                <td className="p-4 font-bold text-[#526069]">
+                  {target.college_name || target.university_name || target.current_or_last_company || "-"}
+                </td>
+                <td className="p-4"><VerificationStatusBadge status={target.student_verification_status || "STUDENT_UNVERIFIED"} /></td>
+                <td className="p-4"><VerificationStatusBadge status={target.graduation_verification_status || "GRADUATION_UNVERIFIED"} /></td>
+                <td className="p-4"><VerificationStatusBadge status={target.experience_verification_status || "EXPERIENCE_UNVERIFIED"} /></td>
+                <td className="p-4 font-bold text-[#526069]">{target.pending_document_count} pending / {target.document_count} total</td>
                 <td className="p-4"><StatusBadge status={target.account_status} /></td>
                 <td className="p-4">
                   <div className="flex flex-wrap gap-2">
@@ -883,6 +916,24 @@ function JobSeekerVerificationTable({ users, openAction }: { users: User[]; open
                     </button>
                     <button className="btn-secondary !px-3 !py-2 border-slate-200 bg-slate-50 text-slate-700" type="button" onClick={() => openAction({ title: "Suspend job seeker verification", message: "Suspend this job seeker verification?", endpoint: `/admin/jobseekers/${target.id}/suspend`, success: "Job seeker verification suspended", bodyKey: "admin_note", label: "Suspension note" })}>
                       Suspend
+                    </button>
+                    <button className="btn-secondary !px-3 !py-2 border-emerald-200 bg-emerald-50 text-emerald-700" type="button" onClick={() => openAction({ title: "Verify student status", message: "Verify this student status?", endpoint: `/admin/jobseekers/${target.id}/verify-student`, method: "POST", success: "Student status verified", bodyKey: "admin_note", label: "Verification note" })}>
+                      Verify student
+                    </button>
+                    <button className="btn-secondary !px-3 !py-2 border-rose-200 bg-rose-50 text-rose-700" type="button" onClick={() => openAction({ title: "Reject student status", message: "Reject this student status?", endpoint: `/admin/jobseekers/${target.id}/reject-student`, method: "POST", success: "Student status rejected", bodyKey: "admin_note", label: "Rejection note" })}>
+                      Reject student
+                    </button>
+                    <button className="btn-secondary !px-3 !py-2 border-emerald-200 bg-emerald-50 text-emerald-700" type="button" onClick={() => openAction({ title: "Verify graduation", message: "Verify this graduation claim?", endpoint: `/admin/jobseekers/${target.id}/verify-graduation`, method: "POST", success: "Graduation verified", bodyKey: "admin_note", label: "Verification note" })}>
+                      Verify graduation
+                    </button>
+                    <button className="btn-secondary !px-3 !py-2 border-rose-200 bg-rose-50 text-rose-700" type="button" onClick={() => openAction({ title: "Reject graduation", message: "Reject this graduation claim?", endpoint: `/admin/jobseekers/${target.id}/reject-graduation`, method: "POST", success: "Graduation rejected", bodyKey: "admin_note", label: "Rejection note" })}>
+                      Reject graduation
+                    </button>
+                    <button className="btn-secondary !px-3 !py-2 border-emerald-200 bg-emerald-50 text-emerald-700" type="button" onClick={() => openAction({ title: "Verify experience", message: "Verify this experience claim?", endpoint: `/admin/jobseekers/${target.id}/verify-experience`, method: "POST", success: "Experience verified", bodyKey: "admin_note", label: "Verification note" })}>
+                      Verify experience
+                    </button>
+                    <button className="btn-secondary !px-3 !py-2 border-rose-200 bg-rose-50 text-rose-700" type="button" onClick={() => openAction({ title: "Reject experience", message: "Reject this experience claim?", endpoint: `/admin/jobseekers/${target.id}/reject-experience`, method: "POST", success: "Experience rejected", bodyKey: "admin_note", label: "Rejection note" })}>
+                      Reject experience
                     </button>
                   </div>
                 </td>
@@ -921,7 +972,7 @@ function UserDocumentsTable({ documents, openAction }: { documents: UserDocument
                   <p className="font-black text-[#172026]">{document.document_type.replaceAll("_", " ")}</p>
                   <p className="font-bold text-[#6b767d]">{document.original_filename || "-"}</p>
                 </td>
-                <td className="p-4 font-bold text-[#526069]">{document.is_public ? "Public title only" : "Private"}</td>
+                <td className="p-4 font-bold text-[#526069]">{document.visibility.replaceAll("_", " ")}</td>
                 <td className="p-4"><VerificationStatusBadge status={document.verification_status} /></td>
                 <td className="p-4">
                   <div className="flex flex-wrap gap-2">

@@ -37,6 +37,21 @@ JOB_SEEKER_DOCUMENT_TYPES = {
     "graduation",
     "post_graduation",
     "certificate",
+    "college_id_card",
+    "library_card",
+    "bonafide_certificate",
+    "admission_proof",
+    "fee_receipt",
+    "graduation_marksheet",
+    "degree_certificate",
+    "provisional_certificate",
+    "experience_letter",
+    "relieving_letter",
+    "offer_letter",
+    "salary_slip",
+    "recommendation_letter",
+    "reference_letter",
+    "other",
 }
 RECRUITER_DOCUMENT_TYPES = {
     "government_id",
@@ -53,6 +68,19 @@ PRIVATE_ONLY_DOCUMENT_TYPES = {
     "diploma",
     "graduation",
     "post_graduation",
+    "college_id_card",
+    "library_card",
+    "bonafide_certificate",
+    "admission_proof",
+    "fee_receipt",
+    "graduation_marksheet",
+    "degree_certificate",
+    "provisional_certificate",
+    "experience_letter",
+    "relieving_letter",
+    "offer_letter",
+    "salary_slip",
+    "reference_letter",
     "government_id",
     "company_authorization",
     "hr_proof",
@@ -65,6 +93,21 @@ def can_view_private_profile(viewer: User | None, owner: User) -> bool:
     return bool(viewer and (viewer.id == owner.id or viewer.role in {UserRole.ADMIN.value, UserRole.OWNER.value}))
 
 
+def can_view_section(viewer: User | None, owner: User, visibility: str | None) -> bool:
+    if can_view_private_profile(viewer, owner):
+        return True
+    if visibility == SectionVisibility.PUBLIC.value:
+        return True
+    return bool(viewer and viewer.role == UserRole.RECRUITER.value and visibility == SectionVisibility.RECRUITERS_ONLY.value)
+
+
+def normalize_document_visibility(value: str | None, is_public: bool = False) -> str:
+    normalized = (value or (SectionVisibility.PUBLIC.value if is_public else SectionVisibility.PRIVATE.value)).strip().upper()
+    if normalized not in {item.value for item in SectionVisibility}:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported document visibility.")
+    return normalized
+
+
 def document_response(document: UserDocument, include_file_url: bool = False) -> UserDocumentRead:
     return UserDocumentRead(
         id=document.id,
@@ -72,6 +115,7 @@ def document_response(document: UserDocument, include_file_url: bool = False) ->
         document_type=document.document_type,
         original_filename=document.original_filename,
         is_public=document.is_public,
+        visibility=document.visibility,
         verification_status=document.verification_status,
         reviewed_by=document.reviewed_by,
         reviewed_at=document.reviewed_at,
@@ -144,8 +188,14 @@ def public_profile_response(db: Session, user: User, viewer: User | None) -> Pub
             .order_by(UserDocument.created_at.desc(), UserDocument.id.desc())
         ).all()
     )
-    public_documents = [document_summary(document) for document in documents if document.is_public]
+    public_documents = [
+        document_summary(document)
+        for document in documents
+        if document.is_public or document.visibility == SectionVisibility.PUBLIC.value
+    ]
     private_documents = [document_response(document, include_file_url=True) for document in documents] if include_private else []
+    education_visible = can_view_section(viewer, user, job_seeker_profile.education_visibility if job_seeker_profile else None)
+    experience_visible = can_view_section(viewer, user, job_seeker_profile.experience_visibility if job_seeker_profile else None)
 
     if changed:
         db.flush()
@@ -176,14 +226,47 @@ def public_profile_response(db: Session, user: User, viewer: User | None) -> Pub
         bio=user.bio or (job_seeker_profile.about if job_seeker_profile else None),
         skills=job_seeker_profile.skills if job_seeker_profile else None,
         skills_list=split_skills(job_seeker_profile.skills if job_seeker_profile else None),
-        education=job_seeker_profile.education if job_seeker_profile else None,
-        degree=job_seeker_profile.degree if job_seeker_profile else None,
-        college=job_seeker_profile.college if job_seeker_profile else None,
-        experience_level=job_seeker_profile.experience_level if job_seeker_profile else None,
+        education=job_seeker_profile.education if job_seeker_profile and education_visible else None,
+        degree=job_seeker_profile.degree if job_seeker_profile and education_visible else None,
+        college=job_seeker_profile.college if job_seeker_profile and education_visible else None,
+        experience_level=job_seeker_profile.experience_level if job_seeker_profile and experience_visible else None,
         preferred_location=job_seeker_profile.preferred_location if job_seeker_profile else None,
         preferred_job_type=job_seeker_profile.preferred_job_type if job_seeker_profile else None,
         github_url=job_seeker_profile.github_url if job_seeker_profile else None,
         job_seeker_verification_status=job_seeker_profile.verification_status if job_seeker_profile else None,
+        job_seeker_category=job_seeker_profile.job_seeker_category if job_seeker_profile else None,
+        college_name=job_seeker_profile.college_name if job_seeker_profile and education_visible else None,
+        university_name=job_seeker_profile.university_name if job_seeker_profile and education_visible else None,
+        course_name=job_seeker_profile.course_name if job_seeker_profile and education_visible else None,
+        degree_name=job_seeker_profile.degree_name if job_seeker_profile and education_visible else None,
+        department_or_branch=job_seeker_profile.department_or_branch if job_seeker_profile and education_visible else None,
+        current_year_or_semester=job_seeker_profile.current_year_or_semester if job_seeker_profile and education_visible else None,
+        expected_passing_year=job_seeker_profile.expected_passing_year if job_seeker_profile and education_visible else None,
+        college_location=job_seeker_profile.college_location if job_seeker_profile and education_visible else None,
+        internship_interest=job_seeker_profile.internship_interest if job_seeker_profile and education_visible else None,
+        preferred_internship_roles=job_seeker_profile.preferred_internship_roles if job_seeker_profile and education_visible else None,
+        highest_degree=job_seeker_profile.highest_degree if job_seeker_profile and education_visible else None,
+        graduation_year=job_seeker_profile.graduation_year if job_seeker_profile and education_visible else None,
+        specialization_or_branch=job_seeker_profile.specialization_or_branch if job_seeker_profile and education_visible else None,
+        fresher_skills=job_seeker_profile.fresher_skills if job_seeker_profile and education_visible else None,
+        certifications=job_seeker_profile.certifications if job_seeker_profile and education_visible else None,
+        project_links=job_seeker_profile.project_links if job_seeker_profile and education_visible else None,
+        internship_experience=job_seeker_profile.internship_experience if job_seeker_profile and education_visible else None,
+        preferred_job_roles=job_seeker_profile.preferred_job_roles if job_seeker_profile and education_visible else None,
+        total_experience_years=job_seeker_profile.total_experience_years if job_seeker_profile and experience_visible else None,
+        current_or_last_company=job_seeker_profile.current_or_last_company if job_seeker_profile and experience_visible else None,
+        current_or_last_role=job_seeker_profile.current_or_last_role if job_seeker_profile and experience_visible else None,
+        employment_type=job_seeker_profile.employment_type if job_seeker_profile and experience_visible else None,
+        notice_period=job_seeker_profile.notice_period if job_seeker_profile and experience_visible else None,
+        previous_companies=job_seeker_profile.previous_companies if job_seeker_profile and experience_visible else None,
+        role_history=job_seeker_profile.role_history if job_seeker_profile and experience_visible else None,
+        key_responsibilities=job_seeker_profile.key_responsibilities if job_seeker_profile and experience_visible else None,
+        tools_technologies=job_seeker_profile.tools_technologies if job_seeker_profile and experience_visible else None,
+        achievements=job_seeker_profile.achievements if job_seeker_profile and experience_visible else None,
+        preferred_next_roles=job_seeker_profile.preferred_next_roles if job_seeker_profile and experience_visible else None,
+        student_verification_status=job_seeker_profile.student_verification_status if job_seeker_profile else None,
+        graduation_verification_status=job_seeker_profile.graduation_verification_status if job_seeker_profile else None,
+        experience_verification_status=job_seeker_profile.experience_verification_status if job_seeker_profile else None,
         company=company_summary(company, membership),
         public_documents=public_documents,
         private_documents=private_documents,
@@ -286,6 +369,7 @@ async def upload_my_document(
     document_type: Annotated[str, Form(..., min_length=3, max_length=60)],
     file: UploadFile = File(...),
     is_public: Annotated[bool, Form()] = False,
+    visibility: Annotated[str | None, Form()] = None,
 ) -> UserDocumentRead:
     normalized_type = document_type.strip().lower()
     if current_user.role == UserRole.JOB_SEEKER.value:
@@ -296,14 +380,16 @@ async def upload_my_document(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only job seekers and recruiters can upload profile documents.")
     if normalized_type not in allowed_types:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported document type for this account.")
-    public_flag = bool(is_public and normalized_type not in PRIVATE_ONLY_DOCUMENT_TYPES)
+    requested_visibility = normalize_document_visibility(visibility, is_public)
+    final_visibility = SectionVisibility.PRIVATE.value if normalized_type in PRIVATE_ONLY_DOCUMENT_TYPES else requested_visibility
     url = await save_verification_document(file)
     document = UserDocument(
         owner_user_id=current_user.id,
         document_type=normalized_type,
         file_url=url,
         original_filename=file.filename,
-        is_public=public_flag,
+        is_public=final_visibility == SectionVisibility.PUBLIC.value,
+        visibility=final_visibility,
     )
     db.add(document)
     if normalized_type == "resume" and current_user.role == UserRole.JOB_SEEKER.value:
@@ -325,9 +411,13 @@ def update_document_visibility(
     document = db.scalar(select(UserDocument).where(UserDocument.id == document_id).where(UserDocument.owner_user_id == current_user.id))
     if document is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
-    if payload.is_public and document.document_type in PRIVATE_ONLY_DOCUMENT_TYPES:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="This document type must remain private.")
-    document.is_public = payload.is_public
+    requested_visibility = normalize_document_visibility(
+        payload.visibility.value if payload.visibility else None,
+        payload.is_public,
+    )
+    final_visibility = SectionVisibility.PRIVATE.value if document.document_type in PRIVATE_ONLY_DOCUMENT_TYPES else requested_visibility
+    document.visibility = final_visibility
+    document.is_public = final_visibility == SectionVisibility.PUBLIC.value
     db.commit()
     db.refresh(document)
     return document_response(document, include_file_url=True)

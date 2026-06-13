@@ -244,6 +244,12 @@ def applications(
                 applicant_email=application.job_seeker.email,
                 applicant_github_url=(profile.github_url if profile else None) or application.github_url,
                 applicant_resume_pdf_url=(profile.resume_pdf_url if profile else None) or application.resume_pdf_url,
+                applicant_job_seeker_category=profile.job_seeker_category if profile else None,
+                applicant_student_verification_status=profile.student_verification_status if profile else None,
+                applicant_graduation_verification_status=profile.graduation_verification_status if profile else None,
+                applicant_experience_verification_status=profile.experience_verification_status if profile else None,
+                applicant_passing_year=(profile.expected_passing_year or profile.graduation_year or profile.passing_year) if profile else None,
+                applicant_total_experience_years=profile.total_experience_years if profile else None,
                 job_title=application.job.title,
             )
         )
@@ -325,5 +331,11 @@ def update_application_status(
         applicant_email=application.job_seeker.email,
         applicant_github_url=(profile.github_url if profile else None) or application.github_url,
         applicant_resume_pdf_url=(profile.resume_pdf_url if profile else None) or application.resume_pdf_url,
+        applicant_job_seeker_category=profile.job_seeker_category if profile else None,
+        applicant_student_verification_status=profile.student_verification_status if profile else None,
+        applicant_graduation_verification_status=profile.graduation_verification_status if profile else None,
+        applicant_experience_verification_status=profile.experience_verification_status if profile else None,
+        applicant_passing_year=(profile.expected_passing_year or profile.graduation_year or profile.passing_year) if profile else None,
+        applicant_total_experience_years=profile.total_experience_years if profile else None,
         job_title=application.job.title,
     )

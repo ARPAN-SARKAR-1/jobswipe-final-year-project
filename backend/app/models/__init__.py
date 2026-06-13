@@ -8,6 +8,8 @@ from app.models.company_review import CompanyReview
 from app.models.captcha_challenge import CaptchaChallenge
 from app.models.email_otp import EmailOTP
 from app.models.job import Job
+from app.models.job_seeker_recommendation import JobSeekerRecommendation
+from app.models.job_seeker_reference import JobSeekerReference
 from app.models.job_seeker_profile import JobSeekerProfile
 from app.models.login_otp_challenge import LoginOTPChallenge
 from app.models.notification import Notification
@@ -30,6 +32,8 @@ __all__ = [
     "CompanyReview",
     "EmailOTP",
     "Job",
+    "JobSeekerRecommendation",
+    "JobSeekerReference",
     "JobSeekerProfile",
     "LoginOTPChallenge",
     "Notification",

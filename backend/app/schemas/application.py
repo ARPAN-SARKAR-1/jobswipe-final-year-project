@@ -35,6 +35,12 @@ class RecruiterApplicationRead(ApplicationRead):
     applicant_email: str
     applicant_github_url: str | None = None
     applicant_resume_pdf_url: str | None = None
+    applicant_job_seeker_category: str | None = None
+    applicant_student_verification_status: str | None = None
+    applicant_graduation_verification_status: str | None = None
+    applicant_experience_verification_status: str | None = None
+    applicant_passing_year: int | None = None
+    applicant_total_experience_years: float | None = None
     job_title: str
 
 

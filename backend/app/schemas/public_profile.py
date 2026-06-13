@@ -2,7 +2,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.models.enums import DocumentVerificationStatus, ProfileVisibility, UserRole
+from app.models.enums import DocumentVerificationStatus, ProfileVisibility, SectionVisibility, UserRole
 
 
 class UsernameUpdate(BaseModel):
@@ -16,6 +16,7 @@ class ProfileSettingsUpdate(BaseModel):
 
 class DocumentVisibilityUpdate(BaseModel):
     is_public: bool = False
+    visibility: SectionVisibility | None = None
 
 
 class DocumentReviewRequest(BaseModel):
@@ -29,6 +30,7 @@ class UserDocumentRead(BaseModel):
     document_type: str
     original_filename: str | None = None
     is_public: bool
+    visibility: SectionVisibility = SectionVisibility.PRIVATE
     verification_status: DocumentVerificationStatus = DocumentVerificationStatus.PENDING
     reviewed_by: int | None = None
     reviewed_at: datetime | None = None
@@ -82,6 +84,39 @@ class PublicProfileRead(BaseModel):
     preferred_job_type: str | None = None
     github_url: str | None = None
     job_seeker_verification_status: str | None = None
+    job_seeker_category: str | None = None
+    college_name: str | None = None
+    university_name: str | None = None
+    course_name: str | None = None
+    degree_name: str | None = None
+    department_or_branch: str | None = None
+    current_year_or_semester: str | None = None
+    expected_passing_year: int | None = None
+    college_location: str | None = None
+    internship_interest: bool | None = None
+    preferred_internship_roles: str | None = None
+    highest_degree: str | None = None
+    graduation_year: int | None = None
+    specialization_or_branch: str | None = None
+    fresher_skills: str | None = None
+    certifications: str | None = None
+    project_links: str | None = None
+    internship_experience: str | None = None
+    preferred_job_roles: str | None = None
+    total_experience_years: float | None = None
+    current_or_last_company: str | None = None
+    current_or_last_role: str | None = None
+    employment_type: str | None = None
+    notice_period: str | None = None
+    previous_companies: str | None = None
+    role_history: str | None = None
+    key_responsibilities: str | None = None
+    tools_technologies: str | None = None
+    achievements: str | None = None
+    preferred_next_roles: str | None = None
+    student_verification_status: str | None = None
+    graduation_verification_status: str | None = None
+    experience_verification_status: str | None = None
     company: PublicCompanySummary | None = None
     public_documents: list[PublicDocumentSummary] = []
     private_documents: list[UserDocumentRead] = []

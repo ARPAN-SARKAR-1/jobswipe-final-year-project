@@ -23,6 +23,7 @@ export default function JobsListPage() {
   const [applyingJobId, setApplyingJobId] = useState<number | null>(null);
   const [query, setQuery] = useState("");
   const [trustFilter, setTrustFilter] = useState("");
+  const [roleStageFilter, setRoleStageFilter] = useState("");
   const [sort, setSort] = useState("newest");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -53,7 +54,7 @@ export default function JobsListPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [query, trustFilter, sort, pageSize, jobs.length]);
+  }, [query, trustFilter, roleStageFilter, sort, pageSize, jobs.length]);
 
   const filteredJobs = useMemo(() => {
     return jobs
@@ -71,13 +72,20 @@ export default function JobsListPage() {
         if (trustFilter === "TRUSTED") return job.trusted_posting;
         return true;
       })
+      .filter((job) => {
+        const searchText = `${job.title} ${job.job_type} ${job.required_experience_level} ${job.description}`.toLowerCase();
+        if (roleStageFilter === "INTERNSHIP") return searchText.includes("internship") || searchText.includes("intern ");
+        if (roleStageFilter === "FRESHER") return searchText.includes("fresher") || searchText.includes("entry");
+        if (roleStageFilter === "EXPERIENCED") return !searchText.includes("internship") && !searchText.includes("fresher") && !searchText.includes("entry");
+        return true;
+      })
       .sort((a, b) => {
         if (sort === "deadline") return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
         if (sort === "company") return a.company_name.localeCompare(b.company_name);
         if (sort === "match") return Number(b.match_score || 0) - Number(a.match_score || 0);
         return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
       });
-  }, [jobs, query, trustFilter, sort]);
+  }, [jobs, query, trustFilter, roleStageFilter, sort]);
 
   const pagedJobs = useMemo(() => paginateItems(filteredJobs, page, pageSize), [filteredJobs, page, pageSize]);
 
@@ -153,7 +161,20 @@ export default function JobsListPage() {
             searchValue={query}
             onSearchChange={setQuery}
             searchPlaceholder="Search by title, company, skills, or location"
-            filters={[{ label: "Trust", value: trustFilter, allLabel: "All jobs", options: [{ label: "Trusted posting", value: "TRUSTED" }, { label: "Verified company", value: "VERIFIED_COMPANY" }, { label: "Verified recruiter", value: "VERIFIED_RECRUITER" }], onChange: setTrustFilter }]}
+            filters={[
+              { label: "Trust", value: trustFilter, allLabel: "All jobs", options: [{ label: "Trusted posting", value: "TRUSTED" }, { label: "Verified company", value: "VERIFIED_COMPANY" }, { label: "Verified recruiter", value: "VERIFIED_RECRUITER" }], onChange: setTrustFilter },
+              {
+                label: "Role stage",
+                value: roleStageFilter,
+                allLabel: "All role stages",
+                options: [
+                  { label: "Internship eligible", value: "INTERNSHIP" },
+                  { label: "Fresher roles", value: "FRESHER" },
+                  { label: "Experienced roles", value: "EXPERIENCED" }
+                ],
+                onChange: setRoleStageFilter
+              }
+            ]}
             sortValue={sort}
             sortOptions={[
               { label: "Newest first", value: "newest" },
@@ -165,6 +186,7 @@ export default function JobsListPage() {
             onReset={() => {
               setQuery("");
               setTrustFilter("");
+              setRoleStageFilter("");
               setSort("newest");
             }}
             resultCount={filteredJobs.length}

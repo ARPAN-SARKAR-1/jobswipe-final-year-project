@@ -17,6 +17,7 @@ class UserDocument(TimestampMixin, Base):
     file_url: Mapped[str] = mapped_column(String(500), nullable=False)
     original_filename: Mapped[str | None] = mapped_column(String(255), nullable=True)
     is_public: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    visibility: Mapped[str] = mapped_column(String(30), default="PRIVATE", nullable=False)
     verification_status: Mapped[str] = mapped_column(String(30), default=DocumentVerificationStatus.PENDING.value, nullable=False)
     reviewed_by: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)

@@ -28,6 +28,8 @@ export default function RecruiterApplicationsPage() {
   const [chatSubmitting, setChatSubmitting] = useState(false);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("");
+  const [verificationFilter, setVerificationFilter] = useState("");
   const [sort, setSort] = useState("newest");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -44,7 +46,7 @@ export default function RecruiterApplicationsPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [query, statusFilter, sort, pageSize]);
+  }, [query, statusFilter, categoryFilter, verificationFilter, sort, pageSize]);
 
   const filteredApplications = useMemo(() => {
     return applications
@@ -58,13 +60,20 @@ export default function RecruiterApplicationsPage() {
         ])
       )
       .filter((application) => !statusFilter || application.status === statusFilter)
+      .filter((application) => !categoryFilter || application.applicant_job_seeker_category === categoryFilter)
+      .filter((application) => {
+        if (verificationFilter === "student") return application.applicant_student_verification_status === "STUDENT_VERIFIED";
+        if (verificationFilter === "graduation") return application.applicant_graduation_verification_status === "GRADUATION_VERIFIED";
+        if (verificationFilter === "experience") return application.applicant_experience_verification_status === "EXPERIENCE_VERIFIED";
+        return true;
+      })
       .sort((a, b) => {
         if (sort === "oldest") return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
         if (sort === "status") return a.status.localeCompare(b.status);
         if (sort === "applicant") return String(a.applicant_name || "").localeCompare(String(b.applicant_name || ""));
         return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
       });
-  }, [applications, query, statusFilter, sort]);
+  }, [applications, query, statusFilter, categoryFilter, verificationFilter, sort]);
 
   const pagedApplications = useMemo(() => paginateItems(filteredApplications, page, pageSize), [filteredApplications, page, pageSize]);
 
@@ -121,7 +130,31 @@ export default function RecruiterApplicationsPage() {
             searchValue={query}
             onSearchChange={setQuery}
             searchPlaceholder="Search applicants, email, job, company, or skills"
-            filters={[{ label: "Status", value: statusFilter, allLabel: "All statuses", options: ["APPLIED", "VIEWED", "SHORTLISTED", "INTERVIEWED", "HIRED", "REJECTED", "WITHDRAWN"].map((status) => ({ label: status, value: status })), onChange: setStatusFilter }]}
+            filters={[
+              { label: "Status", value: statusFilter, allLabel: "All statuses", options: ["APPLIED", "VIEWED", "SHORTLISTED", "INTERVIEWED", "HIRED", "REJECTED", "WITHDRAWN"].map((status) => ({ label: status, value: status })), onChange: setStatusFilter },
+              {
+                label: "Category",
+                value: categoryFilter,
+                allLabel: "All categories",
+                options: [
+                  { label: "Undergraduate", value: "UNDERGRADUATE" },
+                  { label: "Graduate fresher", value: "GRADUATE_FRESHER" },
+                  { label: "Graduate experienced", value: "GRADUATE_EXPERIENCED" }
+                ],
+                onChange: setCategoryFilter
+              },
+              {
+                label: "Verified",
+                value: verificationFilter,
+                allLabel: "Any verification",
+                options: [
+                  { label: "Student verified", value: "student" },
+                  { label: "Graduation verified", value: "graduation" },
+                  { label: "Experience verified", value: "experience" }
+                ],
+                onChange: setVerificationFilter
+              }
+            ]}
             sortValue={sort}
             sortOptions={[
               { label: "Newest first", value: "newest" },
@@ -133,6 +166,8 @@ export default function RecruiterApplicationsPage() {
             onReset={() => {
               setQuery("");
               setStatusFilter("");
+              setCategoryFilter("");
+              setVerificationFilter("");
               setSort("newest");
             }}
             resultCount={filteredApplications.length}
@@ -153,6 +188,16 @@ export default function RecruiterApplicationsPage() {
                 </div>
                 <h2 className="text-xl font-black">{application.applicant_name}</h2>
                 <p className="mt-1 text-sm font-bold text-[#6b767d]">{application.applicant_email}</p>
+                <div className="mt-3 flex flex-wrap gap-2 text-xs font-black text-[#526069]">
+                  {application.applicant_job_seeker_category && (
+                    <span className="rounded-lg bg-white px-2.5 py-1">{application.applicant_job_seeker_category.replaceAll("_", " ")}</span>
+                  )}
+                  {application.applicant_passing_year && <span className="rounded-lg bg-white px-2.5 py-1">Passing {application.applicant_passing_year}</span>}
+                  {application.applicant_total_experience_years != null && <span className="rounded-lg bg-white px-2.5 py-1">{application.applicant_total_experience_years} yrs exp</span>}
+                  {application.applicant_student_verification_status === "STUDENT_VERIFIED" && <span className="rounded-lg bg-emerald-50 px-2.5 py-1 text-emerald-700">Student verified</span>}
+                  {application.applicant_graduation_verification_status === "GRADUATION_VERIFIED" && <span className="rounded-lg bg-emerald-50 px-2.5 py-1 text-emerald-700">Graduation verified</span>}
+                  {application.applicant_experience_verification_status === "EXPERIENCE_VERIFIED" && <span className="rounded-lg bg-emerald-50 px-2.5 py-1 text-emerald-700">Experience verified</span>}
+                </div>
                 <p className="mt-4 text-base font-black text-[#172026]">{application.job_title}</p>
                 {application.admin_status === "PAUSED" && (
                   <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm font-bold text-amber-800">
