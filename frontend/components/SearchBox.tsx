@@ -24,7 +24,7 @@ export default function SearchBox({ label = "Search", placeholder = "Search", va
   }, [draft]);
 
   return (
-    <label className="block">
+    <label className="block min-w-0">
       <span className="sr-only">{label}</span>
       <span className="relative block">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8a949a]" size={17} aria-hidden="true" />

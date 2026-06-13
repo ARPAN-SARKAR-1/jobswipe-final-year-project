@@ -106,8 +106,8 @@ export default function NotificationsPage() {
             resultCount={filteredNotifications.length}
           />
           {filteredNotifications.length === 0 ? (
-            <div className="p-5">
-              <EmptyState title="No results found" text="No results found for the selected filters." />
+            <div className="p-4 sm:p-5">
+              <EmptyState compact title="No results found" text="No results found for the selected filters." />
             </div>
           ) : (
             <div className="grid gap-3 p-4">

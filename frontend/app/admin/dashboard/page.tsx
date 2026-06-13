@@ -396,7 +396,13 @@ export default function AdminDashboardPage() {
                 </tr>
               </thead>
               <tbody>
-                {users.map((target) => (
+                {users.length === 0 ? (
+                  <tr>
+                    <td className="p-8 text-center text-sm font-bold text-[#6b767d]" colSpan={6}>
+                      No results found for the selected filters.
+                    </td>
+                  </tr>
+                ) : users.map((target) => (
                   <tr key={target.id} className="border-t border-black/5">
                     <td className="p-4">
                       <p className="font-black text-[#172026]">{target.name}</p>
@@ -1304,7 +1310,13 @@ function Table({ title, headers, rows }: { title: string; headers: string[]; row
             </tr>
           </thead>
           <tbody>
-            {pagedRows.map((row, index) => (
+            {pagedRows.length === 0 ? (
+              <tr>
+                <td className="p-8 text-center text-sm font-bold text-[#6b767d]" colSpan={headers.length}>
+                  No results found for the selected filters.
+                </td>
+              </tr>
+            ) : pagedRows.map((row, index) => (
               <tr key={index} className="border-t border-black/5">
                 {row.map((cell, cellIndex) => (
                   <td key={`${index}-${cellIndex}`} className="p-4 font-bold text-[#526069]">

@@ -1,8 +1,15 @@
 import { Inbox } from "lucide-react";
 
-export default function EmptyState({ title, text }: { title: string; text: string }) {
+import { cx } from "@/lib/utils";
+
+export default function EmptyState({ title, text, compact = false }: { title: string; text: string; compact?: boolean }) {
   return (
-    <div className="panel grid min-h-[260px] place-items-center p-8 text-center">
+    <div
+      className={cx(
+        "grid place-items-center text-center",
+        compact ? "min-h-[190px] rounded-lg border border-dashed border-black/10 bg-white/70 p-6" : "panel min-h-[260px] p-8"
+      )}
+    >
       <div>
         <div className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-lg bg-white text-[#172026] shadow-sm">
           <Inbox size={22} />

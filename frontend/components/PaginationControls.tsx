@@ -22,13 +22,13 @@ export default function PaginationControls({
   const end = Math.min(total, page * pageSize);
 
   return (
-    <div className="flex flex-col justify-between gap-3 border-t border-black/5 bg-[#fbfaf7] p-4 text-sm font-bold text-[#526069] md:flex-row md:items-center">
-      <span>
-        {total === 0 ? "No results" : `${start}-${end} of ${total}`} · Page {page} of {totalPages}
+    <div className="flex flex-col justify-between gap-3 border-t border-black/5 bg-[#fbfaf7] p-3 text-sm font-bold text-[#526069] sm:p-4 md:flex-row md:items-center">
+      <span className="text-center md:text-left">
+        {total === 0 ? "No results" : `${start}-${end} of ${total}`} - Page {page} of {totalPages}
       </span>
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-center">
         <select
-          className="field h-10 w-24 py-1 text-sm"
+          className="field col-span-2 h-10 w-full py-1 text-sm sm:w-28"
           aria-label="Page size"
           value={pageSize}
           onChange={(event) => onPageSizeChange(Number(event.target.value))}
@@ -39,10 +39,10 @@ export default function PaginationControls({
             </option>
           ))}
         </select>
-        <button className="btn-secondary !px-3 !py-2" disabled={page <= 1} onClick={() => onPageChange(page - 1)} type="button">
+        <button className="btn-secondary w-full !px-3 !py-2 sm:w-auto" disabled={page <= 1} onClick={() => onPageChange(page - 1)} type="button">
           Previous
         </button>
-        <button className="btn-secondary !px-3 !py-2" disabled={page >= totalPages} onClick={() => onPageChange(page + 1)} type="button">
+        <button className="btn-secondary w-full !px-3 !py-2 sm:w-auto" disabled={page >= totalPages} onClick={() => onPageChange(page + 1)} type="button">
           Next
         </button>
       </div>

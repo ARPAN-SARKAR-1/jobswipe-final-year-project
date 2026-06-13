@@ -15,7 +15,7 @@ type FilterSelectProps = {
 
 export default function FilterSelect({ label, value, options, onChange, allLabel = "All" }: FilterSelectProps) {
   return (
-    <label className="block">
+    <label className="block min-w-0">
       <span className="sr-only">{label}</span>
       <select className="field" aria-label={label} value={value} onChange={(event) => onChange(event.target.value)}>
         <option value="">{allLabel}</option>
