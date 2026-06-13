@@ -1,12 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 
 import EmptyState from "@/components/EmptyState";
+import ListToolbar from "@/components/ListToolbar";
 import PageHeader from "@/components/PageHeader";
+import PaginationControls from "@/components/PaginationControls";
 import { apiFetch } from "@/lib/api";
+import { paginateItems, textMatches } from "@/lib/listing";
 import { formatDate } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import type { Notification } from "@/types";
@@ -14,6 +17,11 @@ import type { Notification } from "@/types";
 export default function NotificationsPage() {
   const { loading } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [query, setQuery] = useState("");
+  const [readFilter, setReadFilter] = useState("");
+  const [sort, setSort] = useState("newest");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const load = () => {
     apiFetch<Notification[]>("/notifications")
@@ -24,6 +32,27 @@ export default function NotificationsPage() {
   useEffect(() => {
     if (!loading) load();
   }, [loading]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [query, readFilter, sort, pageSize]);
+
+  const filteredNotifications = useMemo(() => {
+    return notifications
+      .filter((notification) => textMatches(notification, query, [(item) => item.title, (item) => item.message, (item) => item.type]))
+      .filter((notification) => {
+        if (readFilter === "UNREAD") return !notification.is_read;
+        if (readFilter === "READ") return notification.is_read;
+        return true;
+      })
+      .sort((a, b) => {
+        if (sort === "oldest") return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+        if (sort === "type") return a.type.localeCompare(b.type);
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      });
+  }, [notifications, query, readFilter, sort]);
+
+  const pagedNotifications = useMemo(() => paginateItems(filteredNotifications, page, pageSize), [filteredNotifications, page, pageSize]);
 
   const markRead = async (id: number) => {
     try {
@@ -56,8 +85,33 @@ export default function NotificationsPage() {
       {notifications.length === 0 ? (
         <EmptyState title="No notifications" text="Important application, chat, moderation, and verification updates will appear here." />
       ) : (
-        <div className="grid gap-3">
-          {notifications.map((notification) => (
+        <div className="panel overflow-hidden">
+          <ListToolbar
+            searchValue={query}
+            onSearchChange={setQuery}
+            searchPlaceholder="Search notifications"
+            filters={[{ label: "Read status", value: readFilter, allLabel: "All notifications", options: [{ label: "Unread", value: "UNREAD" }, { label: "Read", value: "READ" }], onChange: setReadFilter }]}
+            sortValue={sort}
+            sortOptions={[
+              { label: "Newest first", value: "newest" },
+              { label: "Oldest first", value: "oldest" },
+              { label: "Type", value: "type" }
+            ]}
+            onSortChange={setSort}
+            onReset={() => {
+              setQuery("");
+              setReadFilter("");
+              setSort("newest");
+            }}
+            resultCount={filteredNotifications.length}
+          />
+          {filteredNotifications.length === 0 ? (
+            <div className="p-5">
+              <EmptyState title="No results found" text="No results found for the selected filters." />
+            </div>
+          ) : (
+            <div className="grid gap-3 p-4">
+          {pagedNotifications.map((notification) => (
             <article key={notification.id} className="panel p-4">
               <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
                 <div>
@@ -83,6 +137,9 @@ export default function NotificationsPage() {
               </div>
             </article>
           ))}
+            </div>
+          )}
+          <PaginationControls page={page} pageSize={pageSize} total={filteredNotifications.length} onPageChange={setPage} onPageSizeChange={setPageSize} />
         </div>
       )}
     </main>

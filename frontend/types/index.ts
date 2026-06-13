@@ -1,4 +1,11 @@
 export type Role = "JOB_SEEKER" | "RECRUITER" | "ADMIN" | "OWNER";
+export type PaginatedResponse<T> = {
+  items: T[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+};
 export type CompanyVerificationStatus = "PENDING" | "VERIFIED" | "REJECTED" | "SUSPENDED";
 export type RecruiterVerificationStatus = "PENDING" | "VERIFIED" | "REJECTED" | "SUSPENDED";
 export type CompanyJoinStatus = "PENDING" | "APPROVED" | "REJECTED";

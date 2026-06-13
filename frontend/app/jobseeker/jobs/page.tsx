@@ -1,15 +1,18 @@
 "use client";
 
 import { Bookmark, Send } from "lucide-react";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 
 import EmptyState from "@/components/EmptyState";
 import JobCard from "@/components/JobCard";
+import ListToolbar from "@/components/ListToolbar";
 import PageHeader from "@/components/PageHeader";
+import PaginationControls from "@/components/PaginationControls";
 import ReportModal from "@/components/ReportModal";
 import SkillMultiSelect from "@/components/SkillMultiSelect";
 import { apiFetch } from "@/lib/api";
+import { paginateItems, textMatches } from "@/lib/listing";
 import { experienceLevels, jobTypes, workModes } from "@/lib/options";
 import { useAuth } from "@/hooks/useAuth";
 import type { Job } from "@/types";
@@ -18,6 +21,11 @@ export default function JobsListPage() {
   const { loading } = useAuth(["JOB_SEEKER"]);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [applyingJobId, setApplyingJobId] = useState<number | null>(null);
+  const [query, setQuery] = useState("");
+  const [trustFilter, setTrustFilter] = useState("");
+  const [sort, setSort] = useState("newest");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [filters, setFilters] = useState({
     jobType: "",
     experienceLevel: "",
@@ -42,6 +50,36 @@ export default function JobsListPage() {
   useEffect(() => {
     if (!loading) load();
   }, [loading]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [query, trustFilter, sort, pageSize, jobs.length]);
+
+  const filteredJobs = useMemo(() => {
+    return jobs
+      .filter((job) =>
+        textMatches(job, query, [
+          (item) => item.title,
+          (item) => item.company_name,
+          (item) => item.required_skills,
+          (item) => item.location
+        ])
+      )
+      .filter((job) => {
+        if (trustFilter === "VERIFIED_COMPANY") return job.company_verified;
+        if (trustFilter === "VERIFIED_RECRUITER") return job.recruiter_verified;
+        if (trustFilter === "TRUSTED") return job.trusted_posting;
+        return true;
+      })
+      .sort((a, b) => {
+        if (sort === "deadline") return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
+        if (sort === "company") return a.company_name.localeCompare(b.company_name);
+        if (sort === "match") return Number(b.match_score || 0) - Number(a.match_score || 0);
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      });
+  }, [jobs, query, trustFilter, sort]);
+
+  const pagedJobs = useMemo(() => paginateItems(filteredJobs, page, pageSize), [filteredJobs, page, pageSize]);
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -110,8 +148,34 @@ export default function JobsListPage() {
       {jobs.length === 0 ? (
         <EmptyState title="No jobs found" text="Adjust filters or return to the swipe feed for active recommendations." />
       ) : (
-        <div className="grid gap-4 lg:grid-cols-2">
-          {jobs.map((job) => {
+        <div className="panel overflow-hidden">
+          <ListToolbar
+            searchValue={query}
+            onSearchChange={setQuery}
+            searchPlaceholder="Search by title, company, skills, or location"
+            filters={[{ label: "Trust", value: trustFilter, allLabel: "All jobs", options: [{ label: "Trusted posting", value: "TRUSTED" }, { label: "Verified company", value: "VERIFIED_COMPANY" }, { label: "Verified recruiter", value: "VERIFIED_RECRUITER" }], onChange: setTrustFilter }]}
+            sortValue={sort}
+            sortOptions={[
+              { label: "Newest first", value: "newest" },
+              { label: "Deadline nearest", value: "deadline" },
+              { label: "Company A-Z", value: "company" },
+              { label: "Match score", value: "match" }
+            ]}
+            onSortChange={setSort}
+            onReset={() => {
+              setQuery("");
+              setTrustFilter("");
+              setSort("newest");
+            }}
+            resultCount={filteredJobs.length}
+          />
+          {filteredJobs.length === 0 ? (
+            <div className="p-5">
+              <EmptyState title="No results found" text="No results found for the selected filters." />
+            </div>
+          ) : (
+            <div className="grid gap-4 p-4 lg:grid-cols-2">
+          {pagedJobs.map((job) => {
             const alreadyApplied = Boolean(job.existing_application_status);
             return (
             <JobCard
@@ -134,6 +198,9 @@ export default function JobsListPage() {
             />
             );
           })}
+            </div>
+          )}
+          <PaginationControls page={page} pageSize={pageSize} total={filteredJobs.length} onPageChange={setPage} onPageSizeChange={setPageSize} />
         </div>
       )}
     </main>

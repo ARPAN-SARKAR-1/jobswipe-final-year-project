@@ -13,18 +13,21 @@ import {
   UserRound,
   UsersRound
 } from "lucide-react";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 
+import ListToolbar from "@/components/ListToolbar";
 import PageHeader from "@/components/PageHeader";
+import PaginationControls from "@/components/PaginationControls";
 import PasswordInput from "@/components/PasswordInput";
 import StatCard from "@/components/StatCard";
 import StatusBadge from "@/components/StatusBadge";
 import VerificationStatusBadge from "@/components/VerificationStatusBadge";
 import { apiFetch } from "@/lib/api";
+import { paginateItems, textMatches } from "@/lib/listing";
 import { formatDate } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
-import type { AdminActionLog, AdminRecruiterVerification, Application, ChatThread, CompanyReview, Job, RecruiterCompanyMember, Report, Swipe, User, UserDocument } from "@/types";
+import type { AdminActionLog, AdminRecruiterVerification, Application, ChatThread, CompanyReview, Job, PaginatedResponse, RecruiterCompanyMember, Report, Swipe, User, UserDocument } from "@/types";
 
 type AdminStats = {
   total_users: number;
@@ -73,11 +76,19 @@ export default function AdminDashboardPage() {
   const [submitting, setSubmitting] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [createForm, setCreateForm] = useState(emptyAdminForm);
+  const [userQuery, setUserQuery] = useState("");
+  const [userRole, setUserRole] = useState("");
+  const [userStatus, setUserStatus] = useState("");
+  const [userProtection, setUserProtection] = useState("");
+  const [userEmailVerified, setUserEmailVerified] = useState("");
+  const [userSort, setUserSort] = useState("created_at:desc");
+  const [userPage, setUserPage] = useState(1);
+  const [userPageSize, setUserPageSize] = useState(20);
+  const [userTotal, setUserTotal] = useState(0);
 
   const load = () => {
     Promise.all([
       apiFetch<AdminStats>("/admin/dashboard"),
-      apiFetch<User[]>("/admin/users"),
       apiFetch<Job[]>("/admin/jobs"),
       apiFetch<Application[]>("/admin/applications"),
       apiFetch<ChatThread[]>("/admin/chats"),
@@ -93,9 +104,8 @@ export default function AdminDashboardPage() {
       isOwner ? apiFetch<User[]>("/admin/admins") : Promise.resolve([]),
       isOwner ? apiFetch<AdminActionLog[]>("/admin/action-logs") : Promise.resolve([])
     ])
-      .then(([dashboard, userRows, jobRows, applicationRows, chatRows, verificationRows, companyRows, membershipRows, jobseekerRows, documentRows, suspiciousRows, reviewRows, reportRows, swipeRows, adminRows, logRows]) => {
+      .then(([dashboard, jobRows, applicationRows, chatRows, verificationRows, companyRows, membershipRows, jobseekerRows, documentRows, suspiciousRows, reviewRows, reportRows, swipeRows, adminRows, logRows]) => {
         setStats(dashboard);
-        setUsers(userRows);
         setJobs(jobRows);
         setApplications(applicationRows);
         setChats(chatRows);
@@ -114,9 +124,36 @@ export default function AdminDashboardPage() {
       .catch((error) => toast.error(error instanceof Error ? error.message : "Admin data failed"));
   };
 
+  const loadUsers = () => {
+    const [sortBy, sortOrder] = userSort.split(":");
+    const params = new URLSearchParams({
+      sort_by: sortBy,
+      sort_order: sortOrder || "desc",
+      page: String(userPage),
+      page_size: String(userPageSize)
+    });
+    if (userQuery) params.set("q", userQuery);
+    if (userRole) params.set("role", userRole);
+    if (userStatus) params.set("status", userStatus);
+    if (userProtection) params.set("protection", userProtection);
+    if (userEmailVerified) params.set("email_verified", userEmailVerified);
+    apiFetch<PaginatedResponse<User>>(`/admin/users/search?${params.toString()}`)
+      .then((result) => {
+        setUsers(result.items);
+        setUserTotal(result.total);
+        setUserPage(result.page);
+        setUserPageSize(result.page_size);
+      })
+      .catch((error) => toast.error(error instanceof Error ? error.message : "Users failed"));
+  };
+
   useEffect(() => {
     if (!loading && currentUser) load();
   }, [loading, currentUser?.role]);
+
+  useEffect(() => {
+    if (!loading && currentUser) loadUsers();
+  }, [loading, currentUser?.role, userQuery, userRole, userStatus, userProtection, userEmailVerified, userSort, userPage, userPageSize]);
 
   const openAction = (action: ConfirmAction) => {
     setReason("");
@@ -140,6 +177,7 @@ export default function AdminDashboardPage() {
       toast.success(confirmAction.success);
       setConfirmAction(null);
       load();
+      loadUsers();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Admin action failed");
     } finally {
@@ -160,6 +198,7 @@ export default function AdminDashboardPage() {
       setCreateForm(emptyAdminForm);
       setCreateOpen(false);
       load();
+      loadUsers();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Only Owner can create admins.");
     } finally {
@@ -307,6 +346,43 @@ export default function AdminDashboardPage() {
 
         <div className="panel overflow-hidden">
           <h2 className="p-5 text-xl font-black">Users</h2>
+          <ListToolbar
+            searchValue={userQuery}
+            onSearchChange={(value) => {
+              setUserQuery(value);
+              setUserPage(1);
+            }}
+            searchPlaceholder="Search name, email, username, or public ID"
+            filters={[
+              { label: "Role", value: userRole, allLabel: "All roles", options: ["JOB_SEEKER", "RECRUITER", "ADMIN", "OWNER"].map((role) => ({ label: role, value: role })), onChange: (value) => { setUserRole(value); setUserPage(1); } },
+              { label: "Status", value: userStatus, allLabel: "All statuses", options: ["ACTIVE", "SUSPENDED", "PENDING", "REJECTED"].map((status) => ({ label: status, value: status })), onChange: (value) => { setUserStatus(value); setUserPage(1); } },
+              { label: "Protection", value: userProtection, allLabel: "All protection", options: [{ label: "Protected", value: "PROTECTED" }, { label: "Normal", value: "NORMAL" }], onChange: (value) => { setUserProtection(value); setUserPage(1); } },
+              { label: "Email", value: userEmailVerified, allLabel: "All email states", options: [{ label: "Verified", value: "VERIFIED" }, { label: "Not verified", value: "NOT_VERIFIED" }], onChange: (value) => { setUserEmailVerified(value); setUserPage(1); } }
+            ]}
+            sortValue={userSort}
+            sortOptions={[
+              { label: "Newest first", value: "created_at:desc" },
+              { label: "Oldest first", value: "created_at:asc" },
+              { label: "Name A-Z", value: "name:asc" },
+              { label: "Name Z-A", value: "name:desc" },
+              { label: "Role", value: "role:asc" },
+              { label: "Status", value: "status:asc" }
+            ]}
+            onSortChange={(value) => {
+              setUserSort(value);
+              setUserPage(1);
+            }}
+            onReset={() => {
+              setUserQuery("");
+              setUserRole("");
+              setUserStatus("");
+              setUserProtection("");
+              setUserEmailVerified("");
+              setUserSort("created_at:desc");
+              setUserPage(1);
+            }}
+            resultCount={userTotal}
+          />
           <div className="overflow-x-auto">
             <table className="w-full min-w-[1080px] text-left text-sm">
               <thead className="bg-[#fbfaf7] text-xs font-black uppercase text-[#526069]">
@@ -378,6 +454,7 @@ export default function AdminDashboardPage() {
               </tbody>
             </table>
           </div>
+          <PaginationControls page={userPage} pageSize={userPageSize} total={userTotal} onPageChange={setUserPage} onPageSizeChange={(value) => { setUserPageSize(value); setUserPage(1); }} />
         </div>
 
         <ModerationJobsTable jobs={jobs} openAction={openAction} />
@@ -1181,9 +1258,40 @@ function ModerationApplicationsTable({ applications, openAction }: { application
 }
 
 function Table({ title, headers, rows }: { title: string; headers: string[]; rows: Array<Array<string | number>> }) {
+  const [query, setQuery] = useState("");
+  const [sort, setSort] = useState("default");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const filteredRows = useMemo(() => {
+    const matches = rows.filter((row) => textMatches(row, query, [() => row.join(" ")]));
+    if (sort === "reverse") return [...matches].reverse();
+    return matches;
+  }, [rows, query, sort]);
+  const pagedRows = useMemo(() => paginateItems(filteredRows, page, pageSize), [filteredRows, page, pageSize]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [query, sort, pageSize]);
+
   return (
     <div className="panel overflow-hidden">
       <h2 className="p-5 text-xl font-black">{title}</h2>
+      <ListToolbar
+        searchValue={query}
+        onSearchChange={setQuery}
+        searchPlaceholder={`Search ${title.toLowerCase()}`}
+        sortValue={sort}
+        sortOptions={[
+          { label: "Default order", value: "default" },
+          { label: "Reverse order", value: "reverse" }
+        ]}
+        onSortChange={setSort}
+        onReset={() => {
+          setQuery("");
+          setSort("default");
+        }}
+        resultCount={filteredRows.length}
+      />
       <div className="overflow-x-auto">
         <table className="w-full min-w-[720px] text-left text-sm">
           <thead className="bg-[#fbfaf7] text-xs font-black uppercase text-[#526069]">
@@ -1196,7 +1304,7 @@ function Table({ title, headers, rows }: { title: string; headers: string[]; row
             </tr>
           </thead>
           <tbody>
-            {rows.map((row, index) => (
+            {pagedRows.map((row, index) => (
               <tr key={index} className="border-t border-black/5">
                 {row.map((cell, cellIndex) => (
                   <td key={`${index}-${cellIndex}`} className="p-4 font-bold text-[#526069]">
@@ -1208,6 +1316,7 @@ function Table({ title, headers, rows }: { title: string; headers: string[]; row
           </tbody>
         </table>
       </div>
+      <PaginationControls page={page} pageSize={pageSize} total={filteredRows.length} onPageChange={setPage} onPageSizeChange={setPageSize} />
     </div>
   );
 }

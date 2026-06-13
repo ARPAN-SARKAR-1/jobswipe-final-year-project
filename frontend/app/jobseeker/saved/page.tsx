@@ -6,9 +6,12 @@ import toast from "react-hot-toast";
 
 import EmptyState from "@/components/EmptyState";
 import JobCard from "@/components/JobCard";
+import ListToolbar from "@/components/ListToolbar";
 import PageHeader from "@/components/PageHeader";
+import PaginationControls from "@/components/PaginationControls";
 import ReportModal from "@/components/ReportModal";
 import { apiFetch } from "@/lib/api";
+import { paginateItems, textMatches } from "@/lib/listing";
 import { useAuth } from "@/hooks/useAuth";
 import type { Swipe } from "@/types";
 
@@ -16,6 +19,11 @@ export default function SavedJobsPage() {
   const { loading } = useAuth(["JOB_SEEKER"]);
   const [swipes, setSwipes] = useState<Swipe[]>([]);
   const [applyingJobId, setApplyingJobId] = useState<number | null>(null);
+  const [query, setQuery] = useState("");
+  const [trustFilter, setTrustFilter] = useState("");
+  const [sort, setSort] = useState("newest");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const load = () => {
     apiFetch<Swipe[]>("/swipes/history")
@@ -32,6 +40,35 @@ export default function SavedJobsPage() {
     swipes.filter((swipe) => swipe.action === "SAVE" && swipe.job).forEach((swipe) => map.set(swipe.job_id, swipe));
     return Array.from(map.values());
   }, [swipes]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [query, trustFilter, sort, pageSize]);
+
+  const filteredSaved = useMemo(() => {
+    return saved
+      .filter((swipe) =>
+        textMatches(swipe, query, [
+          (item) => item.job?.title,
+          (item) => item.job?.company_name,
+          (item) => item.job?.required_skills,
+          (item) => item.job?.location
+        ])
+      )
+      .filter((swipe) => {
+        if (trustFilter === "VERIFIED_COMPANY") return Boolean(swipe.job?.company_verified);
+        if (trustFilter === "VERIFIED_RECRUITER") return Boolean(swipe.job?.recruiter_verified);
+        if (trustFilter === "ACTIVE") return Boolean(swipe.job?.is_active && swipe.job?.moderation_status === "ACTIVE");
+        return true;
+      })
+      .sort((a, b) => {
+        if (sort === "deadline") return new Date(a.job?.deadline || 0).getTime() - new Date(b.job?.deadline || 0).getTime();
+        if (sort === "company") return String(a.job?.company_name || "").localeCompare(String(b.job?.company_name || ""));
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      });
+  }, [saved, query, trustFilter, sort]);
+
+  const pagedSaved = useMemo(() => paginateItems(filteredSaved, page, pageSize), [filteredSaved, page, pageSize]);
 
   const unsave = async (jobId: number) => {
     try {
@@ -64,8 +101,33 @@ export default function SavedJobsPage() {
       {saved.length === 0 ? (
         <EmptyState title="No saved jobs yet" text="Use the Save action while swiping to build a short list for later." />
       ) : (
-        <div className="grid gap-4 lg:grid-cols-2">
-          {saved.map((swipe) =>
+        <div className="panel overflow-hidden">
+          <ListToolbar
+            searchValue={query}
+            onSearchChange={setQuery}
+            searchPlaceholder="Search saved jobs by title, company, skills, or location"
+            filters={[{ label: "Trust", value: trustFilter, allLabel: "All saved jobs", options: [{ label: "Verified company", value: "VERIFIED_COMPANY" }, { label: "Verified recruiter", value: "VERIFIED_RECRUITER" }, { label: "Active jobs", value: "ACTIVE" }], onChange: setTrustFilter }]}
+            sortValue={sort}
+            sortOptions={[
+              { label: "Newest first", value: "newest" },
+              { label: "Deadline nearest", value: "deadline" },
+              { label: "Company A-Z", value: "company" }
+            ]}
+            onSortChange={setSort}
+            onReset={() => {
+              setQuery("");
+              setTrustFilter("");
+              setSort("newest");
+            }}
+            resultCount={filteredSaved.length}
+          />
+          {filteredSaved.length === 0 ? (
+            <div className="p-5">
+              <EmptyState title="No results found" text="No results found for the selected filters." />
+            </div>
+          ) : (
+            <div className="grid gap-4 p-4 lg:grid-cols-2">
+          {pagedSaved.map((swipe) =>
             swipe.job ? (
               <JobCard
                 key={swipe.id}
@@ -87,6 +149,9 @@ export default function SavedJobsPage() {
               />
             ) : null
           )}
+            </div>
+          )}
+          <PaginationControls page={page} pageSize={pageSize} total={filteredSaved.length} onPageChange={setPage} onPageSizeChange={setPageSize} />
         </div>
       )}
     </main>

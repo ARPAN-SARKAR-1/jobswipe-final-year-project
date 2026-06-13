@@ -1,8 +1,8 @@
 from datetime import date, datetime, timezone
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import func, select
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.core.database import get_db
@@ -130,6 +130,67 @@ def users(
     db: Annotated[Session, Depends(get_db)],
 ) -> list[User]:
     return list(db.scalars(select(User).order_by(User.created_at.desc())).all())
+
+
+@router.get("/users/search")
+def search_users(
+    _current_user: Annotated[User, Depends(require_admin_or_owner)],
+    db: Annotated[Session, Depends(get_db)],
+    q: str | None = Query(default=None, max_length=100),
+    role: str | None = Query(default=None, max_length=30),
+    status_filter: str | None = Query(default=None, alias="status", max_length=30),
+    protection: str | None = Query(default=None, max_length=20),
+    email_verified: str | None = Query(default=None, max_length=20),
+    sort_by: str = Query(default="created_at", max_length=30),
+    sort_order: str = Query(default="desc", pattern="^(asc|desc)$"),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1, le=100),
+) -> dict[str, object]:
+    statement = select(User)
+    if q:
+        pattern = f"%{q.strip().lower()}%"
+        statement = statement.where(
+            or_(
+                func.lower(User.name).like(pattern),
+                func.lower(User.email).like(pattern),
+                func.lower(User.public_user_id).like(pattern),
+                func.lower(User.username).like(pattern),
+            )
+        )
+    if role:
+        statement = statement.where(User.role == role.strip().upper())
+    if status_filter:
+        statement = statement.where(User.account_status == status_filter.strip().upper())
+    if protection == "PROTECTED":
+        statement = statement.where(User.is_protected_owner.is_(True))
+    elif protection == "NORMAL":
+        statement = statement.where(User.is_protected_owner.is_(False))
+    if email_verified == "VERIFIED":
+        statement = statement.where(User.email_verified.is_(True))
+    elif email_verified == "NOT_VERIFIED":
+        statement = statement.where(User.email_verified.is_(False))
+
+    sort_columns = {
+        "created_at": User.created_at,
+        "name": User.name,
+        "role": User.role,
+        "status": User.account_status,
+        "email": User.email,
+    }
+    sort_column = sort_columns.get(sort_by, User.created_at)
+    order = sort_column.asc() if sort_order == "asc" else sort_column.desc()
+
+    total = db.scalar(select(func.count()).select_from(statement.order_by(None).subquery())) or 0
+    total_pages = max(1, (total + page_size - 1) // page_size)
+    page = min(page, total_pages)
+    users_page = list(db.scalars(statement.order_by(order, User.id.desc()).offset((page - 1) * page_size).limit(page_size)).all())
+    return {
+        "items": [UserRead.model_validate(user).model_dump(mode="json") for user in users_page],
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "total_pages": total_pages,
+    }
 
 
 @router.get("/jobs", response_model=list[JobRead])

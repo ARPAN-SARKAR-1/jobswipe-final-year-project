@@ -2,15 +2,18 @@
 
 import { MessageCircle, Undo2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 
 import EmptyState from "@/components/EmptyState";
 import JobCard from "@/components/JobCard";
+import ListToolbar from "@/components/ListToolbar";
 import PageHeader from "@/components/PageHeader";
+import PaginationControls from "@/components/PaginationControls";
 import ApplicationTimeline from "@/components/ApplicationTimeline";
 import StatusBadge from "@/components/StatusBadge";
 import { apiFetch } from "@/lib/api";
+import { paginateItems, textMatches } from "@/lib/listing";
 import { formatDate } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import type { Application } from "@/types";
@@ -19,6 +22,11 @@ export default function MyApplicationsPage() {
   const { loading } = useAuth(["JOB_SEEKER"]);
   const router = useRouter();
   const [applications, setApplications] = useState<Application[]>([]);
+  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [sort, setSort] = useState("newest");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const load = () => {
     apiFetch<Application[]>("/applications/my")
@@ -29,6 +37,31 @@ export default function MyApplicationsPage() {
   useEffect(() => {
     if (!loading) load();
   }, [loading]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [query, statusFilter, sort, pageSize]);
+
+  const filteredApplications = useMemo(() => {
+    return applications
+      .filter((application) =>
+        textMatches(application, query, [
+          (item) => item.job?.title,
+          (item) => item.job?.company_name,
+          (item) => item.status,
+          (item) => item.admin_status
+        ])
+      )
+      .filter((application) => !statusFilter || application.status === statusFilter)
+      .sort((a, b) => {
+        if (sort === "oldest") return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+        if (sort === "status") return a.status.localeCompare(b.status);
+        if (sort === "deadline") return new Date(a.job?.deadline || 0).getTime() - new Date(b.job?.deadline || 0).getTime();
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      });
+  }, [applications, query, statusFilter, sort]);
+
+  const pagedApplications = useMemo(() => paginateItems(filteredApplications, page, pageSize), [filteredApplications, page, pageSize]);
 
   const withdraw = async (id: number) => {
     try {
@@ -48,8 +81,34 @@ export default function MyApplicationsPage() {
       {applications.length === 0 ? (
         <EmptyState title="No applications yet" text="Swipe right on a job or apply from the jobs list to start tracking applications." />
       ) : (
-        <div className="grid gap-4">
-          {applications.map((application) => (
+        <div className="panel overflow-hidden">
+          <ListToolbar
+            searchValue={query}
+            onSearchChange={setQuery}
+            searchPlaceholder="Search by job, company, or status"
+            filters={[{ label: "Status", value: statusFilter, allLabel: "All statuses", options: ["APPLIED", "VIEWED", "SHORTLISTED", "INTERVIEWED", "HIRED", "REJECTED", "WITHDRAWN"].map((status) => ({ label: status, value: status })), onChange: setStatusFilter }]}
+            sortValue={sort}
+            sortOptions={[
+              { label: "Newest first", value: "newest" },
+              { label: "Oldest first", value: "oldest" },
+              { label: "Deadline nearest", value: "deadline" },
+              { label: "Status", value: "status" }
+            ]}
+            onSortChange={setSort}
+            onReset={() => {
+              setQuery("");
+              setStatusFilter("");
+              setSort("newest");
+            }}
+            resultCount={filteredApplications.length}
+          />
+          {filteredApplications.length === 0 ? (
+            <div className="p-5">
+              <EmptyState title="No results found" text="No results found for the selected filters." />
+            </div>
+          ) : (
+            <div className="grid gap-4 p-4">
+          {pagedApplications.map((application) => (
             <div key={application.id} className="panel grid gap-4 p-4 lg:grid-cols-[1fr_260px]">
               {application.job && <JobCard job={application.job} detailsHref={`/jobseeker/jobs/${application.job.id}`} />}
               <div className="rounded-lg bg-[#fbfaf7] p-4">
@@ -94,6 +153,9 @@ export default function MyApplicationsPage() {
               </div>
             </div>
           ))}
+            </div>
+          )}
+          <PaginationControls page={page} pageSize={pageSize} total={filteredApplications.length} onPageChange={setPage} onPageSizeChange={setPageSize} />
         </div>
       )}
     </main>
