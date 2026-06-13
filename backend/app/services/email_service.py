@@ -23,6 +23,8 @@ def ensure_email_provider_configured() -> None:
         return
     if provider == "resend" and settings.resend_api_key and settings.email_from:
         return
+    if provider == "brevo_api" and settings.brevo_api_key and settings.email_from:
+        return
     if provider == "smtp" and settings.smtp_host and settings.email_from and settings.smtp_user and settings.smtp_password:
         return
     raise HTTPException(
@@ -40,6 +42,9 @@ def send_security_code(to_email: str, code: str, subject: str) -> None:
         ensure_email_provider_configured()
         if provider == "resend":
             send_resend_email(to_email, code, subject)
+            return
+        if provider == "brevo_api":
+            send_brevo_email(to_email, code, subject)
             return
         if provider == "smtp":
             send_smtp_email(to_email, code, subject)
@@ -73,12 +78,24 @@ def send_smtp_email(to_email: str, code: str, subject: str) -> None:
         smtp.send_message(message)
 
 
+def security_code_text(code: str) -> str:
+    return f"Your Swipe for Success verification code is {code}. It expires in {settings.otp_expire_minutes} minutes."
+
+
+def security_code_html(code: str) -> str:
+    return (
+        "<p>Your Swipe for Success verification code is "
+        f"<strong>{code}</strong>.</p>"
+        f"<p>It expires in {settings.otp_expire_minutes} minutes.</p>"
+    )
+
+
 def send_resend_email(to_email: str, code: str, subject: str) -> None:
     payload = {
         "from": settings.email_from,
         "to": [to_email],
         "subject": subject,
-        "text": f"Your Swipe for Success verification code is {code}. It expires in {settings.otp_expire_minutes} minutes.",
+        "text": security_code_text(code),
     }
     req = request.Request(
         "https://api.resend.com/emails",
@@ -92,3 +109,51 @@ def send_resend_email(to_email: str, code: str, subject: str) -> None:
     with request.urlopen(req, timeout=20) as response:
         if response.status >= 400:
             raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=EMAIL_DELIVERY_ERROR)
+
+
+def safe_provider_response(exc: HTTPError) -> str:
+    try:
+        body = exc.read(500).decode("utf-8", errors="replace")
+    except Exception:
+        return ""
+    return " ".join(body.split())[:300]
+
+
+def send_brevo_email(to_email: str, code: str, subject: str) -> None:
+    payload = {
+        "sender": {
+            "name": settings.email_from_name,
+            "email": settings.email_from,
+        },
+        "to": [{"email": to_email}],
+        "subject": subject,
+        "htmlContent": security_code_html(code),
+        "textContent": security_code_text(code),
+    }
+    req = request.Request(
+        "https://api.brevo.com/v3/smtp/email",
+        data=json.dumps(payload).encode("utf-8"),
+        headers={
+            "accept": "application/json",
+            "content-type": "application/json",
+            "api-key": settings.brevo_api_key or "",
+        },
+        method="POST",
+    )
+    try:
+        with request.urlopen(req, timeout=20) as response:
+            if response.status < 200 or response.status >= 300:
+                logger.error(
+                    "Brevo API email rejected recipient_domain=%s status_code=%s",
+                    recipient_domain(to_email),
+                    response.status,
+                )
+                raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=EMAIL_DELIVERY_ERROR)
+    except HTTPError as exc:
+        logger.error(
+            "Brevo API email failed recipient_domain=%s status_code=%s response=%s",
+            recipient_domain(to_email),
+            exc.code,
+            safe_provider_response(exc),
+        )
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=EMAIL_DELIVERY_ERROR) from exc

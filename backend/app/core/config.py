@@ -30,7 +30,9 @@ class Settings(BaseSettings):
     twofa_required_roles: str = Field(default="OWNER,ADMIN,RECRUITER", alias="TWOFA_REQUIRED_ROLES")
     email_provider: str = Field(default="console", alias="EMAIL_PROVIDER")
     email_from: str | None = Field(default=None, alias="EMAIL_FROM")
+    email_from_name: str = Field(default="Swipe for Success", alias="EMAIL_FROM_NAME")
     resend_api_key: str | None = Field(default=None, alias="RESEND_API_KEY")
+    brevo_api_key: str | None = Field(default=None, alias="BREVO_API_KEY")
     smtp_host: str | None = Field(default=None, alias="SMTP_HOST")
     smtp_port: int = Field(default=587, alias="SMTP_PORT")
     smtp_user: str | None = Field(default=None, alias="SMTP_USER")
@@ -87,7 +89,11 @@ class Settings(BaseSettings):
             if not self.email_from or not self.resend_api_key:
                 raise ValueError("Invalid production Resend email configuration. Set EMAIL_FROM and RESEND_API_KEY.")
             return self
-        raise ValueError("Invalid production EMAIL_PROVIDER. Use smtp or resend.")
+        if provider == "brevo_api":
+            if not self.email_from or not self.brevo_api_key:
+                raise ValueError("Brevo API email provider requires BREVO_API_KEY and EMAIL_FROM.")
+            return self
+        raise ValueError("Invalid production EMAIL_PROVIDER. Use smtp, resend, or brevo_api.")
 
     @property
     def upload_path(self) -> Path:

@@ -39,8 +39,10 @@ CLOUDINARY_API_SECRET=<cloudinary-api-secret>
 CAPTCHA_ENABLED=true
 EMAIL_VERIFICATION_REQUIRED=true
 TWOFA_REQUIRED_ROLES=OWNER,ADMIN,RECRUITER
-EMAIL_PROVIDER=smtp
-EMAIL_FROM=no-reply@example.com
+EMAIL_PROVIDER=brevo_api
+EMAIL_FROM=swipeforsuccess.support@gmail.com
+EMAIL_FROM_NAME=Swipe for Success
+BREVO_API_KEY=<brevo-api-key>
 RESEND_API_KEY=<resend-api-key-if-using-resend>
 SMTP_HOST=<smtp-host-if-using-smtp>
 SMTP_PORT=587
@@ -60,6 +62,8 @@ RESET_TEAM_PASSWORDS=false
 ```
 
 Do not add backend secrets to Vercel.
+
+Render Free commonly blocks outbound SMTP ports such as 25, 465, and 587. Use `EMAIL_PROVIDER=brevo_api` with `BREVO_API_KEY` for OTP, 2FA, and email verification delivery on Render Free. Keep SMTP only for local development or hosting providers that allow outbound SMTP.
 
 ## Vercel Frontend
 
@@ -117,6 +121,7 @@ python seed.py
 - CORS errors: confirm `FRONTEND_URL` exactly matches the Vercel origin, without a trailing path.
 - Database connection errors: confirm Railway allows the Render service to connect and the `DATABASE_URL` uses `mysql+pymysql` with the public TCP proxy, not `mysql://`, `mysql.railway.internal`, `localhost`, or `127.0.0.1`.
 - Upload errors: confirm all three Cloudinary variables are set in Render.
+- OTP email errors on Render Free: use `EMAIL_PROVIDER=brevo_api`, `EMAIL_FROM`, `EMAIL_FROM_NAME`, and `BREVO_API_KEY`; SMTP ports may be unreachable.
 - Reset token exposure: set `ENV=production` so reset tokens are not returned in API responses.
 - Frontend API errors: confirm `NEXT_PUBLIC_API_BASE_URL` ends with `/api`.
 

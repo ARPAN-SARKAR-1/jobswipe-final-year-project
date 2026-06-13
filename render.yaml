@@ -33,8 +33,12 @@ services:
       - key: TWOFA_REQUIRED_ROLES
         value: OWNER,ADMIN,RECRUITER
       - key: EMAIL_PROVIDER
-        sync: false
+        value: brevo_api
       - key: EMAIL_FROM
+        sync: false
+      - key: EMAIL_FROM_NAME
+        value: Swipe for Success
+      - key: BREVO_API_KEY
         sync: false
       - key: RESEND_API_KEY
         sync: false
