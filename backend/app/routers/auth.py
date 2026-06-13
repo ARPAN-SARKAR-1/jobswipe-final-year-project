@@ -12,6 +12,7 @@ from app.core.security import create_access_token, get_current_user, hash_passwo
 from app.models.company_profile import CompanyProfile
 from app.models.enums import UserRole
 from app.models.job_seeker_profile import JobSeekerProfile
+from app.services.trust import get_or_create_recruiter_membership
 from app.models.password_reset_token import PasswordResetToken
 from app.models.user import User
 from app.schemas.auth import (
@@ -40,6 +41,7 @@ from app.services.security_challenges import (
 )
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
+PUBLIC_SIGNUP_ROLES = {UserRole.JOB_SEEKER.value, UserRole.RECRUITER.value}
 
 
 def token_response(user: User, message: str = "Authenticated", twofa_recommended: bool = False) -> TokenResponse:
@@ -49,6 +51,13 @@ def token_response(user: User, message: str = "Authenticated", twofa_recommended
         message=message,
         twofa_recommended=twofa_recommended,
     )
+
+
+def validate_login_portal(user: User, selected_portal: UserRole) -> None:
+    selected_role = selected_portal.value
+    allowed_portals = {UserRole.ADMIN.value, UserRole.OWNER.value} if user.role == UserRole.OWNER.value else {user.role}
+    if selected_role not in allowed_portals:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="This account cannot access the selected portal.")
 
 
 @router.get("/captcha", response_model=CaptchaResponse)
@@ -67,6 +76,8 @@ def captcha(
 
 @router.post("/register", response_model=AuthResponse, status_code=status.HTTP_201_CREATED)
 def register(payload: RegisterRequest, db: Annotated[Session, Depends(get_db)]) -> AuthResponse:
+    if payload.role.value not in PUBLIC_SIGNUP_ROLES:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Public signup is only available for job seekers and recruiters.")
     verify_captcha(db, "signup", payload.captcha_challenge_id, payload.captcha_answer)
     existing = db.scalar(select(User).where(User.email == payload.email.lower()))
     if existing:
@@ -92,7 +103,10 @@ def register(payload: RegisterRequest, db: Annotated[Session, Depends(get_db)]) 
     if payload.role == UserRole.JOB_SEEKER:
         db.add(JobSeekerProfile(user_id=user.id))
     elif payload.role == UserRole.RECRUITER:
-        db.add(CompanyProfile(recruiter_id=user.id))
+        company = CompanyProfile(recruiter_id=user.id)
+        db.add(company)
+        db.flush()
+        get_or_create_recruiter_membership(db, user, company)
 
     if settings.email_verification_required:
         create_email_verification_otp(db, user)
@@ -119,6 +133,7 @@ def login(
     user = db.scalar(select(User).where(User.email == payload.email.lower()))
     if user is None or not verify_password(payload.password, user.password_hash):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password")
+    validate_login_portal(user, payload.selected_portal)
     if settings.email_verification_required and not user.email_verified:
         db.commit()
         return AuthResponse(

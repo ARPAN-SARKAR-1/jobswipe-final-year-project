@@ -28,6 +28,36 @@ class RecruiterVerificationStatus(str, Enum):
     PENDING = "PENDING"
     VERIFIED = "VERIFIED"
     REJECTED = "REJECTED"
+    SUSPENDED = "SUSPENDED"
+
+
+class CompanyType(str, Enum):
+    STARTUP = "STARTUP"
+    MNC = "MNC"
+    CONSULTANCY = "CONSULTANCY"
+    AGENCY = "AGENCY"
+    COLLEGE = "COLLEGE"
+    OTHER = "OTHER"
+
+
+class CompanyVerificationStatus(str, Enum):
+    PENDING = "PENDING"
+    VERIFIED = "VERIFIED"
+    REJECTED = "REJECTED"
+    SUSPENDED = "SUSPENDED"
+
+
+class CompanyJoinStatus(str, Enum):
+    PENDING = "PENDING"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
+
+
+class ReviewModerationStatus(str, Enum):
+    VISIBLE = "VISIBLE"
+    HIDDEN = "HIDDEN"
+    FLAGGED = "FLAGGED"
+    REMOVED = "REMOVED"
 
 
 class ChatThreadStatus(str, Enum):
@@ -46,6 +76,8 @@ class ApplicationStatus(str, Enum):
     APPLIED = "APPLIED"
     VIEWED = "VIEWED"
     SHORTLISTED = "SHORTLISTED"
+    INTERVIEWED = "INTERVIEWED"
+    HIRED = "HIRED"
     REJECTED = "REJECTED"
     WITHDRAWN = "WITHDRAWN"
 

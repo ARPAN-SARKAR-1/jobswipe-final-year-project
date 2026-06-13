@@ -1,4 +1,9 @@
 export type Role = "JOB_SEEKER" | "RECRUITER" | "ADMIN" | "OWNER";
+export type CompanyVerificationStatus = "PENDING" | "VERIFIED" | "REJECTED" | "SUSPENDED";
+export type RecruiterVerificationStatus = "PENDING" | "VERIFIED" | "REJECTED" | "SUSPENDED";
+export type CompanyJoinStatus = "PENDING" | "APPROVED" | "REJECTED";
+export type CompanyType = "STARTUP" | "MNC" | "CONSULTANCY" | "AGENCY" | "COLLEGE" | "OTHER";
+export type ReviewModerationStatus = "VISIBLE" | "HIDDEN" | "FLAGGED" | "REMOVED";
 
 export type User = {
   id: number;
@@ -22,6 +27,7 @@ export type User = {
 export type Job = {
   id: number;
   recruiter_id: number;
+  company_id?: number | null;
   title: string;
   company_name: string;
   company_logo_url?: string | null;
@@ -46,6 +52,13 @@ export type Job = {
   bond_details?: string | null;
   moderation_status: "ACTIVE" | "PAUSED" | "REMOVED";
   moderation_reason?: string | null;
+  risk_score: number;
+  risk_flags?: string | null;
+  company_verified: boolean;
+  recruiter_verified: boolean;
+  trusted_posting: boolean;
+  company_verification_status?: CompanyVerificationStatus | null;
+  recruiter_verification_status?: RecruiterVerificationStatus | null;
   created_at: string;
   updated_at: string;
 };
@@ -76,12 +89,21 @@ export type JobSeekerProfile = {
 export type CompanyProfile = {
   id: number;
   recruiter_id: number;
+  name?: string | null;
   company_name?: string | null;
+  logo_url?: string | null;
   company_logo_url?: string | null;
   website?: string | null;
+  industry?: string | null;
+  company_type: CompanyType;
   description?: string | null;
   location?: string | null;
-  recruiter_verification_status: "PENDING" | "VERIFIED" | "REJECTED";
+  official_email_domain?: string | null;
+  verification_status: CompanyVerificationStatus;
+  recruiter_verification_status: RecruiterVerificationStatus;
+  company_join_status: CompanyJoinStatus;
+  designation?: string | null;
+  work_email?: string | null;
   verification_note?: string | null;
   verified_at?: string | null;
   verified_by_admin_id?: number | null;
@@ -93,6 +115,57 @@ export type AdminRecruiterVerification = CompanyProfile & {
   recruiter_name: string;
   recruiter_email: string;
   account_status: "ACTIVE" | "SUSPENDED";
+  membership_id?: number | null;
+  member_verification_status: RecruiterVerificationStatus;
+  member_join_status: CompanyJoinStatus;
+  member_admin_note?: string | null;
+};
+
+export type RecruiterCompanyMember = {
+  id: number;
+  recruiter_id: number;
+  company_id: number;
+  recruiter_name?: string | null;
+  recruiter_email?: string | null;
+  company_name?: string | null;
+  designation?: string | null;
+  work_email?: string | null;
+  verification_status: RecruiterVerificationStatus;
+  company_join_status: CompanyJoinStatus;
+  verified_at?: string | null;
+  verified_by_admin_id?: number | null;
+  verified_by_company_owner_id?: number | null;
+  admin_note?: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CompanyReview = {
+  id: number;
+  company_id: number;
+  reviewer_user_id: number;
+  reviewer_name?: string | null;
+  application_id?: number | null;
+  rating: number;
+  title: string;
+  review_text: string;
+  work_culture_rating?: number | null;
+  interview_process_rating?: number | null;
+  growth_rating?: number | null;
+  is_visible: boolean;
+  is_flagged: boolean;
+  moderation_status: ReviewModerationStatus;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CompanyPublicProfile = CompanyProfile & {
+  average_rating?: number | null;
+  review_count: number;
+  visible_reviews: CompanyReview[];
+  verified_recruiter_count: number;
+  verified_recruiters: RecruiterCompanyMember[];
+  active_jobs: Job[];
 };
 
 export type Swipe = {
@@ -110,7 +183,7 @@ export type Application = {
   job_id: number;
   resume_pdf_url?: string | null;
   github_url?: string | null;
-  status: "APPLIED" | "VIEWED" | "SHORTLISTED" | "REJECTED" | "WITHDRAWN";
+  status: "APPLIED" | "VIEWED" | "SHORTLISTED" | "INTERVIEWED" | "HIRED" | "REJECTED" | "WITHDRAWN";
   admin_status: "ACTIVE" | "PAUSED";
   admin_note?: string | null;
   chat_thread_id?: number | null;

@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import BondBadge from "@/components/BondBadge";
 import MatchScoreBadge from "@/components/MatchScoreBadge";
+import TrustBadge from "@/components/TrustBadge";
 import { assetUrl } from "@/lib/api";
 import { formatDate, splitSkills } from "@/lib/utils";
 import type { Job } from "@/types";
@@ -24,7 +25,17 @@ export default function JobCard({ job, actions, detailsHref }: { job: Job; actio
         </div>
         <div className="min-w-0 flex-1">
           <h3 className="text-xl font-black tracking-normal text-[#172026]">{job.title}</h3>
-          <p className="mt-1 text-sm font-bold text-[#6b767d]">{job.company_name}</p>
+          <div className="mt-1 flex flex-wrap items-center gap-2 text-sm font-bold text-[#6b767d]">
+            {job.company_id ? (
+              <Link href={`/companies/${job.company_id}`} className="text-teal-700">
+                {job.company_name}
+              </Link>
+            ) : (
+              <span>{job.company_name}</span>
+            )}
+            <TrustBadge label="Verified company" verified={job.company_verified} />
+            <TrustBadge label="Verified recruiter" verified={job.recruiter_verified} />
+          </div>
           <div className="mt-2 flex flex-wrap gap-2">
             <MatchScoreBadge job={job} />
             {job.existing_application_status && (

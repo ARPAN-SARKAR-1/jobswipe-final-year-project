@@ -3,6 +3,15 @@ export const roleOptions = [
   { label: "Recruiter", value: "RECRUITER" }
 ] as const;
 
+export const portalOptions = [
+  { label: "Job Seeker", value: "JOB_SEEKER" },
+  { label: "Recruiter", value: "RECRUITER" },
+  { label: "Admin", value: "ADMIN" },
+  { label: "Owner", value: "OWNER" }
+] as const;
+
+export const companyTypes = ["STARTUP", "MNC", "CONSULTANCY", "AGENCY", "COLLEGE", "OTHER"] as const;
+
 export const jobTypes = ["Internship", "Full-time", "Part-time", "Remote", "Hybrid", "Contract"];
 export const workModes = ["On-site", "Remote", "Hybrid"];
 export const experienceLevels = ["Fresher", "0-1 years", "1-2 years", "2+ years"];

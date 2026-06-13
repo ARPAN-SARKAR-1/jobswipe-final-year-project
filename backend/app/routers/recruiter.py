@@ -9,28 +9,65 @@ from app.core.database import get_db
 from app.core.security import require_roles
 from app.models.application import Application
 from app.models.company_profile import CompanyProfile
-from app.models.enums import ApplicationAdminStatus, ApplicationStatus, JobModerationStatus, UserRole
+from app.models.enums import ApplicationAdminStatus, ApplicationStatus, CompanyJoinStatus, JobModerationStatus, RecruiterVerificationStatus, UserRole
 from app.models.job import Job
 from app.models.job_seeker_profile import JobSeekerProfile
 from app.models.user import User
 from app.schemas.application import ApplicationStatusUpdate, RecruiterApplicationRead
 from app.schemas.job import JobRead
-from app.schemas.profile import CompanyProfileRead, CompanyProfileUpdate, UploadResponse
-from app.services.notifications import create_notification
+from app.schemas.profile import CompanyJoinRequest, CompanyProfileRead, CompanyProfileUpdate, UploadResponse
+from app.services.notifications import create_notification, notify_admins
 from app.services.timeline import add_timeline_event
+from app.services.trust import attach_job_trust, get_or_create_recruiter_membership, get_recruiter_membership
 from app.utils.file_upload import save_image
 
 router = APIRouter(prefix="/recruiter", tags=["Recruiter"])
 
 
 def get_or_create_company(db: Session, recruiter_id: int) -> CompanyProfile:
+    membership = get_recruiter_membership(db, recruiter_id)
+    if membership and membership.company:
+        return membership.company
     company = db.scalar(select(CompanyProfile).where(CompanyProfile.recruiter_id == recruiter_id))
     if company is None:
         company = CompanyProfile(recruiter_id=recruiter_id)
         db.add(company)
-        db.commit()
-        db.refresh(company)
+        db.flush()
+    recruiter = db.get(User, recruiter_id)
+    if recruiter:
+        get_or_create_recruiter_membership(db, recruiter, company)
+    db.commit()
+    db.refresh(company)
     return company
+
+
+def company_profile_response(db: Session, company: CompanyProfile, recruiter: User | None = None) -> CompanyProfileRead:
+    profile_user = recruiter or company.recruiter
+    membership = get_or_create_recruiter_membership(db, profile_user, company) if profile_user else None
+    return CompanyProfileRead(
+        id=company.id,
+        recruiter_id=profile_user.id if profile_user else company.recruiter_id,
+        company_name=company.company_name,
+        name=company.company_name,
+        company_logo_url=company.company_logo_url,
+        logo_url=company.company_logo_url,
+        website=company.website,
+        industry=company.industry,
+        company_type=company.company_type,
+        description=company.description,
+        location=company.location,
+        official_email_domain=company.official_email_domain,
+        verification_status=company.verification_status,
+        recruiter_verification_status=(membership.verification_status if membership else company.recruiter_verification_status),
+        company_join_status=(membership.company_join_status if membership else CompanyJoinStatus.PENDING.value),
+        designation=(membership.designation if membership else None),
+        work_email=(membership.work_email if membership else None),
+        verification_note=company.verification_note,
+        verified_at=company.verified_at,
+        verified_by_admin_id=company.verified_by_admin_id,
+        created_at=company.created_at,
+        updated_at=company.updated_at,
+    )
 
 
 @router.get("/dashboard")
@@ -62,8 +99,8 @@ def dashboard(
         "active_jobs": active_jobs,
         "expired_jobs": expired_jobs,
         "applications_received": applications,
-        "posted_jobs": [JobRead.model_validate(job).model_dump(mode="json") for job in jobs],
-        "company_profile": CompanyProfileRead.model_validate(company).model_dump(mode="json"),
+        "posted_jobs": [JobRead.model_validate(attach_job_trust(db, job)).model_dump(mode="json") for job in jobs],
+        "company_profile": company_profile_response(db, company, current_user).model_dump(mode="json"),
     }
 
 
@@ -71,8 +108,8 @@ def dashboard(
 def get_company_profile(
     current_user: Annotated[User, Depends(require_roles(UserRole.RECRUITER.value))],
     db: Annotated[Session, Depends(get_db)],
-) -> CompanyProfile:
-    return get_or_create_company(db, current_user.id)
+) -> CompanyProfileRead:
+    return company_profile_response(db, get_or_create_company(db, current_user.id), current_user)
 
 
 @router.put("/company-profile", response_model=CompanyProfileRead)
@@ -80,13 +117,70 @@ def update_company_profile(
     payload: CompanyProfileUpdate,
     current_user: Annotated[User, Depends(require_roles(UserRole.RECRUITER.value))],
     db: Annotated[Session, Depends(get_db)],
-) -> CompanyProfile:
+) -> CompanyProfileRead:
     company = get_or_create_company(db, current_user.id)
-    for key, value in payload.model_dump().items():
+    membership = get_or_create_recruiter_membership(db, current_user, company)
+    update_data = payload.model_dump()
+    member_fields = {"designation", "work_email"}
+    for key, value in update_data.items():
+        if value is None:
+            continue
+        if key in member_fields:
+            setattr(membership, key, value)
+            continue
+        if company.recruiter_id != current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only the company owner can update company details.",
+            )
         setattr(company, key, value)
+    if company.official_email_domain is None and membership.work_email and "@" in membership.work_email:
+        company.official_email_domain = membership.work_email.split("@", 1)[1].lower()
+    company.recruiter_verification_status = membership.verification_status
     db.commit()
     db.refresh(company)
-    return company
+    return company_profile_response(db, company, current_user)
+
+
+@router.post("/company-membership/request", response_model=CompanyProfileRead)
+def request_company_membership(
+    payload: CompanyJoinRequest,
+    current_user: Annotated[User, Depends(require_roles(UserRole.RECRUITER.value))],
+    db: Annotated[Session, Depends(get_db)],
+) -> CompanyProfileRead:
+    company = db.get(CompanyProfile, payload.company_id)
+    if company is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Company not found")
+    membership = get_recruiter_membership(db, current_user.id)
+    if membership and membership.company_id != company.id:
+        if (
+            membership.company_join_status == CompanyJoinStatus.APPROVED.value
+            and membership.verification_status == RecruiterVerificationStatus.VERIFIED.value
+        ):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="You already belong to a verified company.")
+        membership.company_id = company.id
+    elif membership is None:
+        membership = get_or_create_recruiter_membership(db, current_user, company)
+    if membership.verification_status == RecruiterVerificationStatus.SUSPENDED.value:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Suspended recruiters cannot request company membership.")
+    membership.designation = payload.designation
+    membership.work_email = payload.work_email
+    membership.company_join_status = CompanyJoinStatus.PENDING.value
+    membership.verification_status = RecruiterVerificationStatus.PENDING.value
+    membership.verified_at = None
+    membership.verified_by_admin_id = None
+    membership.verified_by_company_owner_id = None
+    membership.admin_note = None
+    notify_admins(
+        db,
+        "Recruiter membership requested",
+        f"{current_user.name} requested to join {company.company_name or 'a company'}.",
+        "RECRUITER_VERIFICATION",
+        "/admin/dashboard",
+    )
+    db.commit()
+    db.refresh(company)
+    return company_profile_response(db, company, current_user)
 
 
 @router.post("/company-logo", response_model=UploadResponse)
@@ -96,6 +190,8 @@ async def upload_company_logo(
     file: UploadFile = File(...),
 ) -> UploadResponse:
     company = get_or_create_company(db, current_user.id)
+    if company.recruiter_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only the company owner can update the company logo.")
     url = await save_image(file, "company-logos")
     company.company_logo_url = url
     db.commit()

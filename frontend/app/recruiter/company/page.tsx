@@ -7,14 +7,25 @@ import toast from "react-hot-toast";
 import PageHeader from "@/components/PageHeader";
 import VerificationStatusBadge from "@/components/VerificationStatusBadge";
 import { apiFetch, assetUrl } from "@/lib/api";
+import { companyTypes } from "@/lib/options";
 import { useAuth } from "@/hooks/useAuth";
-import type { CompanyProfile } from "@/types";
+import type { CompanyProfile, CompanyType } from "@/types";
 
 export default function CompanyProfilePage() {
   const { loading } = useAuth(["RECRUITER"]);
   const [company, setCompany] = useState<CompanyProfile | null>(null);
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({ company_name: "", website: "", description: "", location: "" });
+  const [form, setForm] = useState({
+    company_name: "",
+    website: "",
+    industry: "",
+    company_type: "OTHER" as CompanyType,
+    description: "",
+    location: "",
+    official_email_domain: "",
+    designation: "",
+    work_email: ""
+  });
 
   const load = () => {
     apiFetch<CompanyProfile>("/recruiter/company-profile")
@@ -23,8 +34,13 @@ export default function CompanyProfilePage() {
         setForm({
           company_name: data.company_name || "",
           website: data.website || "",
+          industry: data.industry || "",
+          company_type: data.company_type || "OTHER",
           description: data.description || "",
-          location: data.location || ""
+          location: data.location || "",
+          official_email_domain: data.official_email_domain || "",
+          designation: data.designation || "",
+          work_email: data.work_email || ""
         });
       })
       .catch((error) => toast.error(error instanceof Error ? error.message : "Company profile failed"));
@@ -85,7 +101,10 @@ export default function CompanyProfilePage() {
           </div>
           <h2 className="mt-4 text-xl font-black">{company.company_name || "Your company"}</h2>
           <div className="mt-3">
-            <VerificationStatusBadge status={company.recruiter_verification_status} />
+            <div className="flex flex-wrap justify-center gap-2">
+              <VerificationStatusBadge status={company.verification_status} />
+              <VerificationStatusBadge status={company.recruiter_verification_status} />
+            </div>
           </div>
           {company.verification_note && <p className="mt-3 text-sm font-bold leading-6 text-[#6b767d]">{company.verification_note}</p>}
           <label className="btn-secondary mt-5 w-full cursor-pointer">
@@ -113,6 +132,42 @@ export default function CompanyProfilePage() {
                 Location
               </label>
               <input id="location" className="field" value={form.location} onChange={(event) => setForm({ ...form, location: event.target.value })} />
+            </div>
+            <div>
+              <label className="label" htmlFor="industry">
+                Industry
+              </label>
+              <input id="industry" className="field" value={form.industry} onChange={(event) => setForm({ ...form, industry: event.target.value })} />
+            </div>
+            <div>
+              <label className="label" htmlFor="company_type">
+                Company type
+              </label>
+              <select id="company_type" className="field" value={form.company_type} onChange={(event) => setForm({ ...form, company_type: event.target.value as CompanyType })}>
+                {companyTypes.map((type) => (
+                  <option key={type} value={type}>
+                    {type.replaceAll("_", " ")}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="label" htmlFor="official_email_domain">
+                Official email domain
+              </label>
+              <input id="official_email_domain" className="field" value={form.official_email_domain} onChange={(event) => setForm({ ...form, official_email_domain: event.target.value })} />
+            </div>
+            <div>
+              <label className="label" htmlFor="work_email">
+                Recruiter work email
+              </label>
+              <input id="work_email" className="field" type="email" value={form.work_email} onChange={(event) => setForm({ ...form, work_email: event.target.value })} />
+            </div>
+            <div>
+              <label className="label" htmlFor="designation">
+                Designation
+              </label>
+              <input id="designation" className="field" value={form.designation} onChange={(event) => setForm({ ...form, designation: event.target.value })} />
             </div>
           </div>
           <div>

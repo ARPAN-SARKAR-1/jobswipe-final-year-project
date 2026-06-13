@@ -2,7 +2,7 @@
 
 import type { AuthResponse, Role, User } from "@/types";
 
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL?.trim().replace(/\/+$/, "") ?? "";
 
 export class ApiError extends Error {
   status: number;
@@ -44,7 +44,8 @@ export function logout() {
   window.dispatchEvent(new Event("jobswipe-auth"));
 }
 
-export function roleHome(role: Role): string {
+export function roleHome(role: Role, selectedPortal?: Role | null): string {
+  if (role === "OWNER" && (selectedPortal === "OWNER" || selectedPortal === "ADMIN")) return "/admin/dashboard";
   if (role === "ADMIN" || role === "OWNER") return "/admin/dashboard";
   if (role === "RECRUITER") return "/recruiter/dashboard";
   return "/jobseeker/dashboard";
@@ -62,6 +63,7 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}): Prom
   if (!API_BASE_URL) {
     throw new ApiError("NEXT_PUBLIC_API_BASE_URL is not configured", 500);
   }
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
 
   const headers = new Headers(options.headers);
   const token = getToken();
@@ -72,7 +74,7 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}): Prom
     headers.set("Content-Type", "application/json");
   }
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const response = await fetch(`${API_BASE_URL}${normalizedPath}`, {
     ...options,
     headers,
     cache: "no-store"

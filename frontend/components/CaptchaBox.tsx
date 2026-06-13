@@ -33,13 +33,17 @@ export default function CaptchaBox({ disabled = false, onChange, purpose }: Capt
     setLoading(true);
     setError(null);
     try {
-      const data = await apiFetch<CaptchaChallenge>(`/auth/captcha?purpose=${purpose}`);
+      const data = await apiFetch<CaptchaChallenge>(`/auth/captcha?purpose=${encodeURIComponent(purpose)}`);
       setChallenge(data);
       setAnswer("");
       onChange({ challengeId: data.challenge_id, answer: "" });
     } catch (loadError) {
+      console.error("CAPTCHA challenge fetch failed", {
+        purpose,
+        message: loadError instanceof Error ? loadError.message : "Unknown error"
+      });
       setChallenge(null);
-      setError(loadError instanceof Error ? loadError.message : "Security check failed to load");
+      setError("Security check could not load. Please refresh or try again.");
       onChange({ challengeId: "", answer: "" });
     } finally {
       setLoading(false);

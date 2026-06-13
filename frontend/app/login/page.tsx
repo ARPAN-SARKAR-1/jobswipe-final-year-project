@@ -8,22 +8,29 @@ import toast from "react-hot-toast";
 
 import CaptchaBox, { type CaptchaValue } from "@/components/CaptchaBox";
 import { apiFetch, roleHome, saveAuth } from "@/lib/api";
-import type { AuthResponse } from "@/types";
+import { portalOptions } from "@/lib/options";
+import type { AuthResponse, Role } from "@/types";
 
 export default function LoginPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({ email: "", password: "" });
+  const [selectedPortal, setSelectedPortal] = useState<Role | "">("");
   const [captcha, setCaptcha] = useState<CaptchaValue>({ challengeId: "", answer: "" });
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (!selectedPortal) {
+      toast.error("Select a portal before logging in");
+      return;
+    }
     setLoading(true);
     try {
       const auth = await apiFetch<AuthResponse>("/auth/login", {
         method: "POST",
         body: JSON.stringify({
           ...form,
+          selected_portal: selectedPortal,
           captcha_challenge_id: captcha.challengeId,
           captcha_answer: captcha.answer
         })
@@ -38,7 +45,8 @@ export default function LoginPage() {
           "swipe_pending_login",
           JSON.stringify({
             email: auth.user?.email || form.email,
-            login_challenge_id: auth.login_challenge_id
+            login_challenge_id: auth.login_challenge_id,
+            selected_portal: selectedPortal
           })
         );
         toast.success("Enter the OTP sent to your email");
@@ -47,7 +55,7 @@ export default function LoginPage() {
       }
       saveAuth(auth);
       toast.success("Welcome back");
-      router.push(roleHome(auth.user!.role));
+      router.push(roleHome(auth.user!.role, selectedPortal));
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Login failed");
     } finally {
@@ -64,6 +72,27 @@ export default function LoginPage() {
           Owner, Admin, and Recruiter accounts require email OTP verification for secure login.
         </p>
         <div className="mt-6 grid gap-4">
+          <div>
+            <label className="label">Portal</label>
+            <div className="grid grid-cols-2 gap-2">
+              {portalOptions.map((portal) => {
+                const isSelected = selectedPortal === portal.value;
+                return (
+                  <button
+                    key={portal.value}
+                    className={`rounded-lg border px-3 py-3 text-sm font-black transition ${
+                      isSelected ? "border-teal-700 bg-teal-700 text-white" : "border-black/10 bg-white/70 text-[#25313a] hover:border-teal-600"
+                    }`}
+                    disabled={loading}
+                    onClick={() => setSelectedPortal(portal.value)}
+                    type="button"
+                  >
+                    {portal.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
           <div>
             <label className="label" htmlFor="email">
               Email

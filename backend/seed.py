@@ -1,3 +1,4 @@
+import os
 from datetime import date, datetime, timedelta, timezone
 
 from sqlalchemy import select
@@ -9,13 +10,127 @@ from app.models.application_timeline import ApplicationTimeline
 from app.models.chat_message import ChatMessage
 from app.models.chat_thread import ChatThread
 from app.models.company_profile import CompanyProfile
-from app.models.enums import ApplicationStatus, ChatThreadStatus, RecruiterVerificationStatus, ReportStatus, ReportType, SwipeAction, UserRole
+from app.models.enums import AccountStatus, ApplicationStatus, ChatThreadStatus, CompanyJoinStatus, CompanyType, CompanyVerificationStatus, RecruiterVerificationStatus, ReportStatus, ReportType, SwipeAction, UserRole
 from app.models.job import Job
 from app.models.job_seeker_profile import JobSeekerProfile
 from app.models.notification import Notification
 from app.models.report import Report
+from app.models.recruiter_company_member import RecruiterCompanyMember
 from app.models.swipe import Swipe
 from app.models.user import User
+
+TRUE_VALUES = {"1", "true", "yes", "y", "on"}
+
+
+def utcnow() -> datetime:
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
+def env_bool(name: str, default: bool = False) -> bool:
+    raw_value = os.getenv(name)
+    if raw_value is None:
+        return default
+    return raw_value.strip().lower() in TRUE_VALUES
+
+
+def current_env() -> str:
+    return (os.getenv("ENV") or "development").strip().lower()
+
+
+def parse_email_list(raw_value: str | None) -> list[str]:
+    if not raw_value:
+        return []
+    emails: list[str] = []
+    seen: set[str] = set()
+    for item in raw_value.split(","):
+        email = item.strip().lower()
+        if not email or email in seen:
+            continue
+        if "@" not in email:
+            raise RuntimeError(f"Invalid team account email: {email}")
+        emails.append(email)
+        seen.add(email)
+    return emails
+
+
+def name_from_email(email: str, role: UserRole) -> str:
+    local_part = email.split("@", 1)[0].replace(".", " ").replace("_", " ").replace("-", " ")
+    name = " ".join(part.capitalize() for part in local_part.split())
+    return name or f"{role.value.title()} User"
+
+
+def seed_team_account(db, email: str, role: UserRole, initial_password: str, reset_passwords: bool) -> str:
+    now = utcnow()
+    user = db.scalar(select(User).where(User.email == email))
+    created = user is None
+    if user is None:
+        user = User(
+            name=name_from_email(email, role),
+            email=email,
+            password_hash=hash_password(initial_password),
+            role=role.value,
+            accepted_terms=True,
+            accepted_terms_at=now,
+            accepted_privacy=True,
+            accepted_privacy_at=now,
+            account_status=AccountStatus.ACTIVE.value,
+            email_verified=True,
+            email_verified_at=now,
+            is_protected_owner=role == UserRole.OWNER,
+        )
+        db.add(user)
+        db.flush()
+    else:
+        if user.is_protected_owner and role != UserRole.OWNER:
+            raise RuntimeError(f"Refusing to downgrade protected owner account: {email}")
+        user.role = role.value
+        user.account_status = AccountStatus.ACTIVE.value
+        user.suspension_reason = None
+        user.accepted_terms = True
+        user.accepted_terms_at = user.accepted_terms_at or now
+        user.accepted_privacy = True
+        user.accepted_privacy_at = user.accepted_privacy_at or now
+        user.email_verified = True
+        user.email_verified_at = user.email_verified_at or now
+        user.is_protected_owner = role == UserRole.OWNER
+        if reset_passwords:
+            user.password_hash = hash_password(initial_password)
+    db.flush()
+    role_label = "owner" if role == UserRole.OWNER else "admin"
+    action = "created" if created else "verified"
+    return f"Team {role_label} account {action}: {email}"
+
+
+def seed_team_accounts_from_env(db) -> list[str]:
+    owner_emails = parse_email_list(os.getenv("OWNER_EMAILS"))
+    admin_emails = parse_email_list(os.getenv("ADMIN_EMAILS"))
+    support_email = (os.getenv("SUPPORT_EMAIL") or "").strip().lower()
+    initial_password = os.getenv("INITIAL_TEAM_PASSWORD") or ""
+    reset_passwords = env_bool("RESET_TEAM_PASSWORDS", default=False)
+    env = current_env()
+
+    team_emails = set(owner_emails) | set(admin_emails)
+    overlap = set(owner_emails) & set(admin_emails)
+    if overlap:
+        raise RuntimeError(f"Team account email cannot be both OWNER and ADMIN: {', '.join(sorted(overlap))}")
+    if support_email and support_email in team_emails:
+        raise RuntimeError("SUPPORT_EMAIL must not be listed as a login account in OWNER_EMAILS or ADMIN_EMAILS")
+    if not team_emails:
+        if env == "production":
+            raise RuntimeError("OWNER_EMAILS or ADMIN_EMAILS is required to seed production team accounts.")
+        return []
+    if not initial_password:
+        if env == "production":
+            raise RuntimeError("INITIAL_TEAM_PASSWORD is required to seed owner/admin team accounts in production.")
+        print("Team account import skipped: INITIAL_TEAM_PASSWORD is not set.")
+        return []
+
+    messages: list[str] = []
+    for email in owner_emails:
+        messages.append(seed_team_account(db, email, UserRole.OWNER, initial_password, reset_passwords))
+    for email in admin_emails:
+        messages.append(seed_team_account(db, email, UserRole.ADMIN, initial_password, reset_passwords))
+    return messages
 
 
 def get_or_create_user(db, name: str, email: str, password: str, role: UserRole) -> User:
@@ -25,7 +140,7 @@ def get_or_create_user(db, name: str, email: str, password: str, role: UserRole)
         if user.account_status is None:
             user.account_status = "ACTIVE"
         user.email_verified = True
-        user.email_verified_at = user.email_verified_at or datetime.now(timezone.utc).replace(tzinfo=None)
+        user.email_verified_at = user.email_verified_at or utcnow()
         return user
     user = User(
         name=name,
@@ -33,12 +148,12 @@ def get_or_create_user(db, name: str, email: str, password: str, role: UserRole)
         password_hash=hash_password(password),
         role=role.value,
         accepted_terms=True,
-        accepted_terms_at=datetime.now(timezone.utc).replace(tzinfo=None),
+        accepted_terms_at=utcnow(),
         accepted_privacy=True,
-        accepted_privacy_at=datetime.now(timezone.utc).replace(tzinfo=None),
+        accepted_privacy_at=utcnow(),
         account_status="ACTIVE",
         email_verified=True,
-        email_verified_at=datetime.now(timezone.utc).replace(tzinfo=None),
+        email_verified_at=utcnow(),
     )
     db.add(user)
     db.flush()
@@ -48,25 +163,33 @@ def get_or_create_user(db, name: str, email: str, password: str, role: UserRole)
 def main() -> None:
     db = SessionLocal()
     try:
+        team_account_messages = seed_team_accounts_from_env(db)
+        if current_env() == "production":
+            db.commit()
+            for message in team_account_messages:
+                print(message)
+            print("Production team account seed completed.")
+            return
+
         owner = get_or_create_user(db, "Owner User", "owner@jobswipe.dev", "Owner@123", UserRole.OWNER)
         owner.is_protected_owner = True
         owner.account_status = "ACTIVE"
         owner.suspension_reason = None
         owner.accepted_privacy = True
-        owner.accepted_privacy_at = owner.accepted_privacy_at or datetime.now(timezone.utc).replace(tzinfo=None)
+        owner.accepted_privacy_at = owner.accepted_privacy_at or utcnow()
         admin = get_or_create_user(db, "Admin User", "admin@jobswipe.dev", "Admin@123", UserRole.ADMIN)
         admin.is_protected_owner = False
         admin.account_status = "ACTIVE"
         admin.suspension_reason = None
         admin.accepted_privacy = True
-        admin.accepted_privacy_at = admin.accepted_privacy_at or datetime.now(timezone.utc).replace(tzinfo=None)
+        admin.accepted_privacy_at = admin.accepted_privacy_at or utcnow()
         seeker = get_or_create_user(db, "Aarav Sharma", "jobseeker@jobswipe.dev", "Jobseeker@123", UserRole.JOB_SEEKER)
         seeker_two = get_or_create_user(db, "Meera Iyer", "meera@jobswipe.dev", "Jobseeker@123", UserRole.JOB_SEEKER)
         recruiter = get_or_create_user(db, "Neha Recruiter", "recruiter@jobswipe.dev", "Recruiter@123", UserRole.RECRUITER)
         recruiter_two = get_or_create_user(db, "Rohan Hiring", "rohan@jobswipe.dev", "Recruiter@123", UserRole.RECRUITER)
         for seeded_user in [seeker, seeker_two, recruiter, recruiter_two]:
             seeded_user.accepted_privacy = True
-            seeded_user.accepted_privacy_at = seeded_user.accepted_privacy_at or datetime.now(timezone.utc).replace(tzinfo=None)
+            seeded_user.accepted_privacy_at = seeded_user.accepted_privacy_at or utcnow()
         db.flush()
 
         if not db.scalar(select(JobSeekerProfile).where(JobSeekerProfile.user_id == seeker.id)):
@@ -105,10 +228,11 @@ def main() -> None:
             )
 
         companies = [
-            (recruiter, "NovaWorks Labs", "https://novaworks.example", "Bengaluru", "Product engineering studio hiring fresh talent."),
-            (recruiter_two, "CloudNest Systems", "https://cloudnest.example", "Hyderabad", "Cloud and data consultancy for fast-growing teams."),
+            (recruiter, "NovaWorks Labs", "https://novaworks.example", "Bengaluru", "Product engineering studio hiring fresh talent.", "Software", CompanyType.STARTUP.value, "novaworks.example"),
+            (recruiter_two, "CloudNest Systems", "https://cloudnest.example", "Hyderabad", "Cloud and data consultancy for fast-growing teams.", "Cloud consulting", CompanyType.CONSULTANCY.value, "cloudnest.example"),
         ]
-        for company_owner, name, website, location, description in companies:
+        company_by_recruiter_id = {}
+        for company_owner, name, website, location, description, industry, company_type, domain in companies:
             company = db.scalar(select(CompanyProfile).where(CompanyProfile.recruiter_id == company_owner.id))
             if company is None:
                 company = CompanyProfile(
@@ -119,6 +243,19 @@ def main() -> None:
                     description=description,
                 )
                 db.add(company)
+                db.flush()
+            company.company_name = company.company_name or name
+            company.website = company.website or website
+            company.location = company.location or location
+            company.description = company.description or description
+            company.industry = company.industry or industry
+            company.company_type = company.company_type or company_type
+            company.official_email_domain = company.official_email_domain or domain
+            company.verification_status = (
+                CompanyVerificationStatus.VERIFIED.value
+                if company_owner.id == recruiter.id
+                else CompanyVerificationStatus.PENDING.value
+            )
             company.recruiter_verification_status = (
                 RecruiterVerificationStatus.VERIFIED.value
                 if company_owner.id == recruiter.id
@@ -130,11 +267,28 @@ def main() -> None:
                 else "Pending seed recruiter for verification demos."
             )
             company.verified_at = (
-                company.verified_at or datetime.now(timezone.utc).replace(tzinfo=None)
+                company.verified_at or utcnow()
                 if company_owner.id == recruiter.id
                 else None
             )
             company.verified_by_admin_id = admin.id if company_owner.id == recruiter.id else None
+            membership = db.scalar(select(RecruiterCompanyMember).where(RecruiterCompanyMember.recruiter_id == company_owner.id))
+            if membership is None:
+                membership = RecruiterCompanyMember(recruiter_id=company_owner.id, company_id=company.id)
+                db.add(membership)
+            membership.company_id = company.id
+            membership.designation = membership.designation or "Talent Partner"
+            membership.work_email = membership.work_email or f"{company_owner.email.split('@', 1)[0]}@{domain}"
+            membership.verification_status = company.recruiter_verification_status
+            membership.company_join_status = (
+                CompanyJoinStatus.APPROVED.value
+                if company.recruiter_verification_status == RecruiterVerificationStatus.VERIFIED.value
+                else CompanyJoinStatus.PENDING.value
+            )
+            membership.verified_at = company.verified_at
+            membership.verified_by_admin_id = company.verified_by_admin_id
+            membership.admin_note = company.verification_note
+            company_by_recruiter_id[company_owner.id] = company
 
         db.flush()
         sample_jobs = [
@@ -157,10 +311,12 @@ def main() -> None:
         if db.scalar(select(Job).limit(1)) is None:
             for index, (title, required_skills, job_type, work_mode, exp, location, has_bond, bond_years, bond_details) in enumerate(sample_jobs):
                 owner = recruiter if index % 2 == 0 else recruiter_two
+                company = company_by_recruiter_id[owner.id]
                 company_name = "NovaWorks Labs" if owner.id == recruiter.id else "CloudNest Systems"
                 db.add(
                     Job(
                         recruiter_id=owner.id,
+                        company_id=company.id,
                         title=title,
                         company_name=company_name,
                         location=location,
@@ -185,6 +341,8 @@ def main() -> None:
             for title, _required_skills, _job_type, _work_mode, _exp, _location, has_bond, bond_years, bond_details in sample_jobs:
                 job = db.scalar(select(Job).where(Job.title == title))
                 if job:
+                    if job.recruiter_id in company_by_recruiter_id:
+                        job.company_id = company_by_recruiter_id[job.recruiter_id].id
                     job.has_bond = has_bond
                     job.bond_years = bond_years
                     job.bond_details = bond_details
@@ -293,14 +451,12 @@ def main() -> None:
             )
 
         db.commit()
+        for message in team_account_messages:
+            print(message)
         _ = admin
         _ = owner
         print("Seed data created or already present.")
-        print("Demo credentials:")
-        print("owner@jobswipe.dev / Owner@123")
-        print("admin@jobswipe.dev / Admin@123")
-        print("jobseeker@jobswipe.dev / Jobseeker@123")
-        print("recruiter@jobswipe.dev / Recruiter@123")
+        print("Demo credentials are documented for local development only.")
     finally:
         db.close()
 

@@ -3,7 +3,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func, select
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.core.database import get_db
 from app.core.security import hash_password, require_admin_or_owner, require_owner
@@ -11,16 +11,21 @@ from app.models.admin_action_log import AdminActionLog
 from app.models.application import Application
 from app.models.chat_thread import ChatThread
 from app.models.company_profile import CompanyProfile
+from app.models.company_review import CompanyReview
 from app.models.enums import (
     AccountStatus,
     ApplicationAdminStatus,
     ChatThreadStatus,
+    CompanyJoinStatus,
+    CompanyVerificationStatus,
     JobModerationStatus,
     RecruiterVerificationStatus,
+    ReviewModerationStatus,
     ReportStatus,
     UserRole,
 )
 from app.models.job import Job
+from app.models.recruiter_company_member import RecruiterCompanyMember
 from app.models.report import Report
 from app.models.swipe import Swipe
 from app.models.user import User
@@ -28,12 +33,14 @@ from app.schemas.admin import AdminActionLogRead, AdminCreateRequest, AdminNoteR
 from app.schemas.application import ApplicationRead
 from app.schemas.chat import ChatThreadRead
 from app.schemas.auth import UserRead
+from app.schemas.company import CompanyReviewModerationRequest, CompanyReviewRead, RecruiterCompanyMemberRead
 from app.schemas.job import JobRead
 from app.schemas.profile import AdminRecruiterVerificationRead
 from app.schemas.report import ReportRead, ReportStatusUpdate
 from app.schemas.swipe import SwipeRead
 from app.services.notifications import create_notification
 from app.services.timeline import add_timeline_event
+from app.services.trust import attach_job_trust, get_or_create_recruiter_membership
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 
@@ -124,7 +131,7 @@ def jobs(
     _current_user: Annotated[User, Depends(require_admin_or_owner)],
     db: Annotated[Session, Depends(get_db)],
 ) -> list[Job]:
-    return list(db.scalars(select(Job).order_by(Job.created_at.desc())).all())
+    return [attach_job_trust(db, job) for job in db.scalars(select(Job).order_by(Job.created_at.desc())).all()]
 
 
 @router.get("/applications", response_model=list[ApplicationRead])
@@ -235,15 +242,25 @@ def list_admins(
 
 
 def recruiter_verification_response(company: CompanyProfile) -> AdminRecruiterVerificationRead:
+    membership = company.members[0] if company.members else None
     return AdminRecruiterVerificationRead(
         id=company.id,
         recruiter_id=company.recruiter_id,
         company_name=company.company_name,
+        name=company.company_name,
         company_logo_url=company.company_logo_url,
+        logo_url=company.company_logo_url,
         website=company.website,
+        industry=company.industry,
+        company_type=company.company_type,
         description=company.description,
         location=company.location,
-        recruiter_verification_status=company.recruiter_verification_status,
+        official_email_domain=company.official_email_domain,
+        verification_status=company.verification_status,
+        recruiter_verification_status=(membership.verification_status if membership else company.recruiter_verification_status),
+        company_join_status=(membership.company_join_status if membership else CompanyJoinStatus.PENDING.value),
+        designation=(membership.designation if membership else None),
+        work_email=(membership.work_email if membership else None),
         verification_note=company.verification_note,
         verified_at=company.verified_at,
         verified_by_admin_id=company.verified_by_admin_id,
@@ -252,6 +269,52 @@ def recruiter_verification_response(company: CompanyProfile) -> AdminRecruiterVe
         recruiter_name=company.recruiter.name,
         recruiter_email=company.recruiter.email,
         account_status=company.recruiter.account_status,
+        membership_id=(membership.id if membership else None),
+        member_verification_status=(membership.verification_status if membership else RecruiterVerificationStatus.PENDING.value),
+        member_join_status=(membership.company_join_status if membership else CompanyJoinStatus.PENDING.value),
+        member_admin_note=(membership.admin_note if membership else None),
+    )
+
+
+def membership_response(member: RecruiterCompanyMember) -> RecruiterCompanyMemberRead:
+    return RecruiterCompanyMemberRead(
+        id=member.id,
+        recruiter_id=member.recruiter_id,
+        company_id=member.company_id,
+        recruiter_name=member.recruiter.name if member.recruiter else None,
+        recruiter_email=member.recruiter.email if member.recruiter else None,
+        company_name=member.company.company_name if member.company else None,
+        designation=member.designation,
+        work_email=member.work_email,
+        verification_status=member.verification_status,
+        company_join_status=member.company_join_status,
+        verified_at=member.verified_at,
+        verified_by_admin_id=member.verified_by_admin_id,
+        verified_by_company_owner_id=member.verified_by_company_owner_id,
+        admin_note=member.admin_note,
+        created_at=member.created_at,
+        updated_at=member.updated_at,
+    )
+
+
+def review_response(review: CompanyReview) -> CompanyReviewRead:
+    return CompanyReviewRead(
+        id=review.id,
+        company_id=review.company_id,
+        reviewer_user_id=review.reviewer_user_id,
+        reviewer_name=review.reviewer.name if review.reviewer else None,
+        application_id=review.application_id,
+        rating=review.rating,
+        title=review.title,
+        review_text=review.review_text,
+        work_culture_rating=review.work_culture_rating,
+        interview_process_rating=review.interview_process_rating,
+        growth_rating=review.growth_rating,
+        is_visible=review.is_visible,
+        is_flagged=review.is_flagged,
+        moderation_status=review.moderation_status,
+        created_at=review.created_at,
+        updated_at=review.updated_at,
     )
 
 
@@ -263,9 +326,9 @@ def recruiter_verifications(
     companies = db.scalars(
         select(CompanyProfile)
         .join(User, CompanyProfile.recruiter_id == User.id)
-        .options(joinedload(CompanyProfile.recruiter))
+        .options(joinedload(CompanyProfile.recruiter), selectinload(CompanyProfile.members))
         .where(User.role == UserRole.RECRUITER.value)
-        .order_by(CompanyProfile.recruiter_verification_status.asc(), CompanyProfile.updated_at.desc())
+        .order_by(CompanyProfile.verification_status.asc(), CompanyProfile.updated_at.desc())
     ).all()
     return [recruiter_verification_response(company) for company in companies]
 
@@ -279,16 +342,23 @@ def verify_recruiter(
 ) -> AdminRecruiterVerificationRead:
     company = db.scalar(
         select(CompanyProfile)
-        .options(joinedload(CompanyProfile.recruiter))
+        .options(joinedload(CompanyProfile.recruiter), selectinload(CompanyProfile.members))
         .where(CompanyProfile.recruiter_id == recruiter_id)
     )
     if company is None or company.recruiter.role != UserRole.RECRUITER.value:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Recruiter not found")
 
+    membership = get_or_create_recruiter_membership(db, company.recruiter, company)
+    company.verification_status = CompanyVerificationStatus.VERIFIED.value
     company.recruiter_verification_status = RecruiterVerificationStatus.VERIFIED.value
     company.verification_note = payload.admin_note
     company.verified_at = datetime.now(timezone.utc).replace(tzinfo=None)
     company.verified_by_admin_id = current_user.id
+    membership.verification_status = RecruiterVerificationStatus.VERIFIED.value
+    membership.company_join_status = CompanyJoinStatus.APPROVED.value
+    membership.verified_at = company.verified_at
+    membership.verified_by_admin_id = current_user.id
+    membership.admin_note = payload.admin_note
     create_notification(
         db,
         recruiter_id,
@@ -312,16 +382,23 @@ def reject_recruiter(
 ) -> AdminRecruiterVerificationRead:
     company = db.scalar(
         select(CompanyProfile)
-        .options(joinedload(CompanyProfile.recruiter))
+        .options(joinedload(CompanyProfile.recruiter), selectinload(CompanyProfile.members))
         .where(CompanyProfile.recruiter_id == recruiter_id)
     )
     if company is None or company.recruiter.role != UserRole.RECRUITER.value:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Recruiter not found")
 
+    membership = get_or_create_recruiter_membership(db, company.recruiter, company)
+    company.verification_status = CompanyVerificationStatus.REJECTED.value
     company.recruiter_verification_status = RecruiterVerificationStatus.REJECTED.value
     company.verification_note = payload.admin_note
     company.verified_at = None
     company.verified_by_admin_id = current_user.id
+    membership.verification_status = RecruiterVerificationStatus.REJECTED.value
+    membership.company_join_status = CompanyJoinStatus.REJECTED.value
+    membership.verified_at = None
+    membership.verified_by_admin_id = current_user.id
+    membership.admin_note = payload.admin_note
     create_notification(
         db,
         recruiter_id,
@@ -334,6 +411,244 @@ def reject_recruiter(
     db.commit()
     db.refresh(company)
     return recruiter_verification_response(company)
+
+
+@router.get("/company-verifications", response_model=list[AdminRecruiterVerificationRead])
+def company_verifications(
+    _current_user: Annotated[User, Depends(require_admin_or_owner)],
+    db: Annotated[Session, Depends(get_db)],
+) -> list[AdminRecruiterVerificationRead]:
+    companies = db.scalars(
+        select(CompanyProfile)
+        .options(joinedload(CompanyProfile.recruiter), selectinload(CompanyProfile.members))
+        .order_by(CompanyProfile.verification_status.asc(), CompanyProfile.updated_at.desc())
+    ).all()
+    return [recruiter_verification_response(company) for company in companies if company.recruiter]
+
+
+@router.put("/companies/{company_id}/verify", response_model=AdminRecruiterVerificationRead)
+def verify_company(
+    company_id: int,
+    payload: AdminNoteRequest,
+    current_user: Annotated[User, Depends(require_admin_or_owner)],
+    db: Annotated[Session, Depends(get_db)],
+) -> AdminRecruiterVerificationRead:
+    company = db.scalar(
+        select(CompanyProfile)
+        .options(joinedload(CompanyProfile.recruiter), selectinload(CompanyProfile.members))
+        .where(CompanyProfile.id == company_id)
+    )
+    if company is None or company.recruiter is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Company not found")
+    company.verification_status = CompanyVerificationStatus.VERIFIED.value
+    company.recruiter_verification_status = RecruiterVerificationStatus.VERIFIED.value
+    company.verification_note = payload.admin_note
+    company.verified_at = datetime.now(timezone.utc).replace(tzinfo=None)
+    company.verified_by_admin_id = current_user.id
+    membership = get_or_create_recruiter_membership(db, company.recruiter, company)
+    membership.verification_status = RecruiterVerificationStatus.VERIFIED.value
+    membership.company_join_status = CompanyJoinStatus.APPROVED.value
+    membership.verified_at = company.verified_at
+    membership.verified_by_admin_id = current_user.id
+    membership.admin_note = payload.admin_note
+    log_action(db, current_user, "VERIFY_COMPANY", "COMPANY", company.id, payload.admin_note)
+    db.commit()
+    db.refresh(company)
+    return recruiter_verification_response(company)
+
+
+@router.put("/companies/{company_id}/reject", response_model=AdminRecruiterVerificationRead)
+def reject_company(
+    company_id: int,
+    payload: AdminNoteRequest,
+    current_user: Annotated[User, Depends(require_admin_or_owner)],
+    db: Annotated[Session, Depends(get_db)],
+) -> AdminRecruiterVerificationRead:
+    company = db.scalar(
+        select(CompanyProfile)
+        .options(joinedload(CompanyProfile.recruiter), selectinload(CompanyProfile.members))
+        .where(CompanyProfile.id == company_id)
+    )
+    if company is None or company.recruiter is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Company not found")
+    company.verification_status = CompanyVerificationStatus.REJECTED.value
+    company.recruiter_verification_status = RecruiterVerificationStatus.REJECTED.value
+    company.verification_note = payload.admin_note
+    company.verified_at = None
+    company.verified_by_admin_id = current_user.id
+    for membership in company.members:
+        membership.verification_status = RecruiterVerificationStatus.REJECTED.value
+        membership.company_join_status = CompanyJoinStatus.REJECTED.value
+        membership.verified_at = None
+        membership.verified_by_admin_id = current_user.id
+        membership.admin_note = payload.admin_note
+    log_action(db, current_user, "REJECT_COMPANY", "COMPANY", company.id, payload.admin_note)
+    db.commit()
+    db.refresh(company)
+    return recruiter_verification_response(company)
+
+
+@router.put("/companies/{company_id}/suspend", response_model=AdminRecruiterVerificationRead)
+def suspend_company(
+    company_id: int,
+    payload: AdminNoteRequest,
+    current_user: Annotated[User, Depends(require_admin_or_owner)],
+    db: Annotated[Session, Depends(get_db)],
+) -> AdminRecruiterVerificationRead:
+    company = db.scalar(
+        select(CompanyProfile)
+        .options(joinedload(CompanyProfile.recruiter), selectinload(CompanyProfile.members))
+        .where(CompanyProfile.id == company_id)
+    )
+    if company is None or company.recruiter is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Company not found")
+    company.verification_status = CompanyVerificationStatus.SUSPENDED.value
+    company.recruiter_verification_status = RecruiterVerificationStatus.SUSPENDED.value
+    company.verification_note = payload.admin_note
+    for membership in company.members:
+        membership.verification_status = RecruiterVerificationStatus.SUSPENDED.value
+        membership.admin_note = payload.admin_note
+    for job in db.scalars(select(Job).where(Job.company_id == company.id)).all():
+        job.moderation_status = JobModerationStatus.PAUSED.value
+        job.moderation_reason = "Company suspended by admin."
+    log_action(db, current_user, "SUSPEND_COMPANY", "COMPANY", company.id, payload.admin_note)
+    db.commit()
+    db.refresh(company)
+    return recruiter_verification_response(company)
+
+
+@router.get("/recruiter-memberships", response_model=list[RecruiterCompanyMemberRead])
+def recruiter_memberships(
+    _current_user: Annotated[User, Depends(require_admin_or_owner)],
+    db: Annotated[Session, Depends(get_db)],
+) -> list[RecruiterCompanyMemberRead]:
+    members = db.scalars(
+        select(RecruiterCompanyMember)
+        .options(joinedload(RecruiterCompanyMember.recruiter), joinedload(RecruiterCompanyMember.company))
+        .order_by(RecruiterCompanyMember.verification_status.asc(), RecruiterCompanyMember.updated_at.desc())
+    ).all()
+    return [membership_response(member) for member in members]
+
+
+@router.put("/recruiter-memberships/{membership_id}/verify", response_model=RecruiterCompanyMemberRead)
+def verify_recruiter_membership(
+    membership_id: int,
+    payload: AdminNoteRequest,
+    current_user: Annotated[User, Depends(require_admin_or_owner)],
+    db: Annotated[Session, Depends(get_db)],
+) -> RecruiterCompanyMemberRead:
+    member = db.scalar(
+        select(RecruiterCompanyMember)
+        .options(joinedload(RecruiterCompanyMember.recruiter), joinedload(RecruiterCompanyMember.company))
+        .where(RecruiterCompanyMember.id == membership_id)
+    )
+    if member is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Recruiter membership not found")
+    if member.company.verification_status != CompanyVerificationStatus.VERIFIED.value:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Company must be verified before recruiter membership can be verified.")
+    member.verification_status = RecruiterVerificationStatus.VERIFIED.value
+    member.company_join_status = CompanyJoinStatus.APPROVED.value
+    member.verified_at = datetime.now(timezone.utc).replace(tzinfo=None)
+    member.verified_by_admin_id = current_user.id
+    member.admin_note = payload.admin_note
+    member.company.recruiter_verification_status = RecruiterVerificationStatus.VERIFIED.value
+    log_action(db, current_user, "VERIFY_RECRUITER_MEMBERSHIP", "RECRUITER_COMPANY_MEMBER", member.id, payload.admin_note)
+    db.commit()
+    db.refresh(member)
+    return membership_response(member)
+
+
+@router.put("/recruiter-memberships/{membership_id}/reject", response_model=RecruiterCompanyMemberRead)
+def reject_recruiter_membership(
+    membership_id: int,
+    payload: AdminNoteRequest,
+    current_user: Annotated[User, Depends(require_admin_or_owner)],
+    db: Annotated[Session, Depends(get_db)],
+) -> RecruiterCompanyMemberRead:
+    member = db.scalar(
+        select(RecruiterCompanyMember)
+        .options(joinedload(RecruiterCompanyMember.recruiter), joinedload(RecruiterCompanyMember.company))
+        .where(RecruiterCompanyMember.id == membership_id)
+    )
+    if member is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Recruiter membership not found")
+    member.verification_status = RecruiterVerificationStatus.REJECTED.value
+    member.company_join_status = CompanyJoinStatus.REJECTED.value
+    member.verified_at = None
+    member.verified_by_admin_id = current_user.id
+    member.admin_note = payload.admin_note
+    log_action(db, current_user, "REJECT_RECRUITER_MEMBERSHIP", "RECRUITER_COMPANY_MEMBER", member.id, payload.admin_note)
+    db.commit()
+    db.refresh(member)
+    return membership_response(member)
+
+
+@router.put("/recruiter-memberships/{membership_id}/suspend", response_model=RecruiterCompanyMemberRead)
+def suspend_recruiter_membership(
+    membership_id: int,
+    payload: AdminNoteRequest,
+    current_user: Annotated[User, Depends(require_admin_or_owner)],
+    db: Annotated[Session, Depends(get_db)],
+) -> RecruiterCompanyMemberRead:
+    member = db.scalar(
+        select(RecruiterCompanyMember)
+        .options(joinedload(RecruiterCompanyMember.recruiter), joinedload(RecruiterCompanyMember.company))
+        .where(RecruiterCompanyMember.id == membership_id)
+    )
+    if member is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Recruiter membership not found")
+    member.verification_status = RecruiterVerificationStatus.SUSPENDED.value
+    member.admin_note = payload.admin_note
+    for job in db.scalars(select(Job).where(Job.recruiter_id == member.recruiter_id).where(Job.company_id == member.company_id)).all():
+        job.moderation_status = JobModerationStatus.PAUSED.value
+        job.moderation_reason = "Recruiter membership suspended by admin."
+    log_action(db, current_user, "SUSPEND_RECRUITER_MEMBERSHIP", "RECRUITER_COMPANY_MEMBER", member.id, payload.admin_note)
+    db.commit()
+    db.refresh(member)
+    return membership_response(member)
+
+
+@router.get("/suspicious-jobs", response_model=list[JobRead])
+def suspicious_jobs(
+    _current_user: Annotated[User, Depends(require_admin_or_owner)],
+    db: Annotated[Session, Depends(get_db)],
+) -> list[Job]:
+    jobs = db.scalars(select(Job).where(Job.risk_score > 0).order_by(Job.updated_at.desc())).all()
+    return [attach_job_trust(db, job) for job in jobs]
+
+
+@router.get("/company-reviews", response_model=list[CompanyReviewRead])
+def company_reviews(
+    _current_user: Annotated[User, Depends(require_admin_or_owner)],
+    db: Annotated[Session, Depends(get_db)],
+) -> list[CompanyReviewRead]:
+    reviews = db.scalars(
+        select(CompanyReview)
+        .options(joinedload(CompanyReview.reviewer))
+        .order_by(CompanyReview.created_at.desc(), CompanyReview.id.desc())
+    ).all()
+    return [review_response(review) for review in reviews]
+
+
+@router.put("/company-reviews/{review_id}/moderate", response_model=CompanyReviewRead)
+def moderate_company_review(
+    review_id: int,
+    payload: CompanyReviewModerationRequest,
+    current_user: Annotated[User, Depends(require_admin_or_owner)],
+    db: Annotated[Session, Depends(get_db)],
+) -> CompanyReviewRead:
+    review = db.scalar(
+        select(CompanyReview).options(joinedload(CompanyReview.reviewer)).where(CompanyReview.id == review_id)
+    )
+    if review is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Company review not found")
+    review.moderation_status = payload.moderation_status.value
+    review.is_visible = payload.moderation_status == ReviewModerationStatus.VISIBLE
+    review.is_flagged = payload.moderation_status == ReviewModerationStatus.FLAGGED
+    log_action(db, current_user, f"REVIEW_{payload.moderation_status.value}", "COMPANY_REVIEW", review.id, payload.admin_note)
+    db.commit()
+    db.refresh(review)
+    return review_response(review)
 
 
 @router.post("/admins", response_model=UserRead, status_code=status.HTTP_201_CREATED)

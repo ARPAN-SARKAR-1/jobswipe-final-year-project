@@ -2,19 +2,22 @@ from datetime import date
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import or_, select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.security import get_optional_current_user, require_roles
 from app.models.company_profile import CompanyProfile
 from app.models.application import Application
-from app.models.enums import AccountStatus, JobModerationStatus, RecruiterVerificationStatus, UserRole
+from app.models.enums import AccountStatus, CompanyJoinStatus, CompanyVerificationStatus, JobModerationStatus, RecruiterVerificationStatus, UserRole
 from app.models.job import Job
 from app.models.job_seeker_profile import JobSeekerProfile
+from app.models.recruiter_company_member import RecruiterCompanyMember
 from app.models.swipe import Swipe
 from app.models.user import User
 from app.schemas.job import JobCreate, JobRead, JobUpdate
+from app.services.notifications import notify_admins
+from app.services.trust import apply_job_risk, attach_job_trust, get_recruiter_membership, recruiter_can_post_public_job
 from app.utils.match_score import calculate_match_score
 from app.utils.skills import split_skills
 
@@ -32,10 +35,19 @@ def apply_job_filters(
     active_only: bool,
 ):
     statement = statement.where(Job.moderation_status == JobModerationStatus.ACTIVE.value)
-    verified_recruiters = select(CompanyProfile.recruiter_id).where(
-        CompanyProfile.recruiter_verification_status == RecruiterVerificationStatus.VERIFIED.value
+    statement = (
+        statement.join(
+            RecruiterCompanyMember,
+            and_(
+                RecruiterCompanyMember.recruiter_id == Job.recruiter_id,
+                RecruiterCompanyMember.company_id == Job.company_id,
+            ),
+        )
+        .join(CompanyProfile, CompanyProfile.id == Job.company_id)
+        .where(CompanyProfile.verification_status == CompanyVerificationStatus.VERIFIED.value)
+        .where(RecruiterCompanyMember.verification_status == RecruiterVerificationStatus.VERIFIED.value)
+        .where(RecruiterCompanyMember.company_join_status == CompanyJoinStatus.APPROVED.value)
     )
-    statement = statement.where(Job.recruiter_id.in_(verified_recruiters))
     if active_only:
         statement = statement.where(Job.is_active.is_(True)).where(Job.deadline >= date.today())
     if job_type:
@@ -53,6 +65,8 @@ def apply_job_filters(
 
 
 def apply_job_context(jobs: list[Job], db: Session, user: User | None) -> list[Job]:
+    for job in jobs:
+        attach_job_trust(db, job)
     if user is None or user.role != UserRole.JOB_SEEKER.value:
         return jobs
     profile = db.scalar(select(JobSeekerProfile).where(JobSeekerProfile.user_id == user.id))
@@ -67,11 +81,15 @@ def apply_job_context(jobs: list[Job], db: Session, user: User | None) -> list[J
 
 
 def ensure_verified_recruiter(db: Session, recruiter_id: int) -> CompanyProfile:
-    company = db.scalar(select(CompanyProfile).where(CompanyProfile.recruiter_id == recruiter_id))
-    if company is None or company.recruiter_verification_status != RecruiterVerificationStatus.VERIFIED.value:
+    recruiter = db.get(User, recruiter_id)
+    membership = get_recruiter_membership(db, recruiter_id)
+    company = membership.company if membership else db.scalar(select(CompanyProfile).where(CompanyProfile.recruiter_id == recruiter_id))
+    if membership is None and company is not None:
+        membership = get_recruiter_membership(db, recruiter_id, company.id)
+    if recruiter is None or not recruiter_can_post_public_job(recruiter, company, membership):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Your company profile must be verified by admin before posting jobs.",
+            detail="Your company and recruiter membership must be verified before posting public jobs.",
         )
     return company
 
@@ -152,12 +170,18 @@ def get_job(
     current_user: Annotated[User | None, Depends(get_optional_current_user)],
 ) -> Job:
     job = db.get(Job, job_id)
-    company = db.scalar(select(CompanyProfile).where(CompanyProfile.recruiter_id == job.recruiter_id)) if job else None
+    company = job.company if job else None
+    if company is None and job:
+        company = db.scalar(select(CompanyProfile).where(CompanyProfile.recruiter_id == job.recruiter_id))
+    membership = get_recruiter_membership(db, job.recruiter_id, company.id if company else None) if job else None
     if (
         job is None
         or job.moderation_status != JobModerationStatus.ACTIVE.value
         or company is None
-        or company.recruiter_verification_status != RecruiterVerificationStatus.VERIFIED.value
+        or company.verification_status != CompanyVerificationStatus.VERIFIED.value
+        or membership is None
+        or membership.verification_status != RecruiterVerificationStatus.VERIFIED.value
+        or membership.company_join_status != CompanyJoinStatus.APPROVED.value
     ):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
     return apply_job_context([job], db, current_user)[0]
@@ -173,12 +197,24 @@ def create_job(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Suspended recruiters cannot post new jobs")
     company = ensure_verified_recruiter(db, current_user.id)
     job = Job(recruiter_id=current_user.id, **payload.model_dump(exclude={"required_skills_list"}))
+    job.company_id = company.id
+    if company.company_name:
+        job.company_name = company.company_name
     if not job.company_logo_url and company and company.company_logo_url:
         job.company_logo_url = company.company_logo_url
+    apply_job_risk(job)
     db.add(job)
+    if job.risk_score > 0:
+        notify_admins(
+            db,
+            "Suspicious job queued",
+            f"Job '{job.title}' was paused for suspicious payment language.",
+            "JOB_REPORTED",
+            "/admin/dashboard",
+        )
     db.commit()
     db.refresh(job)
-    return job
+    return attach_job_trust(db, job)
 
 
 @router.put("/{job_id}", response_model=JobRead)
@@ -200,9 +236,21 @@ def update_job(
         update_data["bond_details"] = None
     for key, value in update_data.items():
         setattr(job, key, value)
+    company = ensure_verified_recruiter(db, current_user.id) if update_data.get("is_active") is True else None
+    if company is not None:
+        job.company_id = company.id
+    apply_job_risk(job)
+    if job.risk_score > 0:
+        notify_admins(
+            db,
+            "Suspicious job queued",
+            f"Job '{job.title}' was paused for suspicious payment language.",
+            "JOB_REPORTED",
+            "/admin/dashboard",
+        )
     db.commit()
     db.refresh(job)
-    return job
+    return attach_job_trust(db, job)
 
 
 @router.delete("/{job_id}")

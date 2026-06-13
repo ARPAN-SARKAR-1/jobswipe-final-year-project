@@ -58,3 +58,13 @@ services:
         value: "30"
       - key: TRUSTED_DEVICE_COOKIE_NAME
         value: swipe_trusted_device
+      - key: OWNER_EMAILS
+        sync: false
+      - key: ADMIN_EMAILS
+        sync: false
+      - key: SUPPORT_EMAIL
+        sync: false
+      - key: INITIAL_TEAM_PASSWORD
+        sync: false
+      - key: RESET_TEAM_PASSWORDS
+        value: "false"

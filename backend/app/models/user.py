@@ -42,6 +42,13 @@ class User(TimestampMixin, Base):
     email_otps = relationship("EmailOTP", back_populates="user", cascade="all, delete-orphan")
     login_otp_challenges = relationship("LoginOTPChallenge", back_populates="user", cascade="all, delete-orphan")
     trusted_devices = relationship("TrustedDevice", back_populates="user", cascade="all, delete-orphan")
+    company_memberships = relationship(
+        "RecruiterCompanyMember",
+        foreign_keys="RecruiterCompanyMember.recruiter_id",
+        back_populates="recruiter",
+        cascade="all, delete-orphan",
+    )
+    company_reviews = relationship("CompanyReview", back_populates="reviewer", cascade="all, delete-orphan")
     recruiter_chat_threads = relationship(
         "ChatThread",
         foreign_keys="ChatThread.recruiter_id",

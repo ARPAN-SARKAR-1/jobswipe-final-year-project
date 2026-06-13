@@ -39,8 +39,6 @@ class RegisterRequest(BaseModel):
 
     @model_validator(mode="after")
     def validate_signup(self) -> "RegisterRequest":
-        if self.role in {UserRole.ADMIN, UserRole.OWNER}:
-            raise ValueError("Public signup cannot create admin or owner accounts.")
         if self.password != self.confirm_password:
             raise ValueError("Passwords do not match")
         if not self.accepted_terms:
@@ -53,6 +51,7 @@ class RegisterRequest(BaseModel):
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str = Field(min_length=1)
+    selected_portal: UserRole
     captcha_challenge_id: str | None = None
     captcha_answer: str | None = None
 

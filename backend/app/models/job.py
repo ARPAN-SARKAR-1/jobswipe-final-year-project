@@ -1,6 +1,6 @@
 from datetime import date
 
-from sqlalchemy import Boolean, Date, Float, ForeignKey, String, Text
+from sqlalchemy import Boolean, Date, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -12,6 +12,7 @@ class Job(TimestampMixin, Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     recruiter_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    company_id: Mapped[int | None] = mapped_column(ForeignKey("company_profiles.id", ondelete="SET NULL"), nullable=True, index=True)
     title: Mapped[str] = mapped_column(String(180), nullable=False)
     company_name: Mapped[str] = mapped_column(String(160), nullable=False)
     company_logo_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
@@ -30,8 +31,11 @@ class Job(TimestampMixin, Base):
     bond_details: Mapped[str | None] = mapped_column(Text, nullable=True)
     moderation_status: Mapped[str] = mapped_column(String(30), default="ACTIVE", nullable=False)
     moderation_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    risk_score: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    risk_flags: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     recruiter = relationship("User", back_populates="jobs")
+    company = relationship("CompanyProfile", back_populates="jobs")
     applications = relationship("Application", back_populates="job", cascade="all, delete-orphan")
     swipes = relationship("Swipe", back_populates="job", cascade="all, delete-orphan")
     chat_threads = relationship("ChatThread", back_populates="job", cascade="all, delete-orphan")

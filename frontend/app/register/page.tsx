@@ -93,16 +93,22 @@ export default function RegisterPage() {
             </div>
           </div>
           <div>
-            <label className="label" htmlFor="role">
-              Role
-            </label>
-            <select id="role" className="field" value={form.role} onChange={(event) => setForm({ ...form, role: event.target.value as Role })}>
+            <label className="label">Account type</label>
+            <div className="grid gap-2 sm:grid-cols-2">
               {roleOptions.map((role) => (
-                <option key={role.value} value={role.value}>
-                  {role.label}
-                </option>
+                <button
+                  key={role.value}
+                  className={`rounded-lg border px-3 py-3 text-sm font-black transition ${
+                    form.role === role.value ? "border-teal-700 bg-teal-700 text-white" : "border-black/10 bg-white/70 text-[#25313a] hover:border-teal-600"
+                  }`}
+                  disabled={loading}
+                  onClick={() => setForm({ ...form, role: role.value as Role })}
+                  type="button"
+                >
+                  Join as {role.label}
+                </button>
               ))}
-            </select>
+            </div>
           </div>
           <label className="flex items-start gap-3 rounded-lg border border-black/10 bg-white/70 p-3 text-sm font-bold text-[#526069]">
             <input

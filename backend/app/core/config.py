@@ -1,7 +1,8 @@
 from functools import lru_cache
 from pathlib import Path
+from urllib.parse import urlparse
 
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BACKEND_DIR = Path(__file__).resolve().parents[2]
@@ -46,6 +47,18 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         extra="ignore",
     )
+
+    @model_validator(mode="after")
+    def validate_production_database_url(self) -> "Settings":
+        if not self.is_production:
+            return self
+        database_url = self.database_url.strip()
+        parsed = urlparse(database_url)
+        hostname = (parsed.hostname or "").lower()
+        invalid_host = hostname in {"localhost", "127.0.0.1", "::1"} or hostname.endswith(".railway.internal")
+        if not database_url or parsed.scheme != "mysql+pymysql" or invalid_host:
+            raise ValueError("Invalid production DATABASE_URL. Use mysql+pymysql://...")
+        return self
 
     @property
     def upload_path(self) -> Path:

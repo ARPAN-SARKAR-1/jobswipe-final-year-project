@@ -87,8 +87,16 @@ class JobUpdate(BaseModel):
 class JobRead(JobBase):
     id: int
     recruiter_id: int
+    company_id: int | None = None
     moderation_status: JobModerationStatus = JobModerationStatus.ACTIVE
     moderation_reason: str | None = None
+    risk_score: int = 0
+    risk_flags: str | None = None
+    company_verified: bool = False
+    recruiter_verified: bool = False
+    trusted_posting: bool = False
+    company_verification_status: str | None = None
+    recruiter_verification_status: str | None = None
     match_score: int | None = None
     matched_skills: list[str] = []
     missing_skills: list[str] = []

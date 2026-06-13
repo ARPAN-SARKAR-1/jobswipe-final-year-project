@@ -3,7 +3,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator
 
-from app.models.enums import RecruiterVerificationStatus
+from app.models.enums import CompanyJoinStatus, CompanyType, CompanyVerificationStatus, RecruiterVerificationStatus
 from app.utils.skills import normalize_skills, split_skills
 
 
@@ -49,15 +49,32 @@ class JobSeekerProfileRead(JobSeekerProfileUpdate):
 class CompanyProfileUpdate(BaseModel):
     company_name: str | None = Field(default=None, max_length=160)
     website: str | None = Field(default=None, max_length=255)
+    industry: str | None = Field(default=None, max_length=120)
+    company_type: CompanyType | None = None
     description: str | None = None
     location: str | None = Field(default=None, max_length=160)
+    official_email_domain: str | None = Field(default=None, max_length=160)
+    designation: str | None = Field(default=None, max_length=120)
+    work_email: str | None = Field(default=None, max_length=255)
+
+
+class CompanyJoinRequest(BaseModel):
+    company_id: int
+    designation: str | None = Field(default=None, max_length=120)
+    work_email: str | None = Field(default=None, max_length=255)
 
 
 class CompanyProfileRead(CompanyProfileUpdate):
     id: int
     recruiter_id: int
+    name: str | None = None
     company_logo_url: str | None = None
+    logo_url: str | None = None
+    verification_status: CompanyVerificationStatus = CompanyVerificationStatus.PENDING
     recruiter_verification_status: RecruiterVerificationStatus = RecruiterVerificationStatus.PENDING
+    company_join_status: CompanyJoinStatus = CompanyJoinStatus.PENDING
+    designation: str | None = None
+    work_email: str | None = None
     verification_note: str | None = None
     verified_at: datetime | None = None
     verified_by_admin_id: int | None = None
@@ -71,6 +88,10 @@ class AdminRecruiterVerificationRead(CompanyProfileRead):
     recruiter_name: str
     recruiter_email: str
     account_status: str
+    membership_id: int | None = None
+    member_verification_status: RecruiterVerificationStatus = RecruiterVerificationStatus.PENDING
+    member_join_status: CompanyJoinStatus = CompanyJoinStatus.PENDING
+    member_admin_note: str | None = None
 
 
 class UploadResponse(BaseModel):

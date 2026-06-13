@@ -38,6 +38,7 @@ export default function PostJobPage() {
   const [form, setForm] = useState(initial);
   const [company, setCompany] = useState<CompanyProfile | null>(null);
   const [saving, setSaving] = useState(false);
+  const canPost = company?.verification_status === "VERIFIED" && company?.recruiter_verification_status === "VERIFIED" && company?.company_join_status === "APPROVED";
 
   useEffect(() => {
     if (loading) return;
@@ -56,8 +57,8 @@ export default function PostJobPage() {
       toast.error("Bond period cannot be negative");
       return;
     }
-    if (company?.recruiter_verification_status !== "VERIFIED") {
-      toast.error("Your company profile must be verified by admin before posting jobs.");
+    if (!canPost) {
+      toast.error("Your company and recruiter membership must be verified before posting jobs.");
       return;
     }
     setSaving(true);
@@ -90,9 +91,12 @@ export default function PostJobPage() {
       <div className="panel mb-5 p-4">
         <div className="flex flex-col justify-between gap-3 md:flex-row md:items-center">
           <p className="text-sm font-bold leading-6 text-[#526069]">
-            Your company profile must be verified by admin before posting jobs.
+            Your company and recruiter membership must be verified before posting public jobs.
           </p>
-          <VerificationStatusBadge status={company.recruiter_verification_status} />
+          <div className="flex flex-wrap gap-2">
+            <VerificationStatusBadge status={company.verification_status} />
+            <VerificationStatusBadge status={company.recruiter_verification_status} />
+          </div>
         </div>
       </div>
       <form onSubmit={submit} className="panel grid gap-4 p-5 md:grid-cols-2">
@@ -141,7 +145,7 @@ export default function PostJobPage() {
           <input type="checkbox" checked={form.is_active} onChange={(event) => setForm({ ...form, is_active: event.target.checked })} />
           Active job
         </label>
-        <button className="btn-primary md:col-span-2" disabled={saving || company.recruiter_verification_status !== "VERIFIED"} type="submit">
+        <button className="btn-primary md:col-span-2" disabled={saving || !canPost} type="submit">
           {saving && <Loader2 className="animate-spin" size={18} />}
           Post job
         </button>

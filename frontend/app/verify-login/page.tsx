@@ -6,11 +6,12 @@ import { FormEvent, useEffect, useState } from "react";
 import toast from "react-hot-toast";
 
 import { apiFetch, roleHome, saveAuth } from "@/lib/api";
-import type { AuthResponse } from "@/types";
+import type { AuthResponse, Role } from "@/types";
 
 type PendingLogin = {
   email: string;
   login_challenge_id: string;
+  selected_portal?: Role;
 };
 
 export default function VerifyLoginPage() {
@@ -58,7 +59,7 @@ export default function VerifyLoginPage() {
       saveAuth(auth);
       window.sessionStorage.removeItem("swipe_pending_login");
       toast.success("Secure login complete");
-      router.push(roleHome(auth.user!.role));
+      router.push(roleHome(auth.user!.role, pending.selected_portal));
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Verification failed");
     } finally {
