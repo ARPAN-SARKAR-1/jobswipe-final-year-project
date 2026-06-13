@@ -46,6 +46,7 @@ class Settings(BaseSettings):
         env_file=str(ENV_FILE) if ENV_FILE.exists() else None,
         env_file_encoding="utf-8",
         extra="ignore",
+        hide_input_in_errors=True,
     )
 
     @model_validator(mode="after")
@@ -56,7 +57,8 @@ class Settings(BaseSettings):
         parsed = urlparse(database_url)
         hostname = (parsed.hostname or "").lower()
         invalid_host = hostname in {"localhost", "127.0.0.1", "::1"} or hostname.endswith(".railway.internal")
-        if not database_url or parsed.scheme != "mysql+pymysql" or invalid_host:
+        missing_parts = not parsed.netloc or not parsed.username or not parsed.hostname or parsed.path in {"", "/"}
+        if not database_url or parsed.scheme != "mysql+pymysql" or invalid_host or missing_parts:
             raise ValueError("Invalid production DATABASE_URL. Use mysql+pymysql://...")
         return self
 

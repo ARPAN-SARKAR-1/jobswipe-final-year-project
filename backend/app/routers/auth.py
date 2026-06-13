@@ -71,8 +71,13 @@ def captcha(
         challenge = create_captcha(db, purpose)
     except HTTPException:
         raise
-    except Exception:
-        logger.exception("CAPTCHA challenge creation failed for purpose=%s", purpose)
+    except Exception as exc:
+        logger.error(
+            "CAPTCHA challenge creation failed for purpose=%s error_class=%s error=%s",
+            purpose,
+            exc.__class__.__name__,
+            str(exc).splitlines()[0],
+        )
         raise
     return CaptchaResponse(
         challenge_id=challenge.id,
