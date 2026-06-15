@@ -51,6 +51,12 @@ export function roleHome(role: Role, selectedPortal?: Role | null): string {
   return "/jobseeker/dashboard";
 }
 
+export function getPostAuthRedirect(role: Role): string {
+  if (role === "RECRUITER") return "/recruiter/settings/profile";
+  if (role === "JOB_SEEKER") return "/jobseeker/settings/profile";
+  return "/admin/dashboard";
+}
+
 export function assetUrl(path?: string | null): string | undefined {
   if (!path) return undefined;
   if (path.startsWith("http")) return path;

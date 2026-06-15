@@ -3,13 +3,13 @@
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import toast from "react-hot-toast";
 
 import BrandLogo from "@/components/BrandLogo";
 import CaptchaBox, { type CaptchaValue } from "@/components/CaptchaBox";
 import PasswordInput from "@/components/PasswordInput";
-import { apiFetch, roleHome, saveAuth } from "@/lib/api";
+import { apiFetch, getPostAuthRedirect, saveAuth } from "@/lib/api";
 import { portalOptions } from "@/lib/options";
 import type { AuthResponse, Role } from "@/types";
 
@@ -19,6 +19,13 @@ export default function LoginPage() {
   const [form, setForm] = useState({ email: "", password: "" });
   const [selectedPortal, setSelectedPortal] = useState<Role | "">("");
   const [captcha, setCaptcha] = useState<CaptchaValue>({ challengeId: "", answer: "" });
+
+  useEffect(() => {
+    const loginNotice = window.sessionStorage.getItem("swipe_login_notice");
+    if (!loginNotice) return;
+    window.sessionStorage.removeItem("swipe_login_notice");
+    toast.success(loginNotice);
+  }, []);
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -38,6 +45,10 @@ export default function LoginPage() {
         })
       });
       if (auth.requires_email_verification) {
+        window.sessionStorage.setItem(
+          "swipe_pending_registration",
+          JSON.stringify({ email: auth.user?.email || form.email, role: auth.user?.role || selectedPortal })
+        );
         toast.error(auth.message || "Verify your email before logging in");
         router.push(`/verify-email?email=${encodeURIComponent(auth.user?.email || form.email)}`);
         return;
@@ -57,7 +68,7 @@ export default function LoginPage() {
       }
       saveAuth(auth);
       toast.success("Welcome back");
-      router.push(roleHome(auth.user!.role, selectedPortal));
+      router.push(getPostAuthRedirect(auth.user!.role));
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Login failed");
     } finally {

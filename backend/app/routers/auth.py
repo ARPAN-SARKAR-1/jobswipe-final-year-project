@@ -136,7 +136,7 @@ def register(payload: RegisterRequest, db: Annotated[Session, Depends(get_db)]) 
         return AuthResponse(
             user=user,
             requires_email_verification=True,
-            message="Registration successful. Verify your email before logging in.",
+            message="Account created successfully. Please verify your email to continue.",
         )
 
     db.commit()
@@ -249,16 +249,17 @@ def resend_email_otp(payload: EmailOTPRequest, db: Annotated[Session, Depends(ge
     return {"message": "If this account needs verification, a new email OTP has been sent."}
 
 
-@router.post("/verify-email")
-def verify_email(payload: VerifyEmailRequest, db: Annotated[Session, Depends(get_db)]) -> dict[str, str]:
+@router.post("/verify-email", response_model=AuthResponse)
+def verify_email(payload: VerifyEmailRequest, db: Annotated[Session, Depends(get_db)]) -> AuthResponse:
     user = db.scalar(select(User).where(User.email == payload.email.lower()))
     if user is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     if user.email_verified:
-        return {"message": "Email is already verified."}
+        return AuthResponse(user=user, message="Email is already verified. Please log in to continue.")
     verify_email_otp(db, user, payload.otp)
     db.commit()
-    return {"message": "Email verified successfully."}
+    db.refresh(user)
+    return token_response(user, message="Email verified successfully. Complete your profile.")
 
 
 @router.post("/verify-login-otp", response_model=AuthResponse)

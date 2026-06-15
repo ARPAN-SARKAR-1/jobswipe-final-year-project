@@ -9,8 +9,12 @@ export const metadata: Metadata = {
   title: "Swipe for Success",
   description: "Swipe for Success is a swipe-based job discovery and recruitment platform.",
   icons: {
-    apple: "/swipe-for-success-logo.png",
-    icon: "/swipe-for-success-logo.png"
+    apple: "/apple-icon.png",
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/favicon.png", sizes: "64x64", type: "image/png" },
+      { url: "/icon.png", sizes: "512x512", type: "image/png" }
+    ]
   }
 };
 

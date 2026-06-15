@@ -6,7 +6,7 @@ import { FormEvent, useEffect, useState } from "react";
 import toast from "react-hot-toast";
 
 import BrandLogo from "@/components/BrandLogo";
-import { ApiError, apiFetch, roleHome, saveAuth } from "@/lib/api";
+import { ApiError, apiFetch, getPostAuthRedirect, saveAuth } from "@/lib/api";
 import type { AuthResponse, Role } from "@/types";
 
 type PendingLogin = {
@@ -90,7 +90,7 @@ export default function VerifyLoginPage() {
       saveAuth(auth);
       window.sessionStorage.removeItem("swipe_pending_login");
       toast.success("Secure login complete");
-      router.push(roleHome(auth.user!.role, pending.selected_portal));
+      router.push(getPostAuthRedirect(auth.user!.role));
     } catch (error) {
       showOtpError(error);
     } finally {

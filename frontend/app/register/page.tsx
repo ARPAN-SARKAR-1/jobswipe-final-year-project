@@ -9,7 +9,7 @@ import toast from "react-hot-toast";
 import BrandLogo from "@/components/BrandLogo";
 import CaptchaBox, { type CaptchaValue } from "@/components/CaptchaBox";
 import PasswordInput from "@/components/PasswordInput";
-import { apiFetch, roleHome, saveAuth } from "@/lib/api";
+import { ApiError, apiFetch, getPostAuthRedirect, saveAuth } from "@/lib/api";
 import { roleOptions } from "@/lib/options";
 import type { AuthResponse, Role } from "@/types";
 
@@ -48,15 +48,23 @@ export default function RegisterPage() {
         })
       });
       if (auth.requires_email_verification) {
-        toast.success("Check your email for the verification OTP");
-        router.push(`/verify-email?email=${encodeURIComponent(auth.user?.email || form.email)}`);
+        const pendingEmail = auth.user?.email || form.email;
+        window.sessionStorage.setItem("swipe_pending_registration", JSON.stringify({ email: pendingEmail, role: form.role }));
+        toast.success("Account created successfully. Please verify your email to continue.");
+        router.push(`/verify-email?email=${encodeURIComponent(pendingEmail)}`);
         return;
       }
       saveAuth(auth);
-      toast.success("Signup successful");
-      router.push(roleHome(auth.user!.role));
+      toast.success("Account created successfully. Complete your profile.");
+      router.push(getPostAuthRedirect(auth.user!.role));
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Signup failed");
+      if (error instanceof ApiError && error.status === 409) {
+        toast.error("An account already exists with this email. Please log in.");
+      } else if (error instanceof ApiError && error.status >= 500) {
+        toast.error("Account could not be created because the verification email could not be sent. Please try again later.");
+      } else {
+        toast.error(error instanceof Error ? error.message : "Signup failed");
+      }
     } finally {
       setLoading(false);
     }

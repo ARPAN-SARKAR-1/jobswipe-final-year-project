@@ -6,7 +6,13 @@ import { FormEvent, useEffect, useState } from "react";
 import toast from "react-hot-toast";
 
 import BrandLogo from "@/components/BrandLogo";
-import { apiFetch } from "@/lib/api";
+import { apiFetch, getPostAuthRedirect, saveAuth } from "@/lib/api";
+import type { AuthResponse, Role } from "@/types";
+
+type PendingRegistration = {
+  email: string;
+  role?: Role;
+};
 
 export default function VerifyEmailPage() {
   const router = useRouter();
@@ -18,7 +24,19 @@ export default function VerifyEmailPage() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    setEmail(params.get("email") || "");
+    const queryEmail = params.get("email");
+    if (queryEmail) {
+      setEmail(queryEmail);
+      return;
+    }
+    const rawPending = window.sessionStorage.getItem("swipe_pending_registration");
+    if (!rawPending) return;
+    try {
+      const pending = JSON.parse(rawPending) as PendingRegistration;
+      setEmail(pending.email || "");
+    } catch {
+      window.sessionStorage.removeItem("swipe_pending_registration");
+    }
   }, []);
 
   useEffect(() => {
@@ -31,11 +49,19 @@ export default function VerifyEmailPage() {
     event.preventDefault();
     setLoading(true);
     try {
-      await apiFetch<{ message: string }>("/auth/verify-email", {
+      const auth = await apiFetch<AuthResponse>("/auth/verify-email", {
         method: "POST",
         body: JSON.stringify({ email, otp })
       });
-      toast.success("Email verified. Please login.");
+      window.sessionStorage.removeItem("swipe_pending_registration");
+      if (auth.access_token && auth.user) {
+        saveAuth(auth);
+        toast.success("Email verified successfully. Complete your profile.");
+        router.push(getPostAuthRedirect(auth.user.role));
+        return;
+      }
+      window.sessionStorage.setItem("swipe_login_notice", "Email verified successfully. Please log in to complete your profile.");
+      toast.success("Email verified successfully. Please log in to complete your profile.");
       router.push("/login");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Email verification failed");
@@ -69,7 +95,9 @@ export default function VerifyEmailPage() {
         </div>
         <p className="mb-2 text-sm font-black uppercase text-teal-700">Email verification</p>
         <h1 className="text-3xl font-black tracking-normal">Verify your email</h1>
-        <p className="mt-3 text-sm font-medium leading-6 text-[#6b767d]">Enter the 6-digit OTP sent to your email address. OTP expires in 10 minutes.</p>
+        <p className="mt-3 text-sm font-medium leading-6 text-[#6b767d]">
+          Your account has been created. Enter the OTP sent to your email to activate your profile. OTP expires in 10 minutes.
+        </p>
         <div className="mt-6 grid gap-4">
           <div>
             <label className="label" htmlFor="email">
