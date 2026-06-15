@@ -31,7 +31,7 @@ export default function LandingPage() {
           <div>
             <div className="mb-5 inline-flex items-center gap-2 rounded-lg border border-black/10 bg-white/80 px-3 py-2 text-sm font-black text-teal-700">
               <BriefcaseBusiness size={16} />
-              Final year full-stack project
+              Verified career platform
             </div>
             <h1 className="max-w-3xl text-5xl font-black tracking-normal text-[#172026] md:text-7xl">Swipe Less. Apply Smarter.</h1>
             <p className="mt-6 max-w-2xl text-lg font-medium leading-8 text-[#526069]">
