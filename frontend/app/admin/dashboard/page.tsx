@@ -5,6 +5,7 @@ import {
   BriefcaseBusiness,
   CheckCircle2,
   ClipboardList,
+  LifeBuoy,
   MessageCircle,
   PauseCircle,
   PlusCircle,
@@ -27,7 +28,21 @@ import { apiFetch } from "@/lib/api";
 import { paginateItems, textMatches } from "@/lib/listing";
 import { formatDate } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
-import type { AdminActionLog, AdminRecruiterVerification, Application, ChatThread, CompanyReview, Job, PaginatedResponse, RecruiterCompanyMember, Report, Swipe, User, UserDocument } from "@/types";
+import type {
+  AdminActionLog,
+  AdminRecruiterVerification,
+  Application,
+  ChatThread,
+  CompanyReview,
+  Job,
+  PaginatedResponse,
+  RecruiterCompanyMember,
+  Report,
+  SupportTicket,
+  Swipe,
+  User,
+  UserDocument
+} from "@/types";
 
 type AdminStats = {
   total_users: number;
@@ -44,10 +59,17 @@ type ConfirmAction = {
   message: string;
   endpoint: string;
   success: string;
-  method?: "PUT" | "POST";
+  method?: "PUT" | "POST" | "PATCH";
   bodyKey?: "reason" | "admin_note";
   fixedBody?: Record<string, string>;
   label?: string;
+};
+
+type SupportTicketSummary = {
+  open: number;
+  in_progress: number;
+  resolved: number;
+  closed: number;
 };
 
 type JobSeekerVerificationQueueItem = {
@@ -75,6 +97,7 @@ export default function AdminDashboardPage() {
   const { user: currentUser, loading } = useAuth(["ADMIN", "OWNER"]);
   const isOwner = currentUser?.role === "OWNER";
   const [stats, setStats] = useState<AdminStats | null>(null);
+  const [supportSummary, setSupportSummary] = useState<SupportTicketSummary>({ open: 0, in_progress: 0, resolved: 0, closed: 0 });
   const [users, setUsers] = useState<User[]>([]);
   const [admins, setAdmins] = useState<User[]>([]);
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -88,6 +111,7 @@ export default function AdminDashboardPage() {
   const [suspiciousJobs, setSuspiciousJobs] = useState<Job[]>([]);
   const [companyReviews, setCompanyReviews] = useState<CompanyReview[]>([]);
   const [reports, setReports] = useState<Report[]>([]);
+  const [supportTickets, setSupportTickets] = useState<SupportTicket[]>([]);
   const [swipes, setSwipes] = useState<Swipe[]>([]);
   const [logs, setLogs] = useState<AdminActionLog[]>([]);
   const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null);
@@ -104,10 +128,20 @@ export default function AdminDashboardPage() {
   const [userPage, setUserPage] = useState(1);
   const [userPageSize, setUserPageSize] = useState(20);
   const [userTotal, setUserTotal] = useState(0);
+  const [ticketQuery, setTicketQuery] = useState("");
+  const [ticketStatus, setTicketStatus] = useState("");
+  const [ticketPriority, setTicketPriority] = useState("");
+  const [ticketCategory, setTicketCategory] = useState("");
+  const [ticketRole, setTicketRole] = useState("");
+  const [ticketSort, setTicketSort] = useState("created_at:desc");
+  const [ticketPage, setTicketPage] = useState(1);
+  const [ticketPageSize, setTicketPageSize] = useState(20);
+  const [ticketTotal, setTicketTotal] = useState(0);
 
   const load = () => {
     Promise.all([
       apiFetch<AdminStats>("/admin/dashboard"),
+      apiFetch<SupportTicketSummary>("/admin/support-tickets/summary"),
       apiFetch<Job[]>("/admin/jobs"),
       apiFetch<Application[]>("/admin/applications"),
       apiFetch<ChatThread[]>("/admin/chats"),
@@ -123,8 +157,9 @@ export default function AdminDashboardPage() {
       isOwner ? apiFetch<User[]>("/admin/admins") : Promise.resolve([]),
       isOwner ? apiFetch<AdminActionLog[]>("/admin/action-logs") : Promise.resolve([])
     ])
-      .then(([dashboard, jobRows, applicationRows, chatRows, verificationRows, companyRows, membershipRows, jobseekerRows, documentRows, suspiciousRows, reviewRows, reportRows, swipeRows, adminRows, logRows]) => {
+      .then(([dashboard, supportStats, jobRows, applicationRows, chatRows, verificationRows, companyRows, membershipRows, jobseekerRows, documentRows, suspiciousRows, reviewRows, reportRows, swipeRows, adminRows, logRows]) => {
         setStats(dashboard);
+        setSupportSummary(supportStats);
         setJobs(jobRows);
         setApplications(applicationRows);
         setChats(chatRows);
@@ -166,6 +201,29 @@ export default function AdminDashboardPage() {
       .catch((error) => toast.error(error instanceof Error ? error.message : "Users failed"));
   };
 
+  const loadSupportTickets = () => {
+    const [sortBy, sortOrder] = ticketSort.split(":");
+    const params = new URLSearchParams({
+      sort_by: sortBy,
+      sort_order: sortOrder || "desc",
+      page: String(ticketPage),
+      page_size: String(ticketPageSize)
+    });
+    if (ticketQuery) params.set("q", ticketQuery);
+    if (ticketStatus) params.set("status", ticketStatus);
+    if (ticketPriority) params.set("priority", ticketPriority);
+    if (ticketCategory) params.set("category", ticketCategory);
+    if (ticketRole) params.set("role_type", ticketRole);
+    apiFetch<PaginatedResponse<SupportTicket>>(`/admin/support-tickets?${params.toString()}`)
+      .then((result) => {
+        setSupportTickets(result.items);
+        setTicketTotal(result.total);
+        setTicketPage(result.page);
+        setTicketPageSize(result.page_size);
+      })
+      .catch((error) => toast.error(error instanceof Error ? error.message : "Support tickets failed"));
+  };
+
   useEffect(() => {
     if (!loading && currentUser) load();
   }, [loading, currentUser?.role]);
@@ -173,6 +231,10 @@ export default function AdminDashboardPage() {
   useEffect(() => {
     if (!loading && currentUser) loadUsers();
   }, [loading, currentUser?.role, userQuery, userRole, userStatus, userProtection, userEmailVerified, userSort, userPage, userPageSize]);
+
+  useEffect(() => {
+    if (!loading && currentUser) loadSupportTickets();
+  }, [loading, currentUser?.role, ticketQuery, ticketStatus, ticketPriority, ticketCategory, ticketRole, ticketSort, ticketPage, ticketPageSize]);
 
   const openAction = (action: ConfirmAction) => {
     setReason("");
@@ -197,6 +259,7 @@ export default function AdminDashboardPage() {
       setConfirmAction(null);
       load();
       loadUsers();
+      loadSupportTickets();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Admin action failed");
     } finally {
@@ -259,6 +322,7 @@ export default function AdminDashboardPage() {
         <StatCard label="Active jobs" value={stats.active_jobs} icon={Radio} />
         <StatCard label="Expired jobs" value={stats.expired_jobs} icon={Radio} />
         <StatCard label="Applications" value={stats.total_applications} icon={ClipboardList} />
+        <StatCard label="Open tickets" value={supportSummary.open} icon={LifeBuoy} />
       </section>
 
       <div className="mt-7 grid gap-6">
@@ -482,6 +546,58 @@ export default function AdminDashboardPage() {
           <PaginationControls page={userPage} pageSize={userPageSize} total={userTotal} onPageChange={setUserPage} onPageSizeChange={(value) => { setUserPageSize(value); setUserPage(1); }} />
         </div>
 
+        <SupportTicketsTable
+          tickets={supportTickets}
+          total={ticketTotal}
+          page={ticketPage}
+          pageSize={ticketPageSize}
+          summary={supportSummary}
+          query={ticketQuery}
+          status={ticketStatus}
+          priority={ticketPriority}
+          category={ticketCategory}
+          roleType={ticketRole}
+          sort={ticketSort}
+          setQuery={(value) => {
+            setTicketQuery(value);
+            setTicketPage(1);
+          }}
+          setStatus={(value) => {
+            setTicketStatus(value);
+            setTicketPage(1);
+          }}
+          setPriority={(value) => {
+            setTicketPriority(value);
+            setTicketPage(1);
+          }}
+          setCategory={(value) => {
+            setTicketCategory(value);
+            setTicketPage(1);
+          }}
+          setRoleType={(value) => {
+            setTicketRole(value);
+            setTicketPage(1);
+          }}
+          setSort={(value) => {
+            setTicketSort(value);
+            setTicketPage(1);
+          }}
+          setPage={setTicketPage}
+          setPageSize={(value) => {
+            setTicketPageSize(value);
+            setTicketPage(1);
+          }}
+          onReset={() => {
+            setTicketQuery("");
+            setTicketStatus("");
+            setTicketPriority("");
+            setTicketCategory("");
+            setTicketRole("");
+            setTicketSort("created_at:desc");
+            setTicketPage(1);
+          }}
+          openAction={openAction}
+        />
         <ModerationJobsTable jobs={jobs} openAction={openAction} />
         <ModerationApplicationsTable applications={applications} openAction={openAction} />
         <ModerationChatsTable chats={chats} openAction={openAction} />
@@ -573,6 +689,206 @@ function Input({ label, value, onChange, required, type = "text" }: { label: str
       ) : (
         <input id={id} className="field" required={required} type={type} value={value} onChange={(event) => onChange(event.target.value)} />
       )}
+    </div>
+  );
+}
+
+function SupportTicketsTable({
+  tickets,
+  total,
+  page,
+  pageSize,
+  summary,
+  query,
+  status,
+  priority,
+  category,
+  roleType,
+  sort,
+  setQuery,
+  setStatus,
+  setPriority,
+  setCategory,
+  setRoleType,
+  setSort,
+  setPage,
+  setPageSize,
+  onReset,
+  openAction
+}: {
+  tickets: SupportTicket[];
+  total: number;
+  page: number;
+  pageSize: number;
+  summary: SupportTicketSummary;
+  query: string;
+  status: string;
+  priority: string;
+  category: string;
+  roleType: string;
+  sort: string;
+  setQuery: (value: string) => void;
+  setStatus: (value: string) => void;
+  setPriority: (value: string) => void;
+  setCategory: (value: string) => void;
+  setRoleType: (value: string) => void;
+  setSort: (value: string) => void;
+  setPage: (value: number) => void;
+  setPageSize: (value: number) => void;
+  onReset: () => void;
+  openAction: (action: ConfirmAction) => void;
+}) {
+  return (
+    <div className="panel overflow-hidden">
+      <div className="flex flex-col justify-between gap-3 p-5 md:flex-row md:items-center">
+        <div>
+          <h2 className="text-xl font-black">Support Tickets</h2>
+          <p className="mt-1 text-sm font-bold text-[#6b767d]">
+            Open {summary.open} • In progress {summary.in_progress} • Resolved {summary.resolved} • Closed {summary.closed}
+          </p>
+        </div>
+        <LifeBuoy className="text-teal-700" size={24} />
+      </div>
+      <ListToolbar
+        searchValue={query}
+        onSearchChange={setQuery}
+        searchPlaceholder="Search ticket, email, name, or subject"
+        filters={[
+          { label: "Status", value: status, allLabel: "All statuses", options: ["OPEN", "IN_PROGRESS", "RESOLVED", "CLOSED"].map((value) => ({ label: value.replaceAll("_", " "), value })), onChange: setStatus },
+          { label: "Priority", value: priority, allLabel: "All priorities", options: ["LOW", "MEDIUM", "HIGH"].map((value) => ({ label: value, value })), onChange: setPriority },
+          {
+            label: "Category",
+            value: category,
+            allLabel: "All categories",
+            options: [
+              "ACCOUNT_LOGIN",
+              "OTP_EMAIL_VERIFICATION",
+              "JOB_APPLICATION",
+              "RECRUITER_COMPANY_VERIFICATION",
+              "PROFILE_DOCUMENT_UPLOAD",
+              "BUG_REPORT",
+              "PRIVACY_DATA_REQUEST",
+              "OTHER"
+            ].map((value) => ({ label: value.replaceAll("_", " "), value })),
+            onChange: setCategory
+          },
+          { label: "Role", value: roleType, allLabel: "All roles", options: ["JOB_SEEKER", "RECRUITER", "ADMIN_OWNER", "VISITOR"].map((value) => ({ label: value.replaceAll("_", " "), value })), onChange: setRoleType }
+        ]}
+        sortValue={sort}
+        sortOptions={[
+          { label: "Newest first", value: "created_at:desc" },
+          { label: "Oldest first", value: "created_at:asc" },
+          { label: "Priority", value: "priority:desc" },
+          { label: "Status", value: "status:asc" },
+          { label: "Category", value: "category:asc" }
+        ]}
+        onSortChange={setSort}
+        onReset={onReset}
+        resultCount={total}
+      />
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[1240px] text-left text-sm">
+          <thead className="bg-[#fbfaf7] text-xs font-black uppercase text-[#526069]">
+            <tr>
+              <th className="p-4">Ticket</th>
+              <th className="p-4">User</th>
+              <th className="p-4">Category</th>
+              <th className="p-4">Priority</th>
+              <th className="p-4">Status</th>
+              <th className="p-4">Admin note</th>
+              <th className="p-4">Created</th>
+              <th className="p-4">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {tickets.length === 0 ? (
+              <tr>
+                <td className="p-8 text-center text-sm font-bold text-[#6b767d]" colSpan={8}>
+                  No results found for the selected filters.
+                </td>
+              </tr>
+            ) : tickets.map((ticket) => (
+              <tr key={ticket.id} className="border-t border-black/5 align-top">
+                <td className="p-4">
+                  <p className="font-black text-[#172026]">{ticket.ticket_code}</p>
+                  <p className="mt-1 max-w-xs font-bold leading-6 text-[#6b767d]">{ticket.subject}</p>
+                </td>
+                <td className="p-4">
+                  <p className="font-bold text-[#526069]">{ticket.name}</p>
+                  <p className="font-bold text-[#8a949a]">{ticket.email}</p>
+                  <p className="mt-1 text-xs font-black text-teal-700">{ticket.role_type.replaceAll("_", " ")}</p>
+                </td>
+                <td className="p-4 font-bold text-[#526069]">{ticket.category.replaceAll("_", " ")}</td>
+                <td className="p-4"><StatusBadge status={ticket.priority} /></td>
+                <td className="p-4"><StatusBadge status={ticket.status} /></td>
+                <td className="p-4 max-w-xs font-bold leading-6 text-[#6b767d]">{ticket.admin_note || "-"}</td>
+                <td className="p-4 font-bold text-[#526069]">{formatDate(ticket.created_at)}</td>
+                <td className="p-4">
+                  <div className="flex flex-wrap gap-2">
+                    {ticket.status === "OPEN" && (
+                      <button
+                        className="btn-secondary !px-3 !py-2 border-amber-200 bg-amber-50 text-amber-800"
+                        type="button"
+                        onClick={() =>
+                          openAction({
+                            title: "Mark ticket in progress",
+                            message: `Move ${ticket.ticket_code} to in progress?`,
+                            endpoint: `/admin/support-tickets/${ticket.id}`,
+                            method: "PATCH",
+                            fixedBody: { status: "IN_PROGRESS" },
+                            success: "Ticket marked in progress"
+                          })
+                        }
+                      >
+                        In progress
+                      </button>
+                    )}
+                    {ticket.status !== "RESOLVED" && ticket.status !== "CLOSED" && (
+                      <button
+                        className="btn-secondary !px-3 !py-2 border-emerald-200 bg-emerald-50 text-emerald-700"
+                        type="button"
+                        onClick={() =>
+                          openAction({
+                            title: "Resolve ticket",
+                            message: `Resolve ${ticket.ticket_code}?`,
+                            endpoint: `/admin/support-tickets/${ticket.id}/resolve`,
+                            method: "POST",
+                            success: "Ticket resolved",
+                            bodyKey: "admin_note",
+                            label: "Resolution note"
+                          })
+                        }
+                      >
+                        Resolve
+                      </button>
+                    )}
+                    {ticket.status !== "CLOSED" && (
+                      <button
+                        className="btn-secondary !px-3 !py-2 border-slate-200 bg-slate-50 text-slate-700"
+                        type="button"
+                        onClick={() =>
+                          openAction({
+                            title: "Close ticket",
+                            message: `Close ${ticket.ticket_code}?`,
+                            endpoint: `/admin/support-tickets/${ticket.id}/close`,
+                            method: "POST",
+                            success: "Ticket closed",
+                            bodyKey: "admin_note",
+                            label: "Closing note"
+                          })
+                        }
+                      >
+                        Close
+                      </button>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <PaginationControls page={page} pageSize={pageSize} total={total} onPageChange={setPage} onPageSizeChange={setPageSize} />
     </div>
   );
 }

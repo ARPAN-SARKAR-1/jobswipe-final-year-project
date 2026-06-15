@@ -149,6 +149,42 @@ class ReportStatus(str, Enum):
     DISMISSED = "DISMISSED"
 
 
+class SupportTicketRoleType(str, Enum):
+    JOB_SEEKER = "JOB_SEEKER"
+    RECRUITER = "RECRUITER"
+    ADMIN_OWNER = "ADMIN_OWNER"
+    VISITOR = "VISITOR"
+
+
+class SupportTicketCategory(str, Enum):
+    ACCOUNT_LOGIN = "ACCOUNT_LOGIN"
+    OTP_EMAIL_VERIFICATION = "OTP_EMAIL_VERIFICATION"
+    JOB_APPLICATION = "JOB_APPLICATION"
+    RECRUITER_COMPANY_VERIFICATION = "RECRUITER_COMPANY_VERIFICATION"
+    PROFILE_DOCUMENT_UPLOAD = "PROFILE_DOCUMENT_UPLOAD"
+    BUG_REPORT = "BUG_REPORT"
+    PRIVACY_DATA_REQUEST = "PRIVACY_DATA_REQUEST"
+    OTHER = "OTHER"
+
+
+class SupportTicketPriority(str, Enum):
+    LOW = "LOW"
+    MEDIUM = "MEDIUM"
+    HIGH = "HIGH"
+
+
+class SupportTicketStatus(str, Enum):
+    OPEN = "OPEN"
+    IN_PROGRESS = "IN_PROGRESS"
+    RESOLVED = "RESOLVED"
+    CLOSED = "CLOSED"
+
+
+class SupportTicketSource(str, Enum):
+    CONTACT_PAGE = "CONTACT_PAGE"
+    AUTHENTICATED_USER = "AUTHENTICATED_USER"
+
+
 class JobType(str, Enum):
     INTERNSHIP = "Internship"
     FULL_TIME = "Full-time"

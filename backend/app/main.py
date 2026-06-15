@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app.core.config import settings
-from app.routers import admin, applications, auth, chats, companies, jobs, jobseeker, notifications, profiles, recruiter, reports, swipes
+from app.routers import admin, applications, auth, chats, companies, jobs, jobseeker, notifications, profiles, recruiter, reports, support, swipes
 
 app = FastAPI(
     title="Swipe for Success API",
@@ -32,6 +32,7 @@ app.include_router(applications.router, prefix="/api")
 app.include_router(chats.router, prefix="/api")
 app.include_router(notifications.router, prefix="/api")
 app.include_router(reports.router, prefix="/api")
+app.include_router(support.router, prefix="/api")
 app.include_router(admin.router, prefix="/api")
 
 

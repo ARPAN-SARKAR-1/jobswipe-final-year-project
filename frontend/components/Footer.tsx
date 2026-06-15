@@ -20,9 +20,9 @@ export default function Footer() {
           <Link href="/privacy" className="hover:text-[#172026]">
             Privacy
           </Link>
-          <a href="mailto:support@swipeforsuccess.dev" className="hover:text-[#172026]">
+          <Link href="/contact" className="hover:text-[#172026]">
             Contact
-          </a>
+          </Link>
         </div>
       </div>
     </footer>

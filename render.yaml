@@ -80,6 +80,8 @@ services:
         sync: false
       - key: SUPPORT_EMAIL
         sync: false
+      - key: ADMIN_CONTACT_EMAIL
+        value: admin.swipeforsuccess@gmail.com
       - key: INITIAL_TEAM_PASSWORD
         sync: false
       - key: RESET_TEAM_PASSWORDS

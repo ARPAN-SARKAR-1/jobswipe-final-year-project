@@ -6,7 +6,7 @@ const sections = [
   ["Resume visibility", "Your resume is not public. It becomes visible only to recruiters when you apply to their job. Owner/Admin may access it only for moderation or support if required."],
   ["Chat visibility", "Chat is visible to the recruiter and job seeker participating in the thread. Owner/Admin may access chat metadata, and moderation access may be used only for safety and abuse review."],
   ["Security", "Passwords are hashed, JWT authentication is used, and role-based access control protects job seeker, recruiter, admin, and owner workflows."],
-  ["Data deletion", "Users may contact support@swipeforsuccess.dev to request account or data deletion."],
+  ["Data deletion", "Users may contact swipeforsuccess.support@gmail.com to request account or data deletion."],
   ["Cookies and local storage", "Swipe for Success stores an authentication token in browser local storage to keep users logged in securely."],
   ["Disclaimer", "Swipe for Success is a verified career and recruitment portal built for trusted hiring and profile verification. Users should verify job authenticity before sharing sensitive personal or financial information."]
 ];

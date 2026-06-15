@@ -148,6 +148,8 @@ SMTP_HOST=
 SMTP_PORT=587
 SMTP_USER=
 SMTP_PASSWORD=
+SUPPORT_EMAIL=swipeforsuccess.support@gmail.com
+ADMIN_CONTACT_EMAIL=admin.swipeforsuccess@gmail.com
 ```
 
 Frontend `.env.example`:

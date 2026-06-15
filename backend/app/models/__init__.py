@@ -16,6 +16,7 @@ from app.models.notification import Notification
 from app.models.password_reset_token import PasswordResetToken
 from app.models.report import Report
 from app.models.recruiter_company_member import RecruiterCompanyMember
+from app.models.support_ticket import SupportTicket
 from app.models.swipe import Swipe
 from app.models.trusted_device import TrustedDevice
 from app.models.user import User
@@ -40,6 +41,7 @@ __all__ = [
     "PasswordResetToken",
     "Report",
     "RecruiterCompanyMember",
+    "SupportTicket",
     "Swipe",
     "TrustedDevice",
     "User",

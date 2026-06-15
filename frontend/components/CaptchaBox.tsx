@@ -21,7 +21,7 @@ export type CaptchaValue = {
 type CaptchaBoxProps = {
   disabled?: boolean;
   onChange: (value: CaptchaValue) => void;
-  purpose: "login" | "signup" | "forgot_password" | "report";
+  purpose: "login" | "signup" | "forgot_password" | "report" | "contact";
 };
 
 export default function CaptchaBox({ disabled = false, onChange, purpose }: CaptchaBoxProps) {

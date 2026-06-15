@@ -62,7 +62,8 @@ TRUSTED_DEVICE_DAYS=30
 TRUSTED_DEVICE_COOKIE_NAME=swipe_trusted_device
 OWNER_EMAILS=owner1@example.com,owner2@example.com
 ADMIN_EMAILS=admin@example.com
-SUPPORT_EMAIL=support@example.com
+SUPPORT_EMAIL=swipeforsuccess.support@gmail.com
+ADMIN_CONTACT_EMAIL=admin.swipeforsuccess@gmail.com
 INITIAL_TEAM_PASSWORD=<temporary-team-password>
 RESET_TEAM_PASSWORDS=false
 ```
@@ -116,7 +117,7 @@ alembic upgrade head
 
 Production owner/admin team accounts are seeded from Render environment variables. Set `OWNER_EMAILS` and `ADMIN_EMAILS` as comma-separated lists, set `INITIAL_TEAM_PASSWORD` to a temporary password, and keep `RESET_TEAM_PASSWORDS=false` unless you intentionally want to rotate those team account passwords. With `ENV=production`, `python seed.py` creates or verifies only the configured team accounts, marks them active and email verified, and does not overwrite existing passwords unless `RESET_TEAM_PASSWORDS=true`. Demo users and sample jobs remain development-only.
 
-`SUPPORT_EMAIL` is the support/sender address. Use the same address for `EMAIL_FROM` when appropriate, but it is not created as a login user by the seed script.
+`SUPPORT_EMAIL` is the support/sender address used by the contact ticket system. Use the same address for `EMAIL_FROM` when appropriate, but it is not created as a login user by the seed script. `ADMIN_CONTACT_EMAIL` is shown as the admin contact and receives support ticket notifications.
 
 Everyone seeded with `INITIAL_TEAM_PASSWORD` must change that temporary password after first login. Owner and Admin accounts still require login OTP/2FA because `TWOFA_REQUIRED_ROLES` includes `OWNER,ADMIN,RECRUITER`.
 

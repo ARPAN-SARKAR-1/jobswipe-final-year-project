@@ -34,20 +34,26 @@ def ensure_email_provider_configured() -> None:
 
 
 def send_security_code(to_email: str, code: str, subject: str) -> None:
+    text_body = security_code_text(code)
+    html_body = security_code_html(code)
+    send_email_message(to_email, subject, text_body, html_body)
+
+
+def send_email_message(to_email: str, subject: str, text_body: str, html_body: str | None = None) -> None:
     provider = settings.email_provider.lower()
     if not settings.is_production and provider == "console":
-        print(f"[Swipe for Success] {subject} for {to_email}: {code}")
+        print(f"[Swipe for Success] Email to {to_email}: {subject}")
         return
     try:
         ensure_email_provider_configured()
         if provider == "resend":
-            send_resend_email(to_email, code, subject)
+            send_resend_email(to_email, subject, text_body, html_body)
             return
         if provider == "brevo_api":
-            send_brevo_email(to_email, code, subject)
+            send_brevo_email(to_email, subject, text_body, html_body)
             return
         if provider == "smtp":
-            send_smtp_email(to_email, code, subject)
+            send_smtp_email(to_email, subject, text_body)
             return
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -66,12 +72,12 @@ def send_security_code(to_email: str, code: str, subject: str) -> None:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=EMAIL_DELIVERY_ERROR) from exc
 
 
-def send_smtp_email(to_email: str, code: str, subject: str) -> None:
+def send_smtp_email(to_email: str, subject: str, text_body: str) -> None:
     message = EmailMessage()
     message["Subject"] = subject
     message["From"] = settings.email_from or ""
     message["To"] = to_email
-    message.set_content(f"Your Swipe for Success verification code is {code}. It expires in {settings.otp_expire_minutes} minutes.")
+    message.set_content(text_body)
     with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=20) as smtp:
         smtp.starttls()
         smtp.login(settings.smtp_user, settings.smtp_password)
@@ -90,13 +96,15 @@ def security_code_html(code: str) -> str:
     )
 
 
-def send_resend_email(to_email: str, code: str, subject: str) -> None:
+def send_resend_email(to_email: str, subject: str, text_body: str, html_body: str | None = None) -> None:
     payload = {
         "from": settings.email_from,
         "to": [to_email],
         "subject": subject,
-        "text": security_code_text(code),
+        "text": text_body,
     }
+    if html_body:
+        payload["html"] = html_body
     req = request.Request(
         "https://api.resend.com/emails",
         data=json.dumps(payload).encode("utf-8"),
@@ -119,7 +127,7 @@ def safe_provider_response(exc: HTTPError) -> str:
     return " ".join(body.split())[:300]
 
 
-def send_brevo_email(to_email: str, code: str, subject: str) -> None:
+def send_brevo_email(to_email: str, subject: str, text_body: str, html_body: str | None = None) -> None:
     payload = {
         "sender": {
             "name": settings.email_from_name,
@@ -127,8 +135,8 @@ def send_brevo_email(to_email: str, code: str, subject: str) -> None:
         },
         "to": [{"email": to_email}],
         "subject": subject,
-        "htmlContent": security_code_html(code),
-        "textContent": security_code_text(code),
+        "htmlContent": html_body or text_body.replace("\n", "<br />"),
+        "textContent": text_body,
     }
     req = request.Request(
         "https://api.brevo.com/v3/smtp/email",

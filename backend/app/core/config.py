@@ -37,6 +37,8 @@ class Settings(BaseSettings):
     email_provider: str = Field(default="console", alias="EMAIL_PROVIDER")
     email_from: str | None = Field(default=None, alias="EMAIL_FROM")
     email_from_name: str = Field(default="Swipe for Success", alias="EMAIL_FROM_NAME")
+    support_email: str = Field(default="swipeforsuccess.support@gmail.com", alias="SUPPORT_EMAIL")
+    admin_contact_email: str = Field(default="admin.swipeforsuccess@gmail.com", alias="ADMIN_CONTACT_EMAIL")
     resend_api_key: str | None = Field(default=None, alias="RESEND_API_KEY")
     brevo_api_key: str | None = Field(default=None, alias="BREVO_API_KEY")
     smtp_host: str | None = Field(default=None, alias="SMTP_HOST")

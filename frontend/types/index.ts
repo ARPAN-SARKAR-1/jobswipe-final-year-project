@@ -16,6 +16,18 @@ export type SectionVisibility = "PRIVATE" | "RECRUITERS_ONLY" | "PUBLIC";
 export type StudentVerificationStatus = "STUDENT_UNVERIFIED" | "STUDENT_PENDING" | "STUDENT_VERIFIED" | "STUDENT_REJECTED";
 export type GraduationVerificationStatus = "GRADUATION_UNVERIFIED" | "GRADUATION_PENDING" | "GRADUATION_VERIFIED" | "GRADUATION_REJECTED";
 export type ExperienceVerificationStatus = "EXPERIENCE_UNVERIFIED" | "EXPERIENCE_PENDING" | "EXPERIENCE_VERIFIED" | "EXPERIENCE_REJECTED";
+export type SupportTicketRoleType = "JOB_SEEKER" | "RECRUITER" | "ADMIN_OWNER" | "VISITOR";
+export type SupportTicketCategory =
+  | "ACCOUNT_LOGIN"
+  | "OTP_EMAIL_VERIFICATION"
+  | "JOB_APPLICATION"
+  | "RECRUITER_COMPANY_VERIFICATION"
+  | "PROFILE_DOCUMENT_UPLOAD"
+  | "BUG_REPORT"
+  | "PRIVACY_DATA_REQUEST"
+  | "OTHER";
+export type SupportTicketPriority = "LOW" | "MEDIUM" | "HIGH";
+export type SupportTicketStatus = "OPEN" | "IN_PROGRESS" | "RESOLVED" | "CLOSED";
 
 export type User = {
   id: number;
@@ -454,6 +466,40 @@ export type Report = {
   job_title?: string | null;
   created_at: string;
   updated_at: string;
+};
+
+export type SupportTicketCreate = {
+  name: string;
+  email: string;
+  role_type: SupportTicketRoleType;
+  category: SupportTicketCategory;
+  priority: SupportTicketPriority;
+  subject: string;
+  message: string;
+  captcha_challenge_id?: string;
+  captcha_answer?: string;
+};
+
+export type SupportTicket = {
+  id: number;
+  ticket_code: string;
+  name: string;
+  email: string;
+  role_type: SupportTicketRoleType;
+  category: SupportTicketCategory;
+  priority: SupportTicketPriority;
+  subject: string;
+  message?: string;
+  status: SupportTicketStatus;
+  user_id?: number | null;
+  assigned_admin_id?: number | null;
+  admin_note?: string | null;
+  created_at: string;
+  updated_at: string;
+  resolved_at?: string | null;
+  closed_at?: string | null;
+  source: string;
+  email_warning?: string | null;
 };
 
 export type ApplicationTimelineEvent = {

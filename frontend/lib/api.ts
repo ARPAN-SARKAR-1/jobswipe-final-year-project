@@ -1,6 +1,6 @@
 "use client";
 
-import type { AuthResponse, Role, User } from "@/types";
+import type { AuthResponse, PaginatedResponse, Role, SupportTicket, SupportTicketCreate, SupportTicketStatus, User } from "@/types";
 
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL?.trim().replace(/\/+$/, "") ?? "";
 
@@ -107,4 +107,44 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}): Prom
   }
 
   return data as T;
+}
+
+export function createSupportTicket(payload: SupportTicketCreate) {
+  return apiFetch<SupportTicket>("/support/tickets", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export function getMySupportTickets() {
+  return apiFetch<SupportTicket[]>("/support/my-tickets");
+}
+
+export function getAdminSupportTickets(query: string) {
+  return apiFetch<PaginatedResponse<SupportTicket>>(`/admin/support-tickets${query ? `?${query}` : ""}`);
+}
+
+export function updateSupportTicket(id: number, payload: Partial<Pick<SupportTicket, "priority" | "status" | "assigned_admin_id" | "admin_note">>) {
+  return apiFetch<SupportTicket>(`/admin/support-tickets/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload)
+  });
+}
+
+export function resolveSupportTicket(id: number, adminNote?: string) {
+  return apiFetch<SupportTicket>(`/admin/support-tickets/${id}/resolve`, {
+    method: "POST",
+    body: JSON.stringify({ admin_note: adminNote || null })
+  });
+}
+
+export function closeSupportTicket(id: number, adminNote?: string) {
+  return apiFetch<SupportTicket>(`/admin/support-tickets/${id}/close`, {
+    method: "POST",
+    body: JSON.stringify({ admin_note: adminNote || null })
+  });
+}
+
+export function supportTicketStatusLabel(status: SupportTicketStatus) {
+  return status.replaceAll("_", " ");
 }

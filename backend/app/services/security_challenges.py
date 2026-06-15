@@ -19,7 +19,7 @@ from app.models.trusted_device import TrustedDevice
 from app.models.user import User
 from app.services.email_service import send_security_code
 
-CAPTCHA_PURPOSES = {"login", "signup", "forgot_password", "report"}
+CAPTCHA_PURPOSES = {"login", "signup", "forgot_password", "report", "contact"}
 
 
 def utcnow() -> datetime:
