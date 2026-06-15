@@ -122,6 +122,7 @@ class ResendLoginOTPRequest(BaseModel):
 
 class CaptchaResponse(BaseModel):
     challenge_id: str
-    question: str
+    image_base64: str
     purpose: str
     expires_at: datetime
+    expires_in_seconds: int

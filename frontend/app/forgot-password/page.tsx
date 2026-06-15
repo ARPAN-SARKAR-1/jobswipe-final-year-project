@@ -5,6 +5,7 @@ import Link from "next/link";
 import { FormEvent, useState } from "react";
 import toast from "react-hot-toast";
 
+import BrandLogo from "@/components/BrandLogo";
 import CaptchaBox, { type CaptchaValue } from "@/components/CaptchaBox";
 import { apiFetch } from "@/lib/api";
 
@@ -45,9 +46,12 @@ export default function ForgotPasswordPage() {
   return (
     <main className="page-shell">
       <form onSubmit={submit} className="panel mx-auto max-w-md p-6 md:p-8">
+        <div className="mb-5 flex justify-center">
+          <BrandLogo size="auth" priority />
+        </div>
         <p className="mb-2 text-sm font-black uppercase text-teal-700">Password help</p>
         <h1 className="text-3xl font-black tracking-normal">Forgot password</h1>
-        <p className="mt-3 text-sm font-medium leading-6 text-[#6b767d]">Enter your email. In development mode, Swipe for Success returns a reset token for demo.</p>
+        <p className="mt-3 text-sm font-medium leading-6 text-[#6b767d]">Enter your email to request secure password reset instructions.</p>
         <div className="mt-6 grid gap-4">
           <div>
             <label className="label" htmlFor="email">

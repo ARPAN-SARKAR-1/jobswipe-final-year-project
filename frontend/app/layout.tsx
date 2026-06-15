@@ -7,7 +7,11 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Swipe for Success",
-  description: "Swipe for Success is a swipe-based job discovery and recruitment platform."
+  description: "Swipe for Success is a swipe-based job discovery and recruitment platform.",
+  icons: {
+    apple: "/swipe-for-success-logo.png",
+    icon: "/swipe-for-success-logo.png"
+  }
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

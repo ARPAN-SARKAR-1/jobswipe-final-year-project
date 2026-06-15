@@ -1,10 +1,13 @@
 import hmac
+import base64
+from io import BytesIO
 from datetime import datetime, timedelta, timezone
 from hashlib import sha256
 from secrets import randbelow, token_urlsafe
 from uuid import uuid4
 
 from fastapi import HTTPException, Response, status
+from PIL import Image, ImageDraw, ImageFont
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -31,18 +34,86 @@ def generate_otp() -> str:
     return f"{randbelow(1_000_000):06d}"
 
 
+def generate_captcha_expression() -> tuple[str, str]:
+    operation = randbelow(4)
+    if operation == 0:
+        left = randbelow(8) + 2
+        right = randbelow(8) + 2
+        return f"{left} + {right}", str(left + right)
+    if operation == 1:
+        left = randbelow(8) + 8
+        right = randbelow(7) + 2
+        return f"{left} - {right}", str(left - right)
+    if operation == 2:
+        left = randbelow(7) + 2
+        right = randbelow(4) + 2
+        return f"{left} x {right}", str(left * right)
+    divisor = randbelow(7) + 2
+    answer = randbelow(7) + 2
+    return f"{divisor * answer} / {divisor}", str(answer)
+
+
+def captcha_image_data_url(expression: str) -> str:
+    width = 240
+    height = 84
+    image = Image.new("RGB", (width, height), "#fbfaf7")
+    draw = ImageDraw.Draw(image)
+    for _ in range(9):
+        color = (160 + randbelow(50), 180 + randbelow(45), 185 + randbelow(45))
+        draw.line(
+            (
+                randbelow(width),
+                randbelow(height),
+                randbelow(width),
+                randbelow(height),
+            ),
+            fill=color,
+            width=1,
+        )
+    for _ in range(90):
+        x = randbelow(width)
+        y = randbelow(height)
+        color = (120 + randbelow(80), 130 + randbelow(80), 150 + randbelow(80))
+        draw.point((x, y), fill=color)
+
+    try:
+        font = ImageFont.truetype("DejaVuSans-Bold.ttf", 38)
+    except OSError:
+        try:
+            font = ImageFont.truetype("arial.ttf", 38)
+        except OSError:
+            font = ImageFont.load_default()
+
+    text_layer = Image.new("RGBA", (width, height), (255, 255, 255, 0))
+    text_draw = ImageDraw.Draw(text_layer)
+    bbox = text_draw.textbbox((0, 0), expression, font=font)
+    text_width = bbox[2] - bbox[0]
+    text_height = bbox[3] - bbox[1]
+    text_draw.text(
+        ((width - text_width) / 2, (height - text_height) / 2 - 4),
+        expression,
+        font=font,
+        fill=(23, 32, 38, 255),
+    )
+    rotated = text_layer.rotate(randbelow(7) - 3, resample=Image.Resampling.BICUBIC, center=(width / 2, height / 2))
+    image = Image.alpha_composite(image.convert("RGBA"), rotated).convert("RGB")
+
+    buffer = BytesIO()
+    image.save(buffer, format="PNG", optimize=True)
+    encoded = base64.b64encode(buffer.getvalue()).decode("ascii")
+    return f"data:image/png;base64,{encoded}"
+
+
 def create_captcha(db: Session, purpose: str) -> CaptchaChallenge:
     normalized_purpose = purpose.strip().lower()
     if normalized_purpose not in CAPTCHA_PURPOSES:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported CAPTCHA purpose")
-    left = randbelow(8) + 2
-    right = randbelow(8) + 2
-    answer = str(left + right)
+    expression, answer = generate_captcha_expression()
     challenge = CaptchaChallenge(
         id=uuid4().hex,
         purpose=normalized_purpose,
         answer_hash=hash_security_value(answer, f"captcha:{normalized_purpose}"),
-        question=f"What is {left} + {right}?",
+        question=expression,
         expires_at=utcnow() + timedelta(minutes=settings.captcha_expire_minutes),
     )
     db.add(challenge)
@@ -55,7 +126,7 @@ def verify_captcha(db: Session, purpose: str, challenge_id: str | None, answer: 
     if not settings.captcha_enabled:
         return
     if not challenge_id or not answer:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="CAPTCHA is required")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Security check is required")
     normalized_purpose = purpose.strip().lower()
     challenge = db.get(CaptchaChallenge, challenge_id)
     if (
@@ -64,10 +135,10 @@ def verify_captcha(db: Session, purpose: str, challenge_id: str | None, answer: 
         or challenge.used_at is not None
         or challenge.expires_at < utcnow()
     ):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired CAPTCHA")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired security check")
     expected = hash_security_value(answer.strip(), f"captcha:{normalized_purpose}")
     if not hmac.compare_digest(challenge.answer_hash, expected):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid CAPTCHA answer")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid security check answer")
     challenge.used_at = utcnow()
     db.flush()
 

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 import toast from "react-hot-toast";
 
+import BrandLogo from "@/components/BrandLogo";
 import { ApiError, apiFetch, roleHome, saveAuth } from "@/lib/api";
 import type { AuthResponse, Role } from "@/types";
 
@@ -121,6 +122,9 @@ export default function VerifyLoginPage() {
   return (
     <main className="page-shell">
       <form onSubmit={submit} className="panel mx-auto max-w-md p-6 md:p-8">
+        <div className="mb-5 flex justify-center">
+          <BrandLogo size="auth" priority />
+        </div>
         <p className="mb-2 text-sm font-black uppercase text-teal-700">Secure login</p>
         <h1 className="text-3xl font-black tracking-normal">Verify login OTP</h1>
         <p className="mt-3 text-sm font-medium leading-6 text-[#6b767d]">OTP expires in 10 minutes.</p>

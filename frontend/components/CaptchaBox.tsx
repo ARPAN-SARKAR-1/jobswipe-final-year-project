@@ -7,9 +7,10 @@ import { apiFetch } from "@/lib/api";
 
 type CaptchaChallenge = {
   challenge_id: string;
-  question: string;
+  image_base64: string;
   purpose: string;
   expires_at: string;
+  expires_in_seconds: number;
 };
 
 export type CaptchaValue = {
@@ -70,7 +71,18 @@ export default function CaptchaBox({ disabled = false, onChange, purpose }: Capt
           <RefreshCw className={loading ? "animate-spin" : ""} size={16} />
         </button>
       </div>
-      {error ? <p className="text-sm font-bold text-rose-700">{error}</p> : <p className="mb-3 text-sm font-bold text-[#526069]">{challenge?.question || "Loading security check..."}</p>}
+      {error ? (
+        <p className="text-sm font-bold text-rose-700">{error}</p>
+      ) : challenge?.image_base64 ? (
+        <div className="mb-3 rounded-lg border border-black/10 bg-[#fbfaf7] p-2">
+          <img alt="Security check image" className="h-20 w-full object-contain" draggable={false} src={challenge.image_base64} />
+        </div>
+      ) : (
+        <p className="mb-3 text-sm font-bold text-[#526069]">Loading security check...</p>
+      )}
+      <label className="label" htmlFor={`${purpose}-captcha`}>
+        Enter the answer shown in the CAPTCHA image
+      </label>
       <input
         id={`${purpose}-captcha`}
         className="field"

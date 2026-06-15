@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 import toast from "react-hot-toast";
 
+import BrandLogo from "@/components/BrandLogo";
 import CaptchaBox, { type CaptchaValue } from "@/components/CaptchaBox";
 import PasswordInput from "@/components/PasswordInput";
 import { apiFetch, roleHome, saveAuth } from "@/lib/api";
@@ -67,6 +68,9 @@ export default function LoginPage() {
   return (
     <main className="page-shell">
       <form onSubmit={submit} className="panel mx-auto max-w-md p-6 md:p-8">
+        <div className="mb-5 flex justify-center">
+          <BrandLogo size="auth" priority />
+        </div>
         <p className="mb-2 text-sm font-black uppercase text-teal-700">Login</p>
         <h1 className="text-3xl font-black tracking-normal">Continue to Swipe for Success</h1>
         <p className="mt-3 text-sm font-bold leading-6 text-[#6b767d]">

@@ -34,6 +34,7 @@ from app.schemas.auth import (
     VerifyLoginOTPRequest,
 )
 from app.services.security_challenges import (
+    captcha_image_data_url,
     create_captcha,
     create_email_verification_otp,
     create_login_otp_challenge,
@@ -85,9 +86,10 @@ def captcha(
         raise
     return CaptchaResponse(
         challenge_id=challenge.id,
-        question=challenge.question,
+        image_base64=captcha_image_data_url(challenge.question),
         purpose=challenge.purpose,
         expires_at=challenge.expires_at,
+        expires_in_seconds=max(0, int((challenge.expires_at - datetime.now(timezone.utc).replace(tzinfo=None)).total_seconds())),
     )
 
 

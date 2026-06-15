@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 import toast from "react-hot-toast";
 
+import BrandLogo from "@/components/BrandLogo";
 import { apiFetch } from "@/lib/api";
 
 export default function VerifyEmailPage() {
@@ -63,6 +64,9 @@ export default function VerifyEmailPage() {
   return (
     <main className="page-shell">
       <form onSubmit={submit} className="panel mx-auto max-w-md p-6 md:p-8">
+        <div className="mb-5 flex justify-center">
+          <BrandLogo size="auth" priority />
+        </div>
         <p className="mb-2 text-sm font-black uppercase text-teal-700">Email verification</p>
         <h1 className="text-3xl font-black tracking-normal">Verify your email</h1>
         <p className="mt-3 text-sm font-medium leading-6 text-[#6b767d]">Enter the 6-digit OTP sent to your email address. OTP expires in 10 minutes.</p>

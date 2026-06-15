@@ -12,6 +12,8 @@ import {
 import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
 
+import BrandLogo from "@/components/BrandLogo";
+
 const features: Array<[string, LucideIcon]> = [
   ["Tinder-style job swipe", Sparkles],
   ["Smart job filters", ListFilter],
@@ -29,6 +31,7 @@ export default function LandingPage() {
         <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(20,184,166,0.13),rgba(255,255,255,0.3),rgba(244,63,94,0.10))]" />
         <div className="page-shell relative grid min-h-[calc(100vh-73px)] items-center gap-10 py-10 lg:grid-cols-[0.9fr_1.1fr]">
           <div>
+            <BrandLogo className="mb-6" priority size="hero" />
             <div className="mb-5 inline-flex items-center gap-2 rounded-lg border border-black/10 bg-white/80 px-3 py-2 text-sm font-black text-teal-700">
               <BriefcaseBusiness size={16} />
               Verified career platform

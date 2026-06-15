@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 import toast from "react-hot-toast";
 
+import BrandLogo from "@/components/BrandLogo";
 import PasswordInput from "@/components/PasswordInput";
 import { apiFetch } from "@/lib/api";
 
@@ -43,6 +44,9 @@ export default function ResetPasswordPage() {
   return (
     <main className="page-shell">
       <form onSubmit={submit} className="panel mx-auto max-w-md p-6 md:p-8">
+        <div className="mb-5 flex justify-center">
+          <BrandLogo size="auth" priority />
+        </div>
         <p className="mb-2 text-sm font-black uppercase text-teal-700">Reset</p>
         <h1 className="text-3xl font-black tracking-normal">Set new password</h1>
         <div className="mt-6 grid gap-4">

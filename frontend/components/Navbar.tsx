@@ -1,10 +1,11 @@
 "use client";
 
-import { BriefcaseBusiness, LogOut, Menu, Sparkles, UserRound } from "lucide-react";
+import { BriefcaseBusiness, LogOut, Menu, UserRound } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import BrandLogo from "@/components/BrandLogo";
 import NotificationBell from "@/components/NotificationBell";
 import { apiFetch, getStoredUser, logout, roleHome } from "@/lib/api";
 import { cx } from "@/lib/utils";
@@ -77,11 +78,8 @@ export default function Navbar() {
   return (
     <header className="sticky top-0 z-40 border-b border-black/5 bg-[#f7f6f2]/82 backdrop-blur-xl">
       <div className="mx-auto flex w-[min(1180px,calc(100%-32px))] min-w-0 items-center justify-between gap-3 py-4">
-        <Link href={user ? roleHome(user.role) : "/"} className="flex min-w-0 items-center gap-2 font-black tracking-normal">
-          <span className="grid h-9 w-9 place-items-center rounded-lg bg-[#172026] text-white">
-            <Sparkles size={18} />
-          </span>
-          <span className="truncate text-base sm:text-lg">Swipe for Success</span>
+        <Link href={user ? roleHome(user.role) : "/"} className="flex min-w-0 items-center" aria-label="Swipe for Success home">
+          <BrandLogo size="nav" priority />
         </Link>
 
         <nav className="hidden items-center gap-1 lg:flex">
