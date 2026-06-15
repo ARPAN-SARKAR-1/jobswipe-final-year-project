@@ -36,7 +36,7 @@ export default function ListToolbar({
   resultCount
 }: ListToolbarProps) {
   return (
-    <div className="border-b border-black/5 bg-[#fbfaf7] p-3 sm:p-4">
+    <div className="border-b border-black/5 bg-[#fbfaf7]/92 p-3 transition-colors duration-300 ease-out sm:p-4">
       <div className="grid min-w-0 gap-3 md:grid-cols-2 xl:grid-cols-4">
         <div className="min-w-0 md:col-span-2">
           <SearchBox placeholder={searchPlaceholder} value={searchValue} onChange={onSearchChange} />

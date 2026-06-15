@@ -22,7 +22,7 @@ export default function PaginationControls({
   const end = Math.min(total, page * pageSize);
 
   return (
-    <div className="flex flex-col justify-between gap-3 border-t border-black/5 bg-[#fbfaf7] p-3 text-sm font-bold text-[#526069] sm:p-4 md:flex-row md:items-center">
+    <div className="flex flex-col justify-between gap-3 border-t border-black/5 bg-[#fbfaf7]/92 p-3 text-sm font-bold text-[#526069] transition-colors duration-300 ease-out sm:p-4 md:flex-row md:items-center">
       <span className="text-center md:text-left">
         {total === 0 ? "No results" : `${start}-${end} of ${total}`} - Page {page} of {totalPages}
       </span>

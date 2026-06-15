@@ -11,7 +11,7 @@ export default function EmptyState({ title, text, compact = false }: { title: st
       )}
     >
       <div>
-        <div className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-lg bg-white text-[#172026] shadow-sm">
+        <div className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-lg bg-white text-[#172026] shadow-sm transition duration-300 ease-out">
           <Inbox size={22} />
         </div>
         <h2 className="text-xl font-black">{title}</h2>

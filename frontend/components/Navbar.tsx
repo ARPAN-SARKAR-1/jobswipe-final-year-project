@@ -76,7 +76,7 @@ export default function Navbar() {
   };
 
   return (
-    <header className="sticky top-0 z-40 border-b border-black/5 bg-[#f7f6f2]/82 backdrop-blur-xl">
+    <header className="sticky top-0 z-40 border-b border-black/5 bg-[#f7f6f2]/86 shadow-[0_8px_30px_rgba(23,32,38,0.04)] backdrop-blur-xl transition-shadow duration-300 ease-out">
       <div className="mx-auto flex w-[min(1180px,calc(100%-32px))] min-w-0 items-center justify-between gap-3 py-4">
         <Link href={user ? roleHome(user.role) : "/"} className="flex min-w-0 items-center" aria-label="Swipe for Success home">
           <BrandLogo size="nav" priority />
@@ -90,6 +90,7 @@ export default function Navbar() {
                 href={href}
                 className={cx(
                   "rounded-lg px-3 py-2 text-sm font-bold text-[#526069] transition hover:bg-white hover:text-[#172026]",
+                  "hover:-translate-y-0.5 hover:shadow-sm focus-visible:bg-white active:translate-y-0",
                   pathname === href && "bg-white text-[#172026] shadow-sm"
                 )}
               >
@@ -105,7 +106,7 @@ export default function Navbar() {
           {user ? (
             <>
               <NotificationBell enabled={Boolean(user)} />
-              <span className="inline-flex items-center gap-2 rounded-lg bg-white/80 px-3 py-2 text-sm font-bold text-[#526069]">
+              <span className="inline-flex items-center gap-2 rounded-lg bg-white/80 px-3 py-2 text-sm font-bold text-[#526069] shadow-sm transition duration-200 ease-out">
                 <UserRound size={16} />
                 {user.name}
               </span>
@@ -136,7 +137,12 @@ export default function Navbar() {
         <div className="mx-auto grid w-[min(1180px,calc(100%-32px))] gap-2 pb-4 lg:hidden">
           {user &&
             links.map(([label, href]) => (
-              <Link key={href} href={href} className="rounded-lg bg-white px-3 py-3 text-sm font-bold" onClick={() => setOpen(false)}>
+              <Link
+                key={href}
+                href={href}
+                className="rounded-lg bg-white px-3 py-3 text-sm font-bold shadow-sm transition duration-200 ease-out hover:-translate-y-0.5 hover:shadow-md active:translate-y-0"
+                onClick={() => setOpen(false)}
+              >
                 <span>{label}</span>
                 {label === "Messages" && unreadCount > 0 && (
                   <span className="ml-2 rounded-lg bg-rose-50 px-2 py-0.5 text-[11px] font-black text-rose-700">{unreadCount}</span>

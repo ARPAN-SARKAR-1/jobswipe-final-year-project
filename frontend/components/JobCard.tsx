@@ -16,7 +16,7 @@ export default function JobCard({ job, actions, detailsHref }: { job: Job; actio
   return (
     <article className="panel overflow-hidden p-5">
       <div className="flex items-start gap-4">
-        <div className="grid h-14 w-14 shrink-0 place-items-center rounded-lg border border-black/10 bg-white">
+        <div className="grid h-14 w-14 shrink-0 place-items-center rounded-lg border border-black/10 bg-white shadow-sm transition duration-300 ease-out">
           {logo ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={logo} alt={job.company_name} className="h-full w-full rounded-lg object-cover" />
@@ -28,7 +28,7 @@ export default function JobCard({ job, actions, detailsHref }: { job: Job; actio
           <h3 className="text-xl font-black tracking-normal text-[#172026]">{job.title}</h3>
           <div className="mt-1 flex flex-wrap items-center gap-2 text-sm font-bold text-[#6b767d]">
             {companyRef ? (
-              <Link href={`/companies/${companyRef}`} className="text-teal-700">
+              <Link href={`/companies/${companyRef}`} className="text-teal-700 transition duration-200 ease-out hover:text-teal-900">
                 {job.company_name}
               </Link>
             ) : (
@@ -88,7 +88,7 @@ export default function JobCard({ job, actions, detailsHref }: { job: Job; actio
       <p className="mt-4 text-sm font-medium leading-6 text-[#526069]">{job.description}</p>
       <p className="mt-3 text-sm font-bold text-[#172026]">Experience: {job.required_experience_level}</p>
       {detailsHref && (
-        <Link href={detailsHref} className="mt-4 inline-flex text-sm font-black text-teal-700">
+        <Link href={detailsHref} className="mt-4 inline-flex text-sm font-black text-teal-700 transition duration-200 ease-out hover:-translate-y-0.5 hover:text-teal-900">
           View details
         </Link>
       )}
