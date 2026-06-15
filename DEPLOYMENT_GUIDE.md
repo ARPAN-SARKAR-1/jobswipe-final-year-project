@@ -145,3 +145,12 @@ python seed.py
 - Upload a profile image, resume PDF, and company logo.
 - Confirm Cloudinary receives the uploaded files.
 - Confirm the frontend can load uploaded Cloudinary URLs.
+
+## Final Demo Checklist
+
+- Create one job seeker test account with a complete profile.
+- Create one recruiter test account with 2-3 jobs.
+- Create one admin account for the moderation demo.
+- Visit backend `/health` two minutes before the demo.
+- Test OTP, CAPTCHA, and login before showing the mentor.
+- Do not place real passwords or production secrets in demo notes.

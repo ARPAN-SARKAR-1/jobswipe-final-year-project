@@ -1,27 +1,56 @@
 import {
-  Bookmark,
   BriefcaseBusiness,
   Building2,
   FileText,
-  Github,
   LayoutDashboard,
   ListFilter,
   ShieldCheck,
-  Sparkles
+  Sparkles,
+  UserRoundCheck
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
 
 import BrandLogo from "@/components/BrandLogo";
 
-const features: Array<[string, LucideIcon]> = [
-  ["Tinder-style job swipe", Sparkles],
-  ["Smart job filters", ListFilter],
-  ["Resume PDF upload", FileText],
-  ["GitHub profile link", Github],
-  ["Application tracking", Bookmark],
-  ["Recruiter dashboard", Building2],
-  ["Admin dashboard", ShieldCheck]
+const features: Array<{ title: string; description: string; icon: LucideIcon }> = [
+  {
+    title: "Swipe-Based Job Discovery",
+    description: "Review focused job cards and take action with Skip, Save, or Apply.",
+    icon: Sparkles
+  },
+  {
+    title: "Verified Hiring Network",
+    description: "Company, recruiter, and job seeker verification helps reduce fake profiles and misleading job posts.",
+    icon: ShieldCheck
+  },
+  {
+    title: "Smart Filters and Search",
+    description: "Filter jobs, applicants, companies, and applications by role, skill, status, and verification.",
+    icon: ListFilter
+  },
+  {
+    title: "Privacy-Controlled Profiles",
+    description: "Job seekers can manage public, recruiter-only, and private profile sections.",
+    icon: UserRoundCheck
+  },
+  {
+    title: "Secure Document Uploads",
+    description: "Resumes, certificates, and verification proofs are size-limited and protected by role-based access.",
+    icon: FileText
+  },
+  {
+    title: "Recruiter and Admin Workflows",
+    description: "Recruiters manage jobs and applicants, while Admins and Owners review verification and moderation queues.",
+    icon: Building2
+  }
+];
+
+const stats = [
+  ["4", "role-based portals"],
+  ["3", "job seeker categories"],
+  ["Verified", "company and recruiter badges"],
+  ["Private", "document controls"]
 ];
 
 export default function LandingPage() {
@@ -38,7 +67,7 @@ export default function LandingPage() {
             </div>
             <h1 className="max-w-3xl text-5xl font-black tracking-normal text-[#172026] md:text-7xl">Swipe Less. Apply Smarter.</h1>
             <p className="mt-6 max-w-2xl text-lg font-medium leading-8 text-[#526069]">
-              Swipe for Success is a swipe-based job discovery and recruitment platform that turns job discovery into a focused one-card-at-a-time experience.
+              Swipe for Success helps job seekers discover opportunities one card at a time, and gives recruiters a smarter way to find the right talent.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <Link href="/login" className="btn-primary">
@@ -90,20 +119,29 @@ export default function LandingPage() {
       </section>
 
       <section className="page-shell">
+        <div className="mb-10 grid gap-3 rounded-lg border border-black/10 bg-white/70 p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-4">
+          {stats.map(([value, label]) => (
+            <div key={label} className="rounded-lg bg-[#fbfaf7] px-4 py-5">
+              <p className="text-2xl font-black text-[#172026]">{value}</p>
+              <p className="mt-1 text-sm font-bold text-[#6b767d]">{label}</p>
+            </div>
+          ))}
+        </div>
         <div className="mb-8 flex items-end justify-between gap-4">
           <div>
             <p className="mb-2 text-sm font-black uppercase text-teal-700">Features</p>
-            <h2 className="text-3xl font-black tracking-normal md:text-4xl">Built for real placement workflows</h2>
+            <h2 className="text-3xl font-black tracking-normal md:text-4xl">Built for trusted hiring workflows</h2>
           </div>
           <LayoutDashboard className="hidden text-[#172026] md:block" size={34} />
         </div>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {features.map(([label, Icon]) => (
-            <div key={label} className="panel p-5">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {features.map(({ title, description, icon: Icon }) => (
+            <div key={title} className="panel p-5">
               <div className="mb-5 grid h-10 w-10 place-items-center rounded-lg bg-white text-[#172026] shadow-sm">
                 <Icon size={18} />
               </div>
-              <h3 className="text-lg font-black">{label}</h3>
+              <h3 className="text-lg font-black">{title}</h3>
+              <p className="mt-3 text-sm font-medium leading-6 text-[#526069]">{description}</p>
             </div>
           ))}
         </div>

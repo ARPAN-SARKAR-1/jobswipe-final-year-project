@@ -35,9 +35,12 @@ export default function ForgotPasswordPage() {
         })
       });
       setResponse(data);
-      toast.success("If the account exists, reset instructions were generated");
+      toast.success("If an account exists for this email, a password reset link has been sent.");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Request failed");
+      const message = error instanceof Error && error.message.includes("server is taking")
+        ? error.message
+        : "Could not send reset email. Please try again later.";
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -62,7 +65,7 @@ export default function ForgotPasswordPage() {
           <CaptchaBox disabled={loading} onChange={setCaptcha} purpose="forgot_password" />
           <button className="btn-primary" disabled={loading} type="submit">
             {loading && <Loader2 className="animate-spin" size={18} />}
-            Generate reset token
+            Send reset link
           </button>
         </div>
         {isDevelopment && response?.reset_token && (

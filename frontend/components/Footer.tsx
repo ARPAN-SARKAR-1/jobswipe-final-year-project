@@ -8,16 +8,21 @@ export default function Footer() {
       <div className="mx-auto flex w-[min(1180px,calc(100%-32px))] flex-col gap-3 py-6 text-sm font-bold text-[#6b767d] md:flex-row md:items-center md:justify-between">
         <div className="flex min-w-0 flex-col gap-2">
           <BrandLogo size="footer" />
-          <p>Swipe for Success is a swipe-based job discovery and recruitment platform.</p>
+          <p>Verified jobs. Trusted hiring. One swipe at a time.</p>
         </div>
         <div className="flex flex-wrap gap-4">
+          <Link href="/" className="hover:text-[#172026]">
+            Home
+          </Link>
           <Link href="/terms" className="hover:text-[#172026]">
             Terms
           </Link>
           <Link href="/privacy" className="hover:text-[#172026]">
             Privacy
           </Link>
-          <span>Support: support@swipeforsuccess.dev</span>
+          <a href="mailto:support@swipeforsuccess.dev" className="hover:text-[#172026]">
+            Contact
+          </a>
         </div>
       </div>
     </footer>

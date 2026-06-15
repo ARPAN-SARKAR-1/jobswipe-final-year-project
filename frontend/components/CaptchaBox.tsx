@@ -78,10 +78,10 @@ export default function CaptchaBox({ disabled = false, onChange, purpose }: Capt
           <img alt="Security check image" className="h-20 w-full object-contain" draggable={false} src={challenge.image_base64} />
         </div>
       ) : (
-        <p className="mb-3 text-sm font-bold text-[#526069]">Loading security check...</p>
+        <p className="mb-3 text-sm font-bold text-[#526069]">Connecting to the server. This may take a few seconds.</p>
       )}
       <label className="label" htmlFor={`${purpose}-captcha`}>
-        Enter the answer shown in the CAPTCHA image
+        Solve the security puzzle to continue
       </label>
       <input
         id={`${purpose}-captcha`}

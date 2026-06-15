@@ -86,7 +86,7 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}): Prom
       path: normalizedPath,
       message: error instanceof Error ? error.message : "Unknown network error"
     });
-    throw new ApiError("Could not reach Swipe for Success API. Please try again.", 0);
+    throw new ApiError("The server is taking longer than expected. Please refresh in a few seconds.", 0);
   }
 
   const contentType = response.headers.get("content-type") || "";
