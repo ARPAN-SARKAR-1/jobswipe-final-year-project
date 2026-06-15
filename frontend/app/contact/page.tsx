@@ -93,26 +93,26 @@ export default function ContactPage() {
   return (
     <main className="page-shell">
       <PageHeader title="Contact Support" eyebrow="Support desk">
-        <Link href="/" className="btn-secondary !py-2">
+        <Link href="/" className="btn-secondary scale-tap !py-2">
           Home
         </Link>
       </PageHeader>
 
       <section className="grid gap-6 lg:grid-cols-[0.85fr_1.15fr]">
-        <div className="panel p-6">
+        <div className="panel soft-panel fade-in-up p-6">
           <h2 className="text-2xl font-black tracking-normal">Need help?</h2>
           <p className="mt-3 text-sm font-bold leading-6 text-[#6b767d]">
             Need help with your account, verification, job application, recruiter access, or platform issue? Raise a support ticket and our team will review it.
           </p>
           <div className="mt-6 grid gap-3">
-            <a href={`mailto:${SUPPORT_EMAIL}`} className="rounded-lg border border-black/10 bg-white/80 p-4 text-sm font-bold text-[#526069] transition hover:border-teal-600">
+            <a href={`mailto:${SUPPORT_EMAIL}`} className="smooth-card rounded-lg border border-black/10 bg-white/80 p-4 text-sm font-bold text-[#526069] hover:border-teal-600">
               <span className="flex items-center gap-2 text-[#172026]">
                 <Mail size={17} />
                 Support
               </span>
               <span className="mt-1 block break-all text-teal-700">{SUPPORT_EMAIL}</span>
             </a>
-            <a href={`mailto:${ADMIN_EMAIL}`} className="rounded-lg border border-black/10 bg-white/80 p-4 text-sm font-bold text-[#526069] transition hover:border-teal-600">
+            <a href={`mailto:${ADMIN_EMAIL}`} className="smooth-card rounded-lg border border-black/10 bg-white/80 p-4 text-sm font-bold text-[#526069] hover:border-teal-600">
               <span className="flex items-center gap-2 text-[#172026]">
                 <Mail size={17} />
                 Admin
@@ -121,7 +121,7 @@ export default function ContactPage() {
             </a>
           </div>
           {createdTicket && (
-            <div className="mt-6 rounded-lg border border-emerald-200 bg-emerald-50 p-4">
+            <div className="fade-in-up mt-6 rounded-lg border border-emerald-200 bg-emerald-50 p-4">
               <div className="flex items-center gap-2 text-emerald-800">
                 <TicketCheck size={18} />
                 <p className="font-black">Your ticket has been created successfully.</p>
@@ -147,7 +147,7 @@ export default function ContactPage() {
           )}
         </div>
 
-        <form onSubmit={submit} className="panel p-6">
+        <form onSubmit={submit} className="panel soft-panel fade-in-up p-6">
           <h2 className="text-xl font-black">Submit ticket</h2>
           <div className="mt-5 grid gap-4">
             <div className="grid gap-4 sm:grid-cols-2">
@@ -175,7 +175,7 @@ export default function ContactPage() {
               />
             </div>
             <CaptchaBox disabled={loading} onChange={setCaptcha} purpose="contact" />
-            <button className="btn-primary" disabled={loading} type="submit">
+            <button className="btn-primary scale-tap" disabled={loading} type="submit">
               {loading && <Loader2 className="animate-spin" size={18} />}
               Submit ticket
             </button>

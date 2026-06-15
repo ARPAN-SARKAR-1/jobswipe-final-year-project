@@ -59,9 +59,9 @@ export default function LandingPage() {
       <section className="relative overflow-hidden border-b border-black/5">
         <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(20,184,166,0.13),rgba(255,255,255,0.3),rgba(244,63,94,0.10))]" />
         <div className="page-shell relative grid min-h-[calc(100vh-73px)] items-center gap-10 py-10 lg:grid-cols-[0.9fr_1.1fr]">
-          <div>
+          <div className="fade-in-up">
             <BrandLogo className="mb-6" priority size="hero" />
-            <div className="mb-5 inline-flex items-center gap-2 rounded-lg border border-black/10 bg-white/80 px-3 py-2 text-sm font-black text-teal-700">
+            <div className="smooth-card mb-5 inline-flex items-center gap-2 rounded-lg border border-black/10 bg-white/80 px-3 py-2 text-sm font-black text-teal-700 shadow-sm">
               <BriefcaseBusiness size={16} />
               Verified career platform
             </div>
@@ -70,19 +70,19 @@ export default function LandingPage() {
               Swipe for Success helps job seekers discover opportunities one card at a time, and gives recruiters a smarter way to find the right talent.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <Link href="/login" className="btn-primary">
+              <Link href="/login" className="btn-primary scale-tap">
                 Start Swiping
               </Link>
-              <Link href="/login" className="btn-secondary">
+              <Link href="/login" className="btn-secondary scale-tap">
                 Post a Job
               </Link>
             </div>
           </div>
 
-          <div className="relative min-h-[540px]">
-            <div className="absolute left-[8%] top-10 h-[430px] w-[78%] rotate-[-7deg] rounded-lg border border-black/10 bg-white/70 p-5 shadow-premium" />
-            <div className="absolute right-[2%] top-20 h-[430px] w-[78%] rotate-[6deg] rounded-lg border border-black/10 bg-white/70 p-5 shadow-premium" />
-            <div className="absolute left-1/2 top-3 w-[min(390px,88vw)] -translate-x-1/2 rounded-lg border border-black/10 bg-white p-5 shadow-premium">
+          <div className="fade-in-up relative min-h-[540px]">
+            <div className="motion-safe-soft absolute left-[8%] top-10 h-[430px] w-[78%] rotate-[-7deg] rounded-lg border border-black/10 bg-white/70 p-5 shadow-premium" />
+            <div className="motion-safe-soft absolute right-[2%] top-20 h-[430px] w-[78%] rotate-[6deg] rounded-lg border border-black/10 bg-white/70 p-5 shadow-premium" />
+            <div className="motion-safe-soft absolute left-1/2 top-3 w-[min(390px,88vw)] -translate-x-1/2 rounded-lg border border-black/10 bg-white p-5 shadow-premium">
               <div className="flex items-start justify-between gap-4">
                 <div className="grid h-14 w-14 place-items-center rounded-lg bg-[#172026] text-white">
                   <Building2 size={24} />
@@ -93,7 +93,7 @@ export default function LandingPage() {
               <p className="mt-2 font-bold text-[#6b767d]">NovaWorks Labs</p>
               <div className="mt-6 grid grid-cols-2 gap-3">
                 {["Hybrid", "Bengaluru", "Fresher", "INR 25k/mo"].map((item) => (
-                  <div key={item} className="rounded-lg border border-black/10 bg-[#fbfaf7] px-3 py-3 text-sm font-black text-[#526069]">
+                  <div key={item} className="smooth-hover rounded-lg border border-black/10 bg-[#fbfaf7] px-3 py-3 text-sm font-black text-[#526069]">
                     {item}
                   </div>
                 ))}
@@ -109,9 +109,9 @@ export default function LandingPage() {
                 Build APIs, learn production workflows, and work on real product features with a senior engineering team.
               </p>
               <div className="mt-7 grid grid-cols-3 gap-3">
-                <span className="grid h-12 place-items-center rounded-lg bg-rose-50 font-black text-rose-600">Skip</span>
-                <span className="grid h-12 place-items-center rounded-lg bg-amber-50 font-black text-amber-700">Save</span>
-                <span className="grid h-12 place-items-center rounded-lg bg-emerald-50 font-black text-emerald-700">Apply</span>
+                <span className="smooth-button grid h-12 place-items-center rounded-lg bg-rose-50 font-black text-rose-600">Skip</span>
+                <span className="smooth-button grid h-12 place-items-center rounded-lg bg-amber-50 font-black text-amber-700">Save</span>
+                <span className="smooth-button grid h-12 place-items-center rounded-lg bg-emerald-50 font-black text-emerald-700">Apply</span>
               </div>
             </div>
           </div>
@@ -119,9 +119,9 @@ export default function LandingPage() {
       </section>
 
       <section className="page-shell">
-        <div className="mb-10 grid gap-3 rounded-lg border border-black/10 bg-white/70 p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-4">
+        <div className="fade-in-up mb-10 grid gap-3 rounded-lg border border-black/10 bg-white/70 p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-4">
           {stats.map(([value, label]) => (
-            <div key={label} className="rounded-lg bg-[#fbfaf7] px-4 py-5">
+            <div key={label} className="smooth-card rounded-lg bg-[#fbfaf7] px-4 py-5">
               <p className="text-2xl font-black text-[#172026]">{value}</p>
               <p className="mt-1 text-sm font-bold text-[#6b767d]">{label}</p>
             </div>
@@ -136,8 +136,8 @@ export default function LandingPage() {
         </div>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {features.map(({ title, description, icon: Icon }) => (
-            <div key={title} className="panel p-5">
-              <div className="mb-5 grid h-10 w-10 place-items-center rounded-lg bg-white text-[#172026] shadow-sm">
+            <div key={title} className="panel smooth-card p-5">
+              <div className="smooth-hover mb-5 grid h-10 w-10 place-items-center rounded-lg bg-white text-[#172026] shadow-sm">
                 <Icon size={18} />
               </div>
               <h3 className="text-lg font-black">{title}</h3>

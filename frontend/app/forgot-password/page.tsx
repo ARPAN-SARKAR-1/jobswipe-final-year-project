@@ -48,7 +48,7 @@ export default function ForgotPasswordPage() {
 
   return (
     <main className="page-shell">
-      <form onSubmit={submit} className="panel mx-auto max-w-md p-6 md:p-8">
+      <form onSubmit={submit} className="panel soft-panel fade-in-up mx-auto max-w-md p-6 md:p-8">
         <div className="mb-5 flex justify-center">
           <BrandLogo size="auth" priority />
         </div>
@@ -63,16 +63,16 @@ export default function ForgotPasswordPage() {
             <input id="email" className="field" required type="email" value={email} onChange={(event) => setEmail(event.target.value)} />
           </div>
           <CaptchaBox disabled={loading} onChange={setCaptcha} purpose="forgot_password" />
-          <button className="btn-primary" disabled={loading} type="submit">
+          <button className="btn-primary scale-tap" disabled={loading} type="submit">
             {loading && <Loader2 className="animate-spin" size={18} />}
             Send reset link
           </button>
         </div>
         {isDevelopment && response?.reset_token && (
-          <div className="mt-5 rounded-lg border border-teal-200 bg-teal-50 p-4 text-sm font-bold text-teal-800">
+          <div className="fade-in-up mt-5 rounded-lg border border-teal-200 bg-teal-50 p-4 text-sm font-bold text-teal-800">
             <p className="break-all">Token: {response.reset_token}</p>
             {response.reset_url && (
-              <Link href={response.reset_url.replace(/^.*\/reset-password/, "/reset-password")} className="mt-3 inline-block underline">
+              <Link href={response.reset_url.replace(/^.*\/reset-password/, "/reset-password")} className="smooth-hover mt-3 inline-block underline">
                 Open reset page
               </Link>
             )}

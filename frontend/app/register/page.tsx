@@ -72,7 +72,7 @@ export default function RegisterPage() {
 
   return (
     <main className="page-shell">
-      <form onSubmit={submit} className="panel mx-auto max-w-xl p-6 md:p-8">
+      <form onSubmit={submit} className="panel soft-panel fade-in-up mx-auto max-w-xl p-6 md:p-8">
         <div className="mb-5 flex justify-center">
           <BrandLogo size="auth" priority />
         </div>
@@ -111,7 +111,7 @@ export default function RegisterPage() {
               {roleOptions.map((role) => (
                 <button
                   key={role.value}
-                  className={`rounded-lg border px-3 py-3 text-sm font-black transition ${
+                  className={`smooth-button scale-tap rounded-lg border px-3 py-3 text-sm font-black ${
                     form.role === role.value ? "border-teal-700 bg-teal-700 text-white" : "border-black/10 bg-white/70 text-[#25313a] hover:border-teal-600"
                   }`}
                   disabled={loading}
@@ -123,7 +123,7 @@ export default function RegisterPage() {
               ))}
             </div>
           </div>
-          <label className="flex items-start gap-3 rounded-lg border border-black/10 bg-white/70 p-3 text-sm font-bold text-[#526069]">
+          <label className="smooth-hover flex items-start gap-3 rounded-lg border border-black/10 bg-white/70 p-3 text-sm font-bold text-[#526069]">
             <input
               className="mt-1 h-4 w-4 accent-teal-600"
               type="checkbox"
@@ -132,25 +132,25 @@ export default function RegisterPage() {
             />
             <span>
               I agree to the{" "}
-              <Link href="/terms" className="text-teal-700 underline">
+              <Link href="/terms" className="smooth-hover text-teal-700 underline hover:text-teal-900">
                 Terms and Conditions
               </Link>
               {" "}and{" "}
-              <Link href="/privacy" className="text-teal-700 underline">
+              <Link href="/privacy" className="smooth-hover text-teal-700 underline hover:text-teal-900">
                 Privacy Policy
               </Link>
               .
             </span>
           </label>
           <CaptchaBox disabled={loading} onChange={setCaptcha} purpose="signup" />
-          <button className="btn-primary" disabled={loading} type="submit">
+          <button className="btn-primary scale-tap" disabled={loading} type="submit">
             {loading && <Loader2 className="animate-spin" size={18} />}
             Create account
           </button>
         </div>
         <p className="mt-5 text-center text-sm font-bold text-[#6b767d]">
           Already registered?{" "}
-          <Link href="/login" className="text-teal-700">
+          <Link href="/login" className="smooth-hover text-teal-700 hover:text-teal-900">
             Login
           </Link>
         </p>

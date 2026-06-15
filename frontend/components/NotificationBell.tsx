@@ -33,12 +33,12 @@ export default function NotificationBell({ enabled }: { enabled: boolean }) {
 
   return (
     <div className="relative">
-      <button className="btn-secondary !px-3 !py-2" type="button" onClick={() => setOpen((value) => !value)} title="Notifications">
+      <button className="btn-secondary scale-tap !px-3 !py-2" type="button" onClick={() => setOpen((value) => !value)} title="Notifications">
         <Bell size={17} />
         {unread > 0 && <span className="rounded-lg bg-rose-50 px-1.5 py-0.5 text-[11px] font-black text-rose-700">{unread}</span>}
       </button>
       {open && (
-        <div className="absolute right-0 top-12 z-50 w-[min(360px,calc(100vw-32px))] overflow-hidden rounded-lg border border-black/10 bg-white shadow-premium">
+        <div className="fade-in-up absolute right-0 top-12 z-50 w-[min(360px,calc(100vw-32px))] overflow-hidden rounded-lg border border-black/10 bg-white shadow-premium">
           <div className="flex items-center justify-between border-b border-black/5 p-3">
             <p className="font-black">Notifications</p>
             <Link href="/notifications" className="text-xs font-black text-teal-700" onClick={() => setOpen(false)}>
@@ -47,11 +47,11 @@ export default function NotificationBell({ enabled }: { enabled: boolean }) {
           </div>
           <div className="max-h-96 overflow-y-auto">
             {notifications.length === 0 ? (
-              <p className="p-4 text-sm font-bold text-[#6b767d]">No notifications yet.</p>
+              <p className="loading-soft p-4 text-sm font-bold text-[#6b767d]">No notifications yet.</p>
             ) : (
               notifications.slice(0, 6).map((notification) => {
                 const content = (
-                  <div className="border-b border-black/5 p-3 hover:bg-[#fbfaf7]">
+                  <div className="smooth-hover border-b border-black/5 p-3 hover:bg-[#fbfaf7]">
                     <div className="flex items-start justify-between gap-3">
                       <p className="font-black text-[#172026]">{notification.title}</p>
                       {!notification.is_read && <span className="mt-1 h-2 w-2 rounded-full bg-rose-500" />}

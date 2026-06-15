@@ -89,7 +89,7 @@ export default function VerifyEmailPage() {
 
   return (
     <main className="page-shell">
-      <form onSubmit={submit} className="panel mx-auto max-w-md p-6 md:p-8">
+      <form onSubmit={submit} className="panel soft-panel fade-in-up mx-auto max-w-md p-6 md:p-8">
         <div className="mb-5 flex justify-center">
           <BrandLogo size="auth" priority />
         </div>
@@ -111,11 +111,11 @@ export default function VerifyEmailPage() {
             </label>
             <input id="otp" className="field" inputMode="numeric" maxLength={6} minLength={6} required value={otp} onChange={(event) => setOtp(event.target.value)} />
           </div>
-          <button className="btn-primary" disabled={loading || !email} type="submit">
+          <button className="btn-primary scale-tap" disabled={loading || !email} type="submit">
             {loading && <Loader2 className="animate-spin" size={18} />}
             Verify email
           </button>
-          <button className="btn-secondary" disabled={resending || cooldown > 0 || !email} onClick={resend} type="button">
+          <button className="btn-secondary scale-tap" disabled={resending || cooldown > 0 || !email} onClick={resend} type="button">
             {resending && <Loader2 className="animate-spin" size={18} />}
             {cooldown > 0 ? `Resend in ${cooldown}s` : "Resend OTP"}
           </button>

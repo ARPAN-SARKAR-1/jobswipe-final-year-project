@@ -78,7 +78,7 @@ export default function LoginPage() {
 
   return (
     <main className="page-shell">
-      <form onSubmit={submit} className="panel mx-auto max-w-md p-6 md:p-8">
+      <form onSubmit={submit} className="panel soft-panel fade-in-up mx-auto max-w-md p-6 md:p-8">
         <div className="mb-5 flex justify-center">
           <BrandLogo size="auth" priority />
         </div>
@@ -96,7 +96,7 @@ export default function LoginPage() {
                 return (
                   <button
                     key={portal.value}
-                    className={`rounded-lg border px-3 py-3 text-sm font-black transition ${
+                    className={`smooth-button scale-tap rounded-lg border px-3 py-3 text-sm font-black ${
                       isSelected ? "border-teal-700 bg-teal-700 text-white" : "border-black/10 bg-white/70 text-[#25313a] hover:border-teal-600"
                     }`}
                     disabled={loading}
@@ -122,19 +122,19 @@ export default function LoginPage() {
             <PasswordInput id="password" required value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} />
           </div>
           <div className="flex justify-end">
-            <Link href="/forgot-password" className="text-sm font-black text-teal-700">
+            <Link href="/forgot-password" className="smooth-hover text-sm font-black text-teal-700 hover:text-teal-900">
               Forgot password?
             </Link>
           </div>
           <CaptchaBox disabled={loading} onChange={setCaptcha} purpose="login" />
-          <button className="btn-primary" disabled={loading} type="submit">
+          <button className="btn-primary scale-tap" disabled={loading} type="submit">
             {loading && <Loader2 className="animate-spin" size={18} />}
             Login
           </button>
         </div>
         <p className="mt-5 text-center text-sm font-bold text-[#6b767d]">
           New here?{" "}
-          <Link href="/register" className="text-teal-700">
+          <Link href="/register" className="smooth-hover text-teal-700 hover:text-teal-900">
             Create account
           </Link>
         </p>

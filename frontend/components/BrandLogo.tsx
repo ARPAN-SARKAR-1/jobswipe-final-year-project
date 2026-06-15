@@ -17,7 +17,7 @@ type BrandLogoProps = {
 export default function BrandLogo({ className, priority = false, size = "nav" }: BrandLogoProps) {
   if (size === "nav") {
     return (
-      <span className={cx("inline-flex min-w-0 items-center gap-2", className)}>
+      <span className={cx("smooth-hover interactive-lift inline-flex min-w-0 items-center gap-2", className)}>
         <Image
           alt=""
           aria-hidden="true"
@@ -33,7 +33,7 @@ export default function BrandLogo({ className, priority = false, size = "nav" }:
   }
 
   return (
-    <span className={cx("inline-flex min-w-0 items-center", className)}>
+    <span className={cx("smooth-hover interactive-lift inline-flex min-w-0 items-center", className)}>
       <Image
         alt="Swipe for Success"
         className={cx("block object-contain", logoSizes[size])}

@@ -1,8 +1,8 @@
 "use client";
 
-import { AnimatePresence, motion, type PanInfo } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion, type PanInfo } from "framer-motion";
 import { Bookmark, BriefcaseBusiness, CalendarClock, Heart, MapPin, RotateCcw, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
 
 import EmptyState from "@/components/EmptyState";
@@ -12,7 +12,7 @@ import PageHeader from "@/components/PageHeader";
 import ReportModal from "@/components/ReportModal";
 import SkillMultiSelect from "@/components/SkillMultiSelect";
 import { apiFetch, assetUrl } from "@/lib/api";
-import { formatDate, splitSkills } from "@/lib/utils";
+import { cx, formatDate, splitSkills } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import type { Job } from "@/types";
 
@@ -23,7 +23,10 @@ export default function SwipeJobsPage() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [index, setIndex] = useState(0);
   const [direction, setDirection] = useState(0);
+  const [feedbackAction, setFeedbackAction] = useState<SwipeAction | null>(null);
   const [filterSkills, setFilterSkills] = useState<string[]>([]);
+  const feedbackTimer = useRef<number | null>(null);
+  const reduceMotion = useReducedMotion();
   const current = jobs[index];
 
   const loadFeed = () => {
@@ -42,8 +45,15 @@ export default function SwipeJobsPage() {
     loadFeed();
   }, [loading]);
 
+  useEffect(() => {
+    return () => {
+      if (feedbackTimer.current) window.clearTimeout(feedbackTimer.current);
+    };
+  }, []);
+
   const move = async (action: SwipeAction) => {
     if (!current) return;
+    setFeedbackAction(action);
     try {
       await apiFetch("/swipes", {
         method: "POST",
@@ -54,6 +64,9 @@ export default function SwipeJobsPage() {
       toast.success(action === "LIKE" ? "Applied successfully" : action === "SAVE" ? "Saved for later" : "Skipped");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Swipe failed");
+    } finally {
+      if (feedbackTimer.current) window.clearTimeout(feedbackTimer.current);
+      feedbackTimer.current = window.setTimeout(() => setFeedbackAction(null), 220);
     }
   };
 
@@ -93,14 +106,14 @@ export default function SwipeJobsPage() {
                 drag="x"
                 dragConstraints={{ left: 0, right: 0 }}
                 onDragEnd={onDragEnd}
-                initial={{ opacity: 0, y: 24, scale: 0.96 }}
-                animate={{ opacity: 1, y: 0, x: 0, rotate: 0, scale: 1 }}
-                exit={{ opacity: 0, x: direction * 420, rotate: direction * 16, scale: 0.92 }}
-                transition={{ type: "spring", stiffness: 260, damping: 28 }}
-                className="relative z-0 w-full max-w-full touch-pan-y cursor-grab rounded-lg border border-black/10 bg-white p-4 shadow-premium active:cursor-grabbing sm:p-5"
+                initial={reduceMotion ? { opacity: 1 } : { opacity: 0, y: 24, scale: 0.96 }}
+                animate={reduceMotion ? { opacity: 1, x: 0 } : { opacity: 1, y: 0, x: 0, rotate: 0, scale: 1 }}
+                exit={reduceMotion ? { opacity: 0 } : { opacity: 0, x: direction * 420, rotate: direction * 16, scale: 0.92 }}
+                transition={reduceMotion ? { duration: 0.01 } : { type: "spring", stiffness: 260, damping: 28 }}
+                className="relative z-0 w-full max-w-full touch-pan-y cursor-grab rounded-lg border border-black/10 bg-white p-4 shadow-premium transition-shadow duration-300 ease-out active:cursor-grabbing sm:p-5"
               >
                 <div className="flex min-w-0 items-start justify-between gap-3">
-                  <div className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-lg border border-black/10 bg-[#fbfaf7] sm:h-16 sm:w-16">
+                  <div className="smooth-hover grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-lg border border-black/10 bg-[#fbfaf7] sm:h-16 sm:w-16">
                     {current.company_logo_url ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={assetUrl(current.company_logo_url)} alt={current.company_name} className="h-full w-full object-cover" />
@@ -157,22 +170,46 @@ export default function SwipeJobsPage() {
           </AnimatePresence>
         </div>
 
-        <aside className="panel relative z-10 max-w-full p-4 sm:p-5">
+        <aside className="panel soft-panel relative z-10 max-w-full p-4 sm:p-5">
           <h2 className="text-xl font-black">Swipe controls</h2>
           <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <button className="btn-secondary pointer-events-auto min-w-0 border-rose-200 bg-rose-50 text-rose-700" onClick={() => move("REJECT")} disabled={!current} type="button">
+            <button
+              className={cx(
+                "btn-secondary scale-tap pointer-events-auto min-w-0 border-rose-200 bg-rose-50 text-rose-700",
+                feedbackAction === "REJECT" && "ring-4 ring-rose-100"
+              )}
+              onClick={() => move("REJECT")}
+              disabled={!current}
+              type="button"
+            >
               <X size={18} />
               Reject
             </button>
-            <button className="btn-secondary pointer-events-auto min-w-0 border-amber-200 bg-amber-50 text-amber-700" onClick={() => move("SAVE")} disabled={!current} type="button">
+            <button
+              className={cx(
+                "btn-secondary scale-tap pointer-events-auto min-w-0 border-amber-200 bg-amber-50 text-amber-700",
+                feedbackAction === "SAVE" && "ring-4 ring-amber-100"
+              )}
+              onClick={() => move("SAVE")}
+              disabled={!current}
+              type="button"
+            >
               <Bookmark size={18} />
               Save
             </button>
-            <button className="btn-primary pointer-events-auto min-w-0 bg-emerald-600 hover:bg-emerald-700" onClick={() => move("LIKE")} disabled={!current || Boolean(current.existing_application_status)} type="button">
+            <button
+              className={cx(
+                "btn-primary scale-tap pointer-events-auto min-w-0 bg-emerald-600 hover:bg-emerald-700",
+                feedbackAction === "LIKE" && "ring-4 ring-emerald-100"
+              )}
+              onClick={() => move("LIKE")}
+              disabled={!current || Boolean(current.existing_application_status)}
+              type="button"
+            >
               <Heart size={18} />
               {current?.existing_application_status ? "Already Applied" : "Apply"}
             </button>
-            <button className="btn-secondary pointer-events-auto min-w-0" onClick={undo} type="button">
+            <button className="btn-secondary scale-tap pointer-events-auto min-w-0" onClick={undo} type="button">
               <RotateCcw size={18} />
               Undo
             </button>
@@ -184,12 +221,15 @@ export default function SwipeJobsPage() {
           )}
           <div className="mt-6">
             <SkillMultiSelect label="Skill filters" selected={filterSkills} onChange={setFilterSkills} />
-            <button className="btn-secondary mt-3 w-full" type="button" onClick={loadFeed}>
+            <button className="btn-secondary scale-tap mt-3 w-full" type="button" onClick={loadFeed}>
               Apply skills
             </button>
           </div>
           <div className="mt-6 h-2 rounded-lg bg-stone-200">
-            <div className="h-2 rounded-lg bg-teal-600" style={{ width: jobs.length ? `${Math.min(index, jobs.length) / jobs.length * 100}%` : "0%" }} />
+            <div
+              className="h-2 rounded-lg bg-teal-600 transition-[width] duration-300 ease-out"
+              style={{ width: jobs.length ? `${Math.min(index, jobs.length) / jobs.length * 100}%` : "0%" }}
+            />
           </div>
           <p className="mt-4 text-sm font-bold leading-6 text-[#6b767d]">
             Drag the card left to skip or right to apply. Saved cards move into your saved jobs history for later review.
@@ -202,7 +242,7 @@ export default function SwipeJobsPage() {
 
 function Info({ icon, label }: { icon: React.ReactNode; label: string }) {
   return (
-    <div className="flex min-w-0 items-center gap-2 rounded-lg border border-black/10 bg-[#fbfaf7] px-3 py-3 text-sm font-black text-[#526069]">
+    <div className="smooth-hover flex min-w-0 items-center gap-2 rounded-lg border border-black/10 bg-[#fbfaf7] px-3 py-3 text-sm font-black text-[#526069]">
       <span className="shrink-0">{icon}</span>
       <span className="min-w-0 break-words">{label}</span>
     </div>

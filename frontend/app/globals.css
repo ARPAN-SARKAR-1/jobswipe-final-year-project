@@ -6,6 +6,8 @@
   color-scheme: light;
   --ease-premium: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-soft: cubic-bezier(0.4, 0, 0.2, 1);
+  --motion-fast: 180ms;
+  --motion-medium: 260ms;
 }
 
 * {
@@ -181,6 +183,63 @@ a:focus-visible,
     background 260ms var(--ease-premium);
 }
 
+.smooth-hover {
+  transition:
+    transform var(--motion-medium) var(--ease-premium),
+    color var(--motion-fast) var(--ease-premium),
+    background-color var(--motion-fast) var(--ease-premium),
+    border-color var(--motion-fast) var(--ease-premium),
+    box-shadow var(--motion-medium) var(--ease-premium),
+    opacity var(--motion-fast) var(--ease-premium);
+}
+
+.smooth-button {
+  transition:
+    transform 220ms var(--ease-premium),
+    background-color 220ms var(--ease-premium),
+    border-color 220ms var(--ease-premium),
+    box-shadow 220ms var(--ease-premium),
+    color 220ms var(--ease-premium),
+    opacity 220ms var(--ease-premium);
+}
+
+.smooth-input {
+  transition:
+    border-color 220ms var(--ease-premium),
+    box-shadow 220ms var(--ease-premium),
+    background-color 220ms var(--ease-premium);
+}
+
+.smooth-card,
+.soft-panel {
+  transition:
+    transform var(--motion-medium) var(--ease-premium),
+    box-shadow var(--motion-medium) var(--ease-premium),
+    border-color var(--motion-medium) var(--ease-premium),
+    background-color var(--motion-medium) var(--ease-premium);
+}
+
+.soft-panel {
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow: 0 20px 56px rgba(23, 32, 38, 0.08);
+}
+
+.fade-in-up {
+  animation: fade-in-up 320ms var(--ease-premium) both;
+}
+
+.motion-safe-soft {
+  animation: fade-in-soft 260ms var(--ease-premium) both;
+}
+
+.loading-soft {
+  animation: soft-pulse 1.25s var(--ease-soft) infinite;
+}
+
+.scale-tap:active:not(:disabled) {
+  transform: scale(0.985);
+}
+
 .page-shell {
   width: min(1180px, calc(100% - 32px));
   margin: 0 auto;
@@ -188,6 +247,9 @@ a:focus-visible,
 }
 
 @media (hover: hover) and (pointer: fine) {
+  .interactive-lift:hover,
+  .smooth-card:hover,
+  .soft-panel:hover,
   .panel:hover {
     transform: translateY(-1px);
     border-color: rgba(23, 32, 38, 0.14);
@@ -200,6 +262,39 @@ a:focus-visible,
 
   tbody tr:hover {
     background-color: rgba(20, 184, 166, 0.045);
+  }
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 10px, 0);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes fade-in-soft {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes soft-pulse {
+  0%,
+  100% {
+    opacity: 0.72;
+  }
+
+  50% {
+    opacity: 1;
   }
 }
 

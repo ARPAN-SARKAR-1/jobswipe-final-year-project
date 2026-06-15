@@ -25,7 +25,7 @@ const PasswordInput = forwardRef<HTMLInputElement, PasswordInputProps>(function 
       />
       <button
         aria-label={label}
-        className="absolute right-2 top-1/2 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-md text-[#526069] transition hover:bg-black/5 hover:text-[#172026] focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:cursor-not-allowed disabled:opacity-50"
+        className="smooth-button absolute right-2 top-1/2 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-md text-[#526069] hover:bg-black/5 hover:text-[#172026] focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:cursor-not-allowed disabled:opacity-50"
         disabled={disabled}
         onClick={() => setVisible((value) => !value)}
         type="button"

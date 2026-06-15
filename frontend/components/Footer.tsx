@@ -11,16 +11,16 @@ export default function Footer() {
           <p>Verified jobs. Trusted hiring. One swipe at a time.</p>
         </div>
         <div className="flex flex-wrap gap-4">
-          <Link href="/" className="font-black transition duration-200 ease-out hover:-translate-y-0.5 hover:text-[#172026]">
+          <Link href="/" className="smooth-hover font-black hover:-translate-y-0.5 hover:text-[#172026]">
             Home
           </Link>
-          <Link href="/terms" className="font-black transition duration-200 ease-out hover:-translate-y-0.5 hover:text-[#172026]">
+          <Link href="/terms" className="smooth-hover font-black hover:-translate-y-0.5 hover:text-[#172026]">
             Terms
           </Link>
-          <Link href="/privacy" className="font-black transition duration-200 ease-out hover:-translate-y-0.5 hover:text-[#172026]">
+          <Link href="/privacy" className="smooth-hover font-black hover:-translate-y-0.5 hover:text-[#172026]">
             Privacy
           </Link>
-          <Link href="/contact" className="font-black transition duration-200 ease-out hover:-translate-y-0.5 hover:text-[#172026]">
+          <Link href="/contact" className="smooth-hover font-black hover:-translate-y-0.5 hover:text-[#172026]">
             Contact
           </Link>
         </div>

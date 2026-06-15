@@ -43,7 +43,7 @@ export default function ResetPasswordPage() {
 
   return (
     <main className="page-shell">
-      <form onSubmit={submit} className="panel mx-auto max-w-md p-6 md:p-8">
+      <form onSubmit={submit} className="panel soft-panel fade-in-up mx-auto max-w-md p-6 md:p-8">
         <div className="mb-5 flex justify-center">
           <BrandLogo size="auth" priority />
         </div>
@@ -68,7 +68,7 @@ export default function ResetPasswordPage() {
             </label>
             <PasswordInput id="confirm_new_password" minLength={8} required value={form.confirm_new_password} onChange={(event) => setForm({ ...form, confirm_new_password: event.target.value })} />
           </div>
-          <button className="btn-primary" disabled={loading} type="submit">
+          <button className="btn-primary scale-tap" disabled={loading} type="submit">
             {loading && <Loader2 className="animate-spin" size={18} />}
             Reset password
           </button>

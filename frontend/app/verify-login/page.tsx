@@ -121,7 +121,7 @@ export default function VerifyLoginPage() {
 
   return (
     <main className="page-shell">
-      <form onSubmit={submit} className="panel mx-auto max-w-md p-6 md:p-8">
+      <form onSubmit={submit} className="panel soft-panel fade-in-up mx-auto max-w-md p-6 md:p-8">
         <div className="mb-5 flex justify-center">
           <BrandLogo size="auth" priority />
         </div>
@@ -141,15 +141,15 @@ export default function VerifyLoginPage() {
             </label>
             <input id="otp" className="field" inputMode="numeric" maxLength={6} minLength={6} required value={otp} onChange={(event) => setOtp(event.target.value)} />
           </div>
-          <label className="flex items-start gap-3 rounded-lg border border-black/10 bg-white/70 p-3 text-sm font-bold text-[#526069]">
+          <label className="smooth-hover flex items-start gap-3 rounded-lg border border-black/10 bg-white/70 p-3 text-sm font-bold text-[#526069]">
             <input className="mt-1 h-4 w-4 accent-teal-600" type="checkbox" checked={rememberDevice} onChange={(event) => setRememberDevice(event.target.checked)} />
             <span>Remember this device for future secure logins.</span>
           </label>
-          <button className="btn-primary" disabled={loading} type="submit">
+          <button className="btn-primary scale-tap" disabled={loading} type="submit">
             {loading && <Loader2 className="animate-spin" size={18} />}
             Verify and continue
           </button>
-          <button className="btn-secondary" disabled={resending || cooldown > 0 || !pending.login_challenge_id} onClick={resend} type="button">
+          <button className="btn-secondary scale-tap" disabled={resending || cooldown > 0 || !pending.login_challenge_id} onClick={resend} type="button">
             {resending && <Loader2 className="animate-spin" size={18} />}
             {cooldown > 0 ? `Resend in ${cooldown}s` : "Resend OTP"}
           </button>

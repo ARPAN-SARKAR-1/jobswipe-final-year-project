@@ -22,7 +22,7 @@ export default function PaginationControls({
   const end = Math.min(total, page * pageSize);
 
   return (
-    <div className="flex flex-col justify-between gap-3 border-t border-black/5 bg-[#fbfaf7]/92 p-3 text-sm font-bold text-[#526069] transition-colors duration-300 ease-out sm:p-4 md:flex-row md:items-center">
+    <div className="motion-safe-soft flex flex-col justify-between gap-3 border-t border-black/5 bg-[#fbfaf7]/92 p-3 text-sm font-bold text-[#526069] transition-colors duration-300 ease-out sm:p-4 md:flex-row md:items-center">
       <span className="text-center md:text-left">
         {total === 0 ? "No results" : `${start}-${end} of ${total}`} - Page {page} of {totalPages}
       </span>
@@ -39,10 +39,10 @@ export default function PaginationControls({
             </option>
           ))}
         </select>
-        <button className="btn-secondary w-full !px-3 !py-2 sm:w-auto" disabled={page <= 1} onClick={() => onPageChange(page - 1)} type="button">
+        <button className="btn-secondary scale-tap w-full !px-3 !py-2 sm:w-auto" disabled={page <= 1} onClick={() => onPageChange(page - 1)} type="button">
           Previous
         </button>
-        <button className="btn-secondary w-full !px-3 !py-2 sm:w-auto" disabled={page >= totalPages} onClick={() => onPageChange(page + 1)} type="button">
+        <button className="btn-secondary scale-tap w-full !px-3 !py-2 sm:w-auto" disabled={page >= totalPages} onClick={() => onPageChange(page + 1)} type="button">
           Next
         </button>
       </div>

@@ -38,7 +38,7 @@ export default function SearchBox({ label = "Search", placeholder = "Search", va
         {draft && (
           <button
             aria-label="Clear search"
-            className="absolute right-2 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-md text-[#6b767d] transition duration-200 ease-out hover:bg-black/5 hover:text-[#172026] active:scale-95"
+            className="smooth-button absolute right-2 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-md text-[#6b767d] hover:bg-black/5 hover:text-[#172026] active:scale-95"
             onClick={() => setDraft("")}
             type="button"
           >

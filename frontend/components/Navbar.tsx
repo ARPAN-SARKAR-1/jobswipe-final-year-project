@@ -89,7 +89,7 @@ export default function Navbar() {
                 key={href}
                 href={href}
                 className={cx(
-                  "rounded-lg px-3 py-2 text-sm font-bold text-[#526069] transition hover:bg-white hover:text-[#172026]",
+                  "smooth-button scale-tap rounded-lg px-3 py-2 text-sm font-bold text-[#526069] hover:bg-white hover:text-[#172026]",
                   "hover:-translate-y-0.5 hover:shadow-sm focus-visible:bg-white active:translate-y-0",
                   pathname === href && "bg-white text-[#172026] shadow-sm"
                 )}
@@ -111,16 +111,16 @@ export default function Navbar() {
                 {user.name}
               </span>
               <span className="rounded-lg bg-teal-50 px-3 py-2 text-xs font-black text-teal-700">{roleLabels[user.role]}</span>
-              <button className="btn-secondary !px-3 !py-2" onClick={handleLogout} type="button" title="Log out">
+              <button className="btn-secondary scale-tap !px-3 !py-2" onClick={handleLogout} type="button" title="Log out">
                 <LogOut size={17} />
               </button>
             </>
           ) : (
             <>
-              <Link href="/login" className="btn-secondary !px-4 !py-2">
+              <Link href="/login" className="btn-secondary scale-tap !px-4 !py-2">
                 Login
               </Link>
-              <Link href="/register" className="btn-primary !px-4 !py-2">
+              <Link href="/register" className="btn-primary scale-tap !px-4 !py-2">
                 <BriefcaseBusiness size={17} />
                 Join
               </Link>
@@ -128,7 +128,7 @@ export default function Navbar() {
           )}
         </div>
 
-        <button className="btn-secondary shrink-0 !px-3 !py-2 lg:hidden" onClick={() => setOpen((value) => !value)} type="button">
+        <button className="btn-secondary scale-tap shrink-0 !px-3 !py-2 lg:hidden" onClick={() => setOpen((value) => !value)} type="button">
           <Menu size={18} />
         </button>
       </div>
@@ -140,7 +140,7 @@ export default function Navbar() {
               <Link
                 key={href}
                 href={href}
-                className="rounded-lg bg-white px-3 py-3 text-sm font-bold shadow-sm transition duration-200 ease-out hover:-translate-y-0.5 hover:shadow-md active:translate-y-0"
+                className="smooth-button scale-tap rounded-lg bg-white px-3 py-3 text-sm font-bold shadow-sm hover:-translate-y-0.5 hover:shadow-md active:translate-y-0"
                 onClick={() => setOpen(false)}
               >
                 <span>{label}</span>
@@ -152,16 +152,16 @@ export default function Navbar() {
           {user ? (
             <div className="flex flex-wrap items-center gap-2">
               <NotificationBell enabled={Boolean(user)} />
-              <button className="btn-secondary flex-1" onClick={handleLogout} type="button">
+              <button className="btn-secondary scale-tap flex-1" onClick={handleLogout} type="button">
                 Logout
               </button>
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-2">
-              <Link href="/login" className="btn-secondary">
+              <Link href="/login" className="btn-secondary scale-tap">
                 Login
               </Link>
-              <Link href="/register" className="btn-primary">
+              <Link href="/register" className="btn-primary scale-tap">
                 Join
               </Link>
             </div>

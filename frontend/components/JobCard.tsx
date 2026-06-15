@@ -14,9 +14,9 @@ export default function JobCard({ job, actions, detailsHref }: { job: Job; actio
   const companyRef = job.company_slug || job.company_public_id || job.company_id;
 
   return (
-    <article className="panel overflow-hidden p-5">
+    <article className="panel smooth-card overflow-hidden p-5">
       <div className="flex items-start gap-4">
-        <div className="grid h-14 w-14 shrink-0 place-items-center rounded-lg border border-black/10 bg-white shadow-sm transition duration-300 ease-out">
+        <div className="smooth-hover grid h-14 w-14 shrink-0 place-items-center rounded-lg border border-black/10 bg-white shadow-sm">
           {logo ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={logo} alt={job.company_name} className="h-full w-full rounded-lg object-cover" />
