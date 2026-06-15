@@ -8,7 +8,7 @@ const sections = [
   ["Security", "Passwords are hashed, JWT authentication is used, and role-based access control protects job seeker, recruiter, admin, and owner workflows."],
   ["Data deletion", "Users may request account or data deletion in future scope. Production deployments should add a formal data deletion workflow."],
   ["Cookies and local storage", "Swipe for Success may store a token/session in browser local storage to keep users logged in."],
-  ["Disclaimer", "Swipe for Success is a final year project/demo platform. Users should verify job authenticity before sharing sensitive personal or financial information."]
+  ["Disclaimer", "Swipe for Success is a verified career and recruitment portal built for trusted hiring and profile verification. Users should verify job authenticity before sharing sensitive personal or financial information."]
 ];
 
 export default function PrivacyPage() {

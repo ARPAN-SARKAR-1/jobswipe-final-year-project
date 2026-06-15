@@ -84,7 +84,7 @@ export default function SwipeJobsPage() {
       </PageHeader>
 
       <section className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
-        <div className="relative mx-auto grid min-h-[620px] w-full max-w-full place-items-center sm:min-h-[680px] sm:max-w-[460px]">
+        <div className="relative z-0 mx-auto grid w-full max-w-full place-items-start sm:max-w-[460px] lg:min-h-[680px] lg:place-items-center">
           <AnimatePresence custom={direction} mode="popLayout">
             {current ? (
               <motion.article
@@ -97,7 +97,7 @@ export default function SwipeJobsPage() {
                 animate={{ opacity: 1, y: 0, x: 0, rotate: 0, scale: 1 }}
                 exit={{ opacity: 0, x: direction * 420, rotate: direction * 16, scale: 0.92 }}
                 transition={{ type: "spring", stiffness: 260, damping: 28 }}
-                className="absolute w-full max-w-full cursor-grab rounded-lg border border-black/10 bg-white p-4 shadow-premium active:cursor-grabbing sm:p-5"
+                className="relative z-0 w-full max-w-full touch-pan-y cursor-grab rounded-lg border border-black/10 bg-white p-4 shadow-premium active:cursor-grabbing sm:p-5"
               >
                 <div className="flex min-w-0 items-start justify-between gap-3">
                   <div className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-lg border border-black/10 bg-[#fbfaf7] sm:h-16 sm:w-16">
@@ -157,22 +157,22 @@ export default function SwipeJobsPage() {
           </AnimatePresence>
         </div>
 
-        <aside className="panel max-w-full p-4 sm:p-5">
+        <aside className="panel relative z-10 max-w-full p-4 sm:p-5">
           <h2 className="text-xl font-black">Swipe controls</h2>
           <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <button className="btn-secondary min-w-0 border-rose-200 bg-rose-50 text-rose-700" onClick={() => move("REJECT")} disabled={!current} type="button">
+            <button className="btn-secondary pointer-events-auto min-w-0 border-rose-200 bg-rose-50 text-rose-700" onClick={() => move("REJECT")} disabled={!current} type="button">
               <X size={18} />
               Reject
             </button>
-            <button className="btn-secondary min-w-0 border-amber-200 bg-amber-50 text-amber-700" onClick={() => move("SAVE")} disabled={!current} type="button">
+            <button className="btn-secondary pointer-events-auto min-w-0 border-amber-200 bg-amber-50 text-amber-700" onClick={() => move("SAVE")} disabled={!current} type="button">
               <Bookmark size={18} />
               Save
             </button>
-            <button className="btn-primary min-w-0 bg-emerald-600 hover:bg-emerald-700" onClick={() => move("LIKE")} disabled={!current || Boolean(current.existing_application_status)} type="button">
+            <button className="btn-primary pointer-events-auto min-w-0 bg-emerald-600 hover:bg-emerald-700" onClick={() => move("LIKE")} disabled={!current || Boolean(current.existing_application_status)} type="button">
               <Heart size={18} />
               {current?.existing_application_status ? "Already Applied" : "Apply"}
             </button>
-            <button className="btn-secondary min-w-0" onClick={undo} type="button">
+            <button className="btn-secondary pointer-events-auto min-w-0" onClick={undo} type="button">
               <RotateCcw size={18} />
               Undo
             </button>

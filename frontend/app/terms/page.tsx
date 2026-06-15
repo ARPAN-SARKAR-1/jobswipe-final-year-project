@@ -13,7 +13,7 @@ export default function TermsPage() {
           <p>Owner/Admin users may pause or remove jobs, pause applications or chats, review reports, and suspend accounts for platform safety.</p>
           <p>Recruiters must clearly disclose bond or service agreement details wherever applicable.</p>
           <p>Swipe for Success does not guarantee interviews, selection, placement, stipend, salary, or employer authenticity. Users should verify job authenticity before sharing sensitive information.</p>
-          <p>Swipe for Success is a final year project/demo platform and should be extended with production-grade compliance, legal review, and cloud storage controls before commercial use.</p>
+          <p>Swipe for Success is a secure job matching platform built for trusted hiring, verified profiles, and responsible recruitment workflows.</p>
           <p>By registering, users agree to follow these platform rules and the Privacy Policy.</p>
         </div>
         <div className="mt-8 flex flex-wrap gap-3">
