@@ -73,10 +73,19 @@ export default function PublicCompanyPage() {
               <TrustBadge label="Verified company" verified={company.verification_status === "VERIFIED"} />
             </div>
             <p className="mt-2 text-sm font-bold text-[#6b767d]">
-              {[company.company_type, company.industry, company.location].filter(Boolean).join(" / ")}
+              {[company.company_type, company.industry, company.company_size, company.headquarters || company.location].filter(Boolean).join(" / ")}
             </p>
-            {company.website && <a className="mt-2 inline-flex text-sm font-black text-teal-700" href={company.website} target="_blank">Visit website</a>}
-            {company.description && <p className="mt-4 max-w-3xl text-sm font-medium leading-6 text-[#526069]">{company.description}</p>}
+            <div className="mt-2 flex flex-wrap gap-3">
+              {company.website && <a className="text-sm font-black text-teal-700" href={company.website} target="_blank" rel="noreferrer">Visit website</a>}
+              {company.career_page_url && <a className="text-sm font-black text-teal-700" href={company.career_page_url} target="_blank" rel="noreferrer">Career page</a>}
+              {company.linkedin_url && <a className="text-sm font-black text-teal-700" href={company.linkedin_url} target="_blank" rel="noreferrer">LinkedIn</a>}
+            </div>
+            {company.verification_status !== "VERIFIED" && (
+              <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm font-bold text-amber-800">
+                This company has not been verified by Swipe for Success yet.
+              </p>
+            )}
+            {(company.about_company || company.description) && <p className="mt-4 max-w-3xl text-sm font-medium leading-6 text-[#526069]">{company.about_company || company.description}</p>}
             <div className="mt-4 flex flex-wrap gap-2">
               <span className="rounded-lg bg-amber-50 px-2.5 py-1 text-xs font-black text-amber-800">
                 {company.average_rating ? `${company.average_rating}/5` : "No rating yet"}
@@ -90,6 +99,27 @@ export default function PublicCompanyPage() {
 
       <section className="mt-6 grid gap-6 lg:grid-cols-[1fr_360px]">
         <div className="grid gap-4">
+          <section className="panel grid gap-4 p-5 md:grid-cols-2">
+            <InfoBlock title="Company size" value={company.company_size || (company.employee_count_estimate ? `${company.employee_count_estimate} employees` : null)} />
+            <InfoBlock title="Headquarters" value={company.headquarters || company.location} />
+            <InfoBlock title="Founded" value={company.founded_year ? String(company.founded_year) : null} />
+            <InfoBlock title="Work mode" value={company.work_mode} />
+            <InfoBlock title="Culture" value={company.culture_summary} wide />
+            <InfoBlock title="Benefits" value={company.benefits} wide />
+            <InfoBlock title="Hiring process" value={company.hiring_process} wide />
+          </section>
+
+          {(company.glassdoor_url || company.ambitionbox_url) && (
+            <section className="panel p-5">
+              <h2 className="text-xl font-black">External references</h2>
+              <p className="mt-2 text-sm font-bold text-[#6b767d]">These links are external references only. Swipe for Success does not import or copy third-party reviews.</p>
+              <div className="mt-3 flex flex-wrap gap-3">
+                {company.glassdoor_url && <a className="text-sm font-black text-teal-700" href={company.glassdoor_url} target="_blank" rel="noreferrer">Glassdoor</a>}
+                {company.ambitionbox_url && <a className="text-sm font-black text-teal-700" href={company.ambitionbox_url} target="_blank" rel="noreferrer">AmbitionBox</a>}
+              </div>
+            </section>
+          )}
+
           <h2 className="text-xl font-black">Active Jobs</h2>
           {company.active_jobs.length === 0 ? (
             <EmptyState title="No active jobs" text="Verified jobs from this company will appear here." />
@@ -99,6 +129,27 @@ export default function PublicCompanyPage() {
         </div>
 
         <aside className="grid gap-4">
+          <div className="panel p-5">
+            <h2 className="text-xl font-black">Company-provided testimonials</h2>
+            <div className="mt-4 grid gap-3">
+              {!company.company_testimonials || company.company_testimonials.length === 0 ? (
+                <p className="text-sm font-bold text-[#6b767d]">No approved company-provided testimonials yet.</p>
+              ) : (
+                company.company_testimonials.map((item) => (
+                  <div key={item.id} className="rounded-lg border border-black/10 bg-white/70 p-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="font-black text-[#172026]">{item.title}</p>
+                      {item.rating && <span className="inline-flex items-center gap-1 text-xs font-black text-amber-700"><Star size={13} /> {item.rating}</span>}
+                    </div>
+                    <p className="mt-1 text-xs font-black text-teal-700">Company-provided testimonial</p>
+                    {item.reviewer_label && <p className="mt-1 text-xs font-bold text-[#8a949a]">{item.reviewer_label}</p>}
+                    <p className="mt-2 text-sm font-medium leading-6 text-[#526069]">{item.statement}</p>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
           <div className="panel p-5">
             <h2 className="text-xl font-black">Reviews</h2>
             <div className="mt-4 grid gap-3">
@@ -135,5 +186,15 @@ export default function PublicCompanyPage() {
         </aside>
       </section>
     </main>
+  );
+}
+
+function InfoBlock({ title, value, wide }: { title: string; value?: string | null; wide?: boolean }) {
+  if (!value) return null;
+  return (
+    <div className={wide ? "md:col-span-2" : ""}>
+      <p className="text-xs font-black uppercase tracking-wide text-[#8a949a]">{title}</p>
+      <p className="mt-1 whitespace-pre-line text-sm font-bold leading-6 text-[#526069]">{value}</p>
+    </div>
   );
 }

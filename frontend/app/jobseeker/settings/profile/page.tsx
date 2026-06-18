@@ -471,6 +471,22 @@ export default function JobSeekerProfileSettingsPage() {
               <VerificationStatusBadge status={profile.experience_verification_status || "EXPERIENCE_UNVERIFIED"} />
             </div>
           </div>
+          <div className="mt-5 rounded-lg bg-[#fbfaf7] p-3">
+            <p className="text-sm font-black text-[#172026]">Profile completion: {profile.profile_completion_percentage || 0}%</p>
+            <div className="mt-2 h-2 rounded-lg bg-stone-200">
+              <div className="h-2 rounded-lg bg-teal-600" style={{ width: `${profile.profile_completion_percentage || 0}%` }} />
+            </div>
+            {profile.missing_profile_fields && profile.missing_profile_fields.length > 0 && (
+              <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs font-bold leading-5 text-amber-800">
+                <p className="font-black">Missing to apply:</p>
+                <ul className="mt-1 list-inside list-disc">
+                  {profile.missing_profile_fields.slice(0, 8).map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
 
           <label className="btn-secondary mt-5 w-full cursor-pointer">
             Upload picture

@@ -9,14 +9,17 @@ from app.core.database import get_db
 from app.core.security import require_roles
 from app.models.application import Application
 from app.models.company_profile import CompanyProfile
+from app.models.company_testimonial import CompanyTestimonial
 from app.models.enums import ApplicationAdminStatus, ApplicationStatus, CompanyJoinStatus, JobModerationStatus, RecruiterVerificationStatus, UserRole
 from app.models.job import Job
 from app.models.job_seeker_profile import JobSeekerProfile
 from app.models.user import User
 from app.schemas.application import ApplicationStatusUpdate, RecruiterApplicationRead
+from app.schemas.company import CompanyTestimonialCreate, CompanyTestimonialRead, CompanyTestimonialUpdate
 from app.schemas.job import JobRead
 from app.schemas.profile import CompanyJoinRequest, CompanyProfileRead, CompanyProfileUpdate, UploadResponse
 from app.services.notifications import create_notification, notify_admins
+from app.services.profile_requirements import check_company_profile_completion, validate_http_url
 from app.services.public_identity import ensure_company_public_identity, unique_company_slug
 from app.services.timeline import add_timeline_event
 from app.services.trust import attach_job_trust, get_or_create_recruiter_membership, get_recruiter_membership
@@ -46,6 +49,7 @@ def get_or_create_company(db: Session, recruiter_id: int) -> CompanyProfile:
 def company_profile_response(db: Session, company: CompanyProfile, recruiter: User | None = None) -> CompanyProfileRead:
     profile_user = recruiter or company.recruiter
     membership = get_or_create_recruiter_membership(db, profile_user, company) if profile_user else None
+    completion = check_company_profile_completion(company, membership)
     return CompanyProfileRead(
         id=company.id,
         public_company_id=company.public_company_id,
@@ -57,9 +61,23 @@ def company_profile_response(db: Session, company: CompanyProfile, recruiter: Us
         logo_url=company.company_logo_url,
         website=company.website,
         industry=company.industry,
+        company_size=company.company_size,
+        employee_count_estimate=company.employee_count_estimate,
+        headquarters=company.headquarters,
+        founded_year=company.founded_year,
         company_type=company.company_type,
         description=company.description,
         location=company.location,
+        career_page_url=company.career_page_url,
+        linkedin_url=company.linkedin_url,
+        glassdoor_url=company.glassdoor_url,
+        ambitionbox_url=company.ambitionbox_url,
+        about_company=company.about_company,
+        culture_summary=company.culture_summary,
+        benefits=company.benefits,
+        hiring_process=company.hiring_process,
+        work_mode=company.work_mode,
+        rating_source=company.rating_source,
         official_email_domain=company.official_email_domain,
         verification_status=company.verification_status,
         recruiter_verification_status=(membership.verification_status if membership else company.recruiter_verification_status),
@@ -67,6 +85,8 @@ def company_profile_response(db: Session, company: CompanyProfile, recruiter: Us
         designation=(membership.designation if membership else None),
         work_email=(membership.work_email if membership else None),
         verification_note=company.verification_note,
+        company_completion_percentage=completion.completion_percentage,
+        missing_company_fields=completion.missing_fields,
         verified_at=company.verified_at,
         verified_by_admin_id=company.verified_by_admin_id,
         created_at=company.created_at,
@@ -125,6 +145,15 @@ def update_company_profile(
     company = get_or_create_company(db, current_user.id)
     membership = get_or_create_recruiter_membership(db, current_user, company)
     update_data = payload.model_dump()
+    for url_field, label in {
+        "website": "Company website",
+        "career_page_url": "Career page URL",
+        "linkedin_url": "LinkedIn URL",
+        "glassdoor_url": "Glassdoor URL",
+        "ambitionbox_url": "AmbitionBox URL",
+    }.items():
+        if update_data.get(url_field):
+            validate_http_url(update_data[url_field], label)
     member_fields = {"designation", "work_email"}
     for key, value in update_data.items():
         if value is None:
@@ -147,6 +176,84 @@ def update_company_profile(
     db.commit()
     db.refresh(company)
     return company_profile_response(db, company, current_user)
+
+
+def testimonial_response(testimonial: CompanyTestimonial) -> CompanyTestimonialRead:
+    return CompanyTestimonialRead.model_validate(testimonial)
+
+
+@router.get("/company-testimonials", response_model=list[CompanyTestimonialRead])
+def list_company_testimonials(
+    current_user: Annotated[User, Depends(require_roles(UserRole.RECRUITER.value))],
+    db: Annotated[Session, Depends(get_db)],
+) -> list[CompanyTestimonialRead]:
+    company = get_or_create_company(db, current_user.id)
+    testimonials = db.scalars(
+        select(CompanyTestimonial)
+        .where(CompanyTestimonial.company_id == company.id)
+        .order_by(CompanyTestimonial.created_at.desc(), CompanyTestimonial.id.desc())
+    ).all()
+    return [testimonial_response(testimonial) for testimonial in testimonials]
+
+
+@router.post("/company-testimonials", response_model=CompanyTestimonialRead, status_code=status.HTTP_201_CREATED)
+def create_company_testimonial(
+    payload: CompanyTestimonialCreate,
+    current_user: Annotated[User, Depends(require_roles(UserRole.RECRUITER.value))],
+    db: Annotated[Session, Depends(get_db)],
+) -> CompanyTestimonialRead:
+    company = get_or_create_company(db, current_user.id)
+    if company.recruiter_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only the company owner can add company testimonials.")
+    testimonial = CompanyTestimonial(
+        company_id=company.id,
+        created_by_user_id=current_user.id,
+        title=payload.title.strip(),
+        statement=payload.statement.strip(),
+        reviewer_label=payload.reviewer_label.strip() if payload.reviewer_label else None,
+        rating=payload.rating,
+        visibility=payload.visibility.value,
+    )
+    db.add(testimonial)
+    notify_admins(
+        db,
+        "Company testimonial pending review",
+        f"{company.company_name or 'A company'} submitted a company-provided testimonial.",
+        "COMPANY_VERIFICATION",
+        "/admin/dashboard",
+    )
+    db.commit()
+    db.refresh(testimonial)
+    return testimonial_response(testimonial)
+
+
+@router.patch("/company-testimonials/{testimonial_id}", response_model=CompanyTestimonialRead)
+def update_company_testimonial(
+    testimonial_id: int,
+    payload: CompanyTestimonialUpdate,
+    current_user: Annotated[User, Depends(require_roles(UserRole.RECRUITER.value))],
+    db: Annotated[Session, Depends(get_db)],
+) -> CompanyTestimonialRead:
+    company = get_or_create_company(db, current_user.id)
+    if company.recruiter_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only the company owner can update company testimonials.")
+    testimonial = db.scalar(
+        select(CompanyTestimonial)
+        .where(CompanyTestimonial.id == testimonial_id)
+        .where(CompanyTestimonial.company_id == company.id)
+    )
+    if testimonial is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Company testimonial not found")
+    update_data = payload.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(testimonial, key, value.value if hasattr(value, "value") else value)
+    testimonial.status = "PENDING_ADMIN_REVIEW"
+    testimonial.admin_note = None
+    testimonial.reviewed_by = None
+    testimonial.reviewed_at = None
+    db.commit()
+    db.refresh(testimonial)
+    return testimonial_response(testimonial)
 
 
 @router.post("/company-membership/request", response_model=CompanyProfileRead)

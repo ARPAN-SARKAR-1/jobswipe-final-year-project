@@ -30,6 +30,7 @@ from app.schemas.profile import (
 )
 from app.schemas.public_profile import DocumentVisibilityUpdate, UserDocumentRead
 from app.services.public_identity import ensure_user_public_identity
+from app.services.profile_requirements import check_job_seeker_profile_completion
 from app.utils.file_upload import save_profile_photo, save_resume_pdf, save_verification_document
 
 router = APIRouter(prefix="/jobseeker", tags=["Job Seeker"])
@@ -120,7 +121,8 @@ def document_response(document: UserDocument, include_file_url: bool = True) -> 
     )
 
 
-def profile_response(profile: JobSeekerProfile, user: User) -> JobSeekerProfileRead:
+def profile_response(db: Session, profile: JobSeekerProfile, user: User) -> JobSeekerProfileRead:
+    completion = check_job_seeker_profile_completion(db, user)
     return JobSeekerProfileRead(
         id=profile.id,
         user_id=profile.user_id,
@@ -183,6 +185,8 @@ def profile_response(profile: JobSeekerProfile, user: User) -> JobSeekerProfileR
         student_verification_status=profile.student_verification_status,
         graduation_verification_status=profile.graduation_verification_status,
         experience_verification_status=profile.experience_verification_status,
+        profile_completion_percentage=completion.completion_percentage,
+        missing_profile_fields=completion.missing_fields,
         created_at=profile.created_at,
         updated_at=profile.updated_at,
     )
@@ -232,20 +236,7 @@ def dashboard(
     db: Annotated[Session, Depends(get_db)],
 ) -> dict:
     profile = get_or_create_profile(db, current_user.id)
-    fields = [
-        current_user.profile_picture_url,
-        profile.phone,
-        profile.github_url,
-        profile.resume_pdf_url,
-        profile.education,
-        profile.degree,
-        profile.college,
-        profile.skills,
-        profile.experience_level,
-        profile.preferred_location,
-        profile.preferred_job_type,
-    ]
-    completion = round(sum(1 for value in fields if value) / len(fields) * 100)
+    completion = check_job_seeker_profile_completion(db, current_user)
 
     viewed_jobs = select(Swipe.job_id).where(Swipe.job_seeker_id == current_user.id)
     recommended_count = db.scalar(
@@ -265,7 +256,8 @@ def dashboard(
     )
     return {
         "name": current_user.name,
-        "profile_completion": completion,
+        "profile_completion": completion.completion_percentage,
+        "missing_profile_fields": completion.missing_fields,
         "recommended_jobs_count": recommended_count or 0,
         "saved_jobs_count": saved_count or 0,
         "applications_count": applications_count or 0,
@@ -280,7 +272,7 @@ def get_profile(
     ensure_user_public_identity(db, current_user)
     profile = get_or_create_profile(db, current_user.id)
     db.commit()
-    return profile_response(profile, current_user)
+    return profile_response(db, profile, current_user)
 
 
 @router.put("/profile", response_model=JobSeekerProfileRead)
@@ -297,7 +289,7 @@ def update_profile(
     ensure_user_public_identity(db, current_user)
     db.commit()
     db.refresh(profile)
-    return profile_response(profile, current_user)
+    return profile_response(db, profile, current_user)
 
 
 def patch_profile_fields(
@@ -313,7 +305,7 @@ def patch_profile_fields(
     ensure_user_public_identity(db, current_user)
     db.commit()
     db.refresh(profile)
-    return profile_response(profile, current_user)
+    return profile_response(db, profile, current_user)
 
 
 @router.patch("/profile/category", response_model=JobSeekerProfileRead)
@@ -326,7 +318,7 @@ def update_profile_category(
     profile.job_seeker_category = payload.job_seeker_category.value
     db.commit()
     db.refresh(profile)
-    return profile_response(profile, current_user)
+    return profile_response(db, profile, current_user)
 
 
 @router.patch("/profile/education", response_model=JobSeekerProfileRead)

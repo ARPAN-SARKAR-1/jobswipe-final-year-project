@@ -2,6 +2,7 @@
 
 import { AnimatePresence, motion, useReducedMotion, type PanInfo } from "framer-motion";
 import { Bookmark, BriefcaseBusiness, CalendarClock, Heart, MapPin, RotateCcw, X } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
 
@@ -14,13 +15,14 @@ import SkillMultiSelect from "@/components/SkillMultiSelect";
 import { apiFetch, assetUrl } from "@/lib/api";
 import { cx, formatDate, splitSkills } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
-import type { Job } from "@/types";
+import type { Job, JobSeekerProfile } from "@/types";
 
 type SwipeAction = "LIKE" | "REJECT" | "SAVE";
 
 export default function SwipeJobsPage() {
   const { loading } = useAuth(["JOB_SEEKER"]);
   const [jobs, setJobs] = useState<Job[]>([]);
+  const [profile, setProfile] = useState<JobSeekerProfile | null>(null);
   const [index, setIndex] = useState(0);
   const [direction, setDirection] = useState(0);
   const [feedbackAction, setFeedbackAction] = useState<SwipeAction | null>(null);
@@ -38,6 +40,7 @@ export default function SwipeJobsPage() {
         setIndex(0);
       })
       .catch((error) => toast.error(error instanceof Error ? error.message : "Feed failed"));
+    apiFetch<JobSeekerProfile>("/jobseeker/profile").then(setProfile).catch(() => setProfile(null));
   };
 
   useEffect(() => {
@@ -53,6 +56,10 @@ export default function SwipeJobsPage() {
 
   const move = async (action: SwipeAction) => {
     if (!current) return;
+    if (action === "LIKE" && profile && profile.profile_completion_percentage !== undefined && profile.profile_completion_percentage < 100) {
+      toast.error("Complete your profile before applying to jobs.");
+      return;
+    }
     setFeedbackAction(action);
     try {
       await apiFetch("/swipes", {
@@ -87,6 +94,7 @@ export default function SwipeJobsPage() {
   };
 
   if (loading) return <main className="page-shell">Loading swipe feed...</main>;
+  const profileIncomplete = profile && profile.profile_completion_percentage !== undefined && profile.profile_completion_percentage < 100;
 
   return (
     <main className="page-shell pb-24 sm:pb-8">
@@ -95,6 +103,19 @@ export default function SwipeJobsPage() {
           {jobs.length ? `${Math.min(index + 1, jobs.length)} of ${jobs.length} jobs viewed` : "0 jobs viewed"}
         </div>
       </PageHeader>
+      {profileIncomplete && (
+        <div className="panel mb-5 flex flex-col gap-3 border-amber-200 bg-amber-50 p-4 text-amber-900 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="font-black">Complete your profile before applying to jobs.</p>
+            <p className="mt-1 text-sm font-bold">
+              Missing: {(profile.missing_profile_fields || []).slice(0, 5).join(", ") || "required profile details"}.
+            </p>
+          </div>
+          <Link className="btn-primary shrink-0 !py-2" href="/jobseeker/settings/profile">
+            Complete profile
+          </Link>
+        </div>
+      )}
 
       <section className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
         <div className="relative z-0 mx-auto grid w-full max-w-full place-items-start sm:max-w-[460px] lg:min-h-[680px] lg:place-items-center">
@@ -161,6 +182,16 @@ export default function SwipeJobsPage() {
 
                 <p className="mt-5 max-h-40 overflow-y-auto break-words text-sm font-medium leading-6 text-[#526069] sm:max-h-none">{current.description}</p>
                 {current.eligibility && <p className="mt-3 break-words text-sm font-bold leading-6 text-[#172026]">Eligibility: {current.eligibility}</p>}
+                {current.career_page_url && (
+                  <a className="mt-4 inline-flex break-all text-sm font-black text-teal-700 underline" href={current.career_page_url} target="_blank" rel="noreferrer">
+                    Official career link
+                  </a>
+                )}
+                {current.career_link_status === "LINK_SUSPICIOUS" && (
+                  <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm font-bold text-amber-800">
+                    {current.career_link_warning || "Verify this link before sharing personal information."}
+                  </p>
+                )}
               </motion.article>
             ) : (
               <div className="w-full">
@@ -203,11 +234,11 @@ export default function SwipeJobsPage() {
                 feedbackAction === "LIKE" && "ring-4 ring-emerald-100"
               )}
               onClick={() => move("LIKE")}
-              disabled={!current || Boolean(current.existing_application_status)}
+              disabled={!current || Boolean(current.existing_application_status) || Boolean(profileIncomplete)}
               type="button"
             >
               <Heart size={18} />
-              {current?.existing_application_status ? "Already Applied" : "Apply"}
+              {current?.existing_application_status ? "Already Applied" : profileIncomplete ? "Complete Profile" : "Apply"}
             </button>
             <button className="btn-secondary scale-tap pointer-events-auto min-w-0" onClick={undo} type="button">
               <RotateCcw size={18} />

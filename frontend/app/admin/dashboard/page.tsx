@@ -34,6 +34,7 @@ import type {
   Application,
   ChatThread,
   CompanyReview,
+  CompanyTestimonial,
   Job,
   PaginatedResponse,
   RecruiterCompanyMember,
@@ -110,6 +111,7 @@ export default function AdminDashboardPage() {
   const [userDocuments, setUserDocuments] = useState<UserDocument[]>([]);
   const [suspiciousJobs, setSuspiciousJobs] = useState<Job[]>([]);
   const [companyReviews, setCompanyReviews] = useState<CompanyReview[]>([]);
+  const [companyTestimonials, setCompanyTestimonials] = useState<CompanyTestimonial[]>([]);
   const [reports, setReports] = useState<Report[]>([]);
   const [supportTickets, setSupportTickets] = useState<SupportTicket[]>([]);
   const [swipes, setSwipes] = useState<Swipe[]>([]);
@@ -152,12 +154,13 @@ export default function AdminDashboardPage() {
       apiFetch<UserDocument[]>("/admin/user-documents"),
       apiFetch<Job[]>("/admin/suspicious-jobs"),
       apiFetch<CompanyReview[]>("/admin/company-reviews"),
+      apiFetch<CompanyTestimonial[]>("/admin/company-testimonials"),
       apiFetch<Report[]>("/admin/reports"),
       apiFetch<Swipe[]>("/admin/swipes"),
       isOwner ? apiFetch<User[]>("/admin/admins") : Promise.resolve([]),
       isOwner ? apiFetch<AdminActionLog[]>("/admin/action-logs") : Promise.resolve([])
     ])
-      .then(([dashboard, supportStats, jobRows, applicationRows, chatRows, verificationRows, companyRows, membershipRows, jobseekerRows, documentRows, suspiciousRows, reviewRows, reportRows, swipeRows, adminRows, logRows]) => {
+      .then(([dashboard, supportStats, jobRows, applicationRows, chatRows, verificationRows, companyRows, membershipRows, jobseekerRows, documentRows, suspiciousRows, reviewRows, testimonialRows, reportRows, swipeRows, adminRows, logRows]) => {
         setStats(dashboard);
         setSupportSummary(supportStats);
         setJobs(jobRows);
@@ -170,6 +173,7 @@ export default function AdminDashboardPage() {
         setUserDocuments(documentRows);
         setSuspiciousJobs(suspiciousRows);
         setCompanyReviews(reviewRows);
+        setCompanyTestimonials(testimonialRows);
         setReports(reportRows);
         setSwipes(swipeRows);
         setAdmins(adminRows);
@@ -608,6 +612,7 @@ export default function AdminDashboardPage() {
         <UserDocumentsTable documents={userDocuments} openAction={openAction} />
         <SuspiciousJobsTable jobs={suspiciousJobs} openAction={openAction} />
         <CompanyReviewsTable reviews={companyReviews} openAction={openAction} />
+        <CompanyTestimonialsTable testimonials={companyTestimonials} openAction={openAction} />
         <ReportsTable reports={reports} openAction={openAction} />
         <Table title="Swipes" headers={["ID", "Job seeker", "Job", "Action"]} rows={swipes.map((swipe) => [swipe.id, swipe.job_seeker_id, swipe.job?.title || swipe.job_id, swipe.action])} />
 
@@ -1385,6 +1390,70 @@ function CompanyReviewsTable({ reviews, openAction }: { reviews: CompanyReview[]
                 </td>
               </tr>
             ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function CompanyTestimonialsTable({ testimonials, openAction }: { testimonials: CompanyTestimonial[]; openAction: (action: ConfirmAction) => void }) {
+  return (
+    <div className="panel overflow-hidden">
+      <h2 className="p-5 text-xl font-black">Company-Provided Testimonials</h2>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[900px] text-left text-sm">
+          <thead className="bg-[#fbfaf7] text-xs font-black uppercase text-[#526069]">
+            <tr>
+              <th className="p-4">Testimonial</th>
+              <th className="p-4">Rating</th>
+              <th className="p-4">Visibility</th>
+              <th className="p-4">Status</th>
+              <th className="p-4">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {testimonials.map((testimonial) => (
+              <tr key={testimonial.id} className="border-t border-black/5 align-top">
+                <td className="p-4">
+                  <p className="font-black text-[#172026]">{testimonial.title}</p>
+                  <p className="mt-1 max-w-md font-bold leading-6 text-[#6b767d]">{testimonial.statement}</p>
+                  <p className="mt-1 text-xs font-black text-teal-700">Company-provided testimonial</p>
+                </td>
+                <td className="p-4 font-black text-amber-700">{testimonial.rating ? `${testimonial.rating}/5` : "-"}</td>
+                <td className="p-4"><StatusBadge status={testimonial.visibility} /></td>
+                <td className="p-4"><StatusBadge status={testimonial.status} /></td>
+                <td className="p-4">
+                  <div className="flex flex-wrap gap-2">
+                    {(["APPROVED", "REJECTED"] as const).map((status) => (
+                      <button
+                        key={status}
+                        className="btn-secondary !px-3 !py-2"
+                        type="button"
+                        onClick={() =>
+                          openAction({
+                            title: `${status === "APPROVED" ? "Approve" : "Reject"} testimonial`,
+                            message: `Mark this company-provided testimonial as ${status.toLowerCase()}?`,
+                            endpoint: `/admin/company-testimonials/${testimonial.id}/moderate`,
+                            success: "Testimonial updated successfully",
+                            fixedBody: { status }
+                          })
+                        }
+                      >
+                        {status}
+                      </button>
+                    ))}
+                  </div>
+                </td>
+              </tr>
+            ))}
+            {testimonials.length === 0 && (
+              <tr>
+                <td className="p-4 text-sm font-bold text-[#6b767d]" colSpan={5}>
+                  No company-provided testimonials pending or submitted.
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>

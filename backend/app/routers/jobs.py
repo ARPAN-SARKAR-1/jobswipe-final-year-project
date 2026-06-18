@@ -17,6 +17,7 @@ from app.models.swipe import Swipe
 from app.models.user import User
 from app.schemas.job import JobCreate, JobRead, JobUpdate
 from app.services.notifications import notify_admins
+from app.services.profile_requirements import ensure_company_ready_to_post, validate_job_career_link
 from app.services.public_identity import ensure_job_public_identity
 from app.services.trust import apply_job_risk, attach_job_trust, get_recruiter_membership, recruiter_can_post_public_job
 from app.utils.match_score import calculate_match_score
@@ -92,6 +93,7 @@ def ensure_verified_recruiter(db: Session, recruiter_id: int) -> CompanyProfile:
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Your company and recruiter membership must be verified before posting public jobs.",
         )
+    ensure_company_ready_to_post(company, membership)
     return company
 
 
@@ -197,7 +199,11 @@ def create_job(
     if current_user.account_status == AccountStatus.SUSPENDED.value:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Suspended recruiters cannot post new jobs")
     company = ensure_verified_recruiter(db, current_user.id)
-    job = Job(recruiter_id=current_user.id, **payload.model_dump(exclude={"required_skills_list"}))
+    job_data = payload.model_dump(exclude={"required_skills_list"}, mode="json")
+    link_result = validate_job_career_link(company, job_data["career_page_url"])
+    job_data["career_link_status"] = link_result.status
+    job_data["career_link_warning"] = link_result.warning
+    job = Job(recruiter_id=current_user.id, **job_data)
     job.company_id = company.id
     if company.company_name:
         job.company_name = company.company_name
@@ -243,15 +249,22 @@ def update_job(
     if job is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
 
-    update_data = payload.model_dump(exclude_unset=True)
+    update_data = payload.model_dump(exclude_unset=True, mode="json")
     if update_data.get("is_active") is True:
         ensure_verified_recruiter(db, current_user.id)
     if update_data.get("has_bond") is False:
         update_data["bond_years"] = None
         update_data["bond_details"] = None
+    company = ensure_verified_recruiter(db, current_user.id) if update_data.get("is_active") is True else db.scalar(select(CompanyProfile).where(CompanyProfile.id == job.company_id))
+    career_url = update_data.get("career_page_url") or job.career_page_url
+    if update_data.get("is_active") is True and not career_url:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Official career page URL is required before activating a job.")
+    if company is not None and career_url and ("career_page_url" in update_data or update_data.get("is_active") is True):
+        link_result = validate_job_career_link(company, career_url)
+        update_data["career_link_status"] = link_result.status
+        update_data["career_link_warning"] = link_result.warning
     for key, value in update_data.items():
         setattr(job, key, value)
-    company = ensure_verified_recruiter(db, current_user.id) if update_data.get("is_active") is True else None
     if company is not None:
         job.company_id = company.id
     apply_job_risk(job)

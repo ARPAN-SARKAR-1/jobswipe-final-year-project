@@ -4,6 +4,7 @@ from sqlalchemy import Boolean, Date, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
+from app.models.enums import JobCareerLinkStatus, JobSourceType
 from app.models.mixins import TimestampMixin
 
 
@@ -25,6 +26,11 @@ class Job(TimestampMixin, Base):
     required_experience_level: Mapped[str] = mapped_column(String(40), nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False)
     eligibility: Mapped[str | None] = mapped_column(Text, nullable=True)
+    career_page_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    official_apply_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    source_type: Mapped[str] = mapped_column(String(40), default=JobSourceType.COMPANY_PORTAL.value, nullable=False)
+    career_link_status: Mapped[str] = mapped_column(String(40), default=JobCareerLinkStatus.LINK_NOT_CHECKED.value, nullable=False)
+    career_link_warning: Mapped[str | None] = mapped_column(Text, nullable=True)
     deadline: Mapped[date] = mapped_column(Date, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     has_bond: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)

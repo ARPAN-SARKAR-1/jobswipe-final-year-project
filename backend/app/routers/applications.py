@@ -22,6 +22,7 @@ from app.models.job import Job
 from app.models.job_seeker_profile import JobSeekerProfile
 from app.models.user import User
 from app.schemas.application import ApplicationCreate, ApplicationRead, ApplicationTimelineRead
+from app.services.profile_requirements import ensure_job_seeker_can_apply
 from app.services.timeline import add_timeline_event
 from app.utils.match_score import calculate_match_score
 
@@ -29,6 +30,7 @@ router = APIRouter(prefix="/applications", tags=["Applications"])
 
 
 def create_or_reactivate_application(db: Session, user: User, job: Job, payload: ApplicationCreate | None = None) -> Application:
+    ensure_job_seeker_can_apply(db, user)
     existing = db.scalar(
         select(Application).where(Application.job_seeker_id == user.id).where(Application.job_id == job.id)
     )

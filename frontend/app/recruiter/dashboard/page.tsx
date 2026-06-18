@@ -50,16 +50,36 @@ export default function RecruiterDashboardPage() {
           <div>
             <h2 className="text-xl font-black">Company verification</h2>
             <p className="mt-1 text-sm font-bold leading-6 text-[#6b767d]">
-              {data.company_profile.recruiter_verification_status === "VERIFIED"
-                ? "Your company profile is verified. You can post active jobs."
+              {data.company_profile.recruiter_verification_status === "VERIFIED" && (data.company_profile.company_completion_percentage || 0) >= 100
+                ? "Your company profile is verified and complete. You can post active jobs."
                 : "Your company profile must be verified by admin before posting jobs."}
             </p>
+            <div className="mt-3 max-w-xl">
+              <div className="flex items-center justify-between gap-3 text-xs font-black text-[#526069]">
+                <span>Company completion</span>
+                <span>{data.company_profile.company_completion_percentage || 0}%</span>
+              </div>
+              <div className="mt-1 h-2 rounded-lg bg-stone-200">
+                <div className="h-2 rounded-lg bg-teal-600" style={{ width: `${data.company_profile.company_completion_percentage || 0}%` }} />
+              </div>
+              {data.company_profile.missing_company_fields && data.company_profile.missing_company_fields.length > 0 && (
+                <p className="mt-2 text-xs font-bold text-amber-700">Missing: {data.company_profile.missing_company_fields.join(", ")}</p>
+              )}
+            </div>
             {data.company_profile.verification_note && (
               <p className="mt-2 text-sm font-bold text-[#526069]">{data.company_profile.verification_note}</p>
             )}
           </div>
-          <VerificationStatusBadge status={data.company_profile.recruiter_verification_status} />
+          <div className="flex flex-wrap gap-2">
+            <VerificationStatusBadge status={data.company_profile.verification_status} />
+            <VerificationStatusBadge status={data.company_profile.recruiter_verification_status} />
+          </div>
         </div>
+        {data.company_profile.missing_company_fields && data.company_profile.missing_company_fields.length > 0 && (
+          <Link href="/recruiter/company" className="btn-primary mt-4 inline-flex !py-2">
+            Complete company profile
+          </Link>
+        )}
       </section>
 
       <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

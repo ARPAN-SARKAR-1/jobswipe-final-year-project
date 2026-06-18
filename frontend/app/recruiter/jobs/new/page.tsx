@@ -25,6 +25,9 @@ const initial = {
   required_experience_level: "Fresher",
   description: "",
   eligibility: "",
+  career_page_url: "",
+  official_apply_url: "",
+  source_type: "COMPANY_PORTAL",
   deadline: "",
   is_active: true,
   has_bond: false,
@@ -38,7 +41,8 @@ export default function PostJobPage() {
   const [form, setForm] = useState(initial);
   const [company, setCompany] = useState<CompanyProfile | null>(null);
   const [saving, setSaving] = useState(false);
-  const canPost = company?.verification_status === "VERIFIED" && company?.recruiter_verification_status === "VERIFIED" && company?.company_join_status === "APPROVED";
+  const companyComplete = company?.company_completion_percentage === undefined || company.company_completion_percentage >= 100;
+  const canPost = company?.verification_status === "VERIFIED" && company?.recruiter_verification_status === "VERIFIED" && company?.company_join_status === "APPROVED" && companyComplete;
 
   useEffect(() => {
     if (loading) return;
@@ -58,7 +62,11 @@ export default function PostJobPage() {
       return;
     }
     if (!canPost) {
-      toast.error("Your company and recruiter membership must be verified before posting jobs.");
+      toast.error(companyComplete ? "Your company and recruiter membership must be verified before posting jobs." : "Complete company profile before posting jobs.");
+      return;
+    }
+    if (!form.career_page_url.trim()) {
+      toast.error("Official career page URL is required.");
       return;
     }
     setSaving(true);
@@ -69,6 +77,9 @@ export default function PostJobPage() {
           ...form,
           company_logo_url: form.company_logo_url || null,
           eligibility: form.eligibility || null,
+          career_page_url: form.career_page_url,
+          official_apply_url: form.official_apply_url || null,
+          source_type: form.source_type,
           salary: form.salary || null,
           bond_years: form.has_bond ? Number(form.bond_years) : null,
           bond_details: form.has_bond ? form.bond_details || null : null
@@ -91,13 +102,18 @@ export default function PostJobPage() {
       <div className="panel mb-5 p-4">
         <div className="flex flex-col justify-between gap-3 md:flex-row md:items-center">
           <p className="text-sm font-bold leading-6 text-[#526069]">
-            Your company and recruiter membership must be verified before posting public jobs.
+            Your company and recruiter membership must be verified and the company profile must be complete before posting public jobs.
           </p>
           <div className="flex flex-wrap gap-2">
             <VerificationStatusBadge status={company.verification_status} />
             <VerificationStatusBadge status={company.recruiter_verification_status} />
           </div>
         </div>
+        {!companyComplete && (
+          <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm font-bold text-amber-800">
+            Complete company profile before posting jobs. Missing: {(company?.missing_company_fields || []).join(", ") || "required company details"}.
+          </div>
+        )}
       </div>
       <form onSubmit={submit} className="panel grid gap-4 p-5 md:grid-cols-2">
         <Input label="Job title" name="title" value={form.title} onChange={(value) => setForm({ ...form, title: value })} required />
@@ -139,6 +155,11 @@ export default function PostJobPage() {
             Eligibility
           </label>
           <textarea id="eligibility" className="field min-h-28" value={form.eligibility} onChange={(event) => setForm({ ...form, eligibility: event.target.value })} />
+        </div>
+        <Input label="Official career page URL" name="career_page_url" value={form.career_page_url} onChange={(value) => setForm({ ...form, career_page_url: value })} required type="url" />
+        <Input label="Official apply URL optional" name="official_apply_url" value={form.official_apply_url} onChange={(value) => setForm({ ...form, official_apply_url: value })} type="url" />
+        <div className="md:col-span-2 rounded-lg border border-teal-100 bg-teal-50 p-3 text-sm font-bold text-teal-900">
+          Company details and official career links help protect users from fake job posts. If an ATS link differs from your company domain, Admin review may be recommended.
         </div>
         <Input label="Deadline" name="deadline" value={form.deadline} onChange={(value) => setForm({ ...form, deadline: value })} required type="date" />
         <label className="flex items-center gap-3 rounded-lg border border-black/10 bg-white/70 p-3 text-sm font-black text-[#526069]">

@@ -5,6 +5,7 @@ from app.models.chat_message import ChatMessage
 from app.models.chat_thread import ChatThread
 from app.models.company_profile import CompanyProfile
 from app.models.company_review import CompanyReview
+from app.models.company_testimonial import CompanyTestimonial
 from app.models.captcha_challenge import CaptchaChallenge
 from app.models.email_otp import EmailOTP
 from app.models.job import Job
@@ -31,6 +32,7 @@ __all__ = [
     "ChatThread",
     "CompanyProfile",
     "CompanyReview",
+    "CompanyTestimonial",
     "EmailOTP",
     "Job",
     "JobSeekerRecommendation",

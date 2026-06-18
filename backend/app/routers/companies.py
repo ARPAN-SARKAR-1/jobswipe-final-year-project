@@ -9,11 +9,22 @@ from app.core.security import get_optional_current_user, require_roles
 from app.models.application import Application
 from app.models.company_profile import CompanyProfile
 from app.models.company_review import CompanyReview
-from app.models.enums import ApplicationStatus, CompanyJoinStatus, CompanyVerificationStatus, JobModerationStatus, RecruiterVerificationStatus, ReviewModerationStatus, UserRole
+from app.models.company_testimonial import CompanyTestimonial
+from app.models.enums import (
+    ApplicationStatus,
+    CompanyJoinStatus,
+    CompanyTestimonialStatus,
+    CompanyTestimonialVisibility,
+    CompanyVerificationStatus,
+    JobModerationStatus,
+    RecruiterVerificationStatus,
+    ReviewModerationStatus,
+    UserRole,
+)
 from app.models.job import Job
 from app.models.recruiter_company_member import RecruiterCompanyMember
 from app.models.user import User
-from app.schemas.company import CompanyPublicRead, CompanyReviewCreate, CompanyReviewRead, RecruiterCompanyMemberRead
+from app.schemas.company import CompanyPublicRead, CompanyReviewCreate, CompanyReviewRead, CompanyTestimonialRead, RecruiterCompanyMemberRead
 from app.schemas.job import JobRead
 from app.services.trust import attach_job_trust
 
@@ -66,6 +77,10 @@ def member_response(member: RecruiterCompanyMember) -> RecruiterCompanyMemberRea
     )
 
 
+def testimonial_response(testimonial: CompanyTestimonial) -> CompanyTestimonialRead:
+    return CompanyTestimonialRead.model_validate(testimonial)
+
+
 def company_public_response(db: Session, company: CompanyProfile, include_hidden_reviews: bool = False) -> CompanyPublicRead:
     review_statement = (
         select(CompanyReview)
@@ -103,6 +118,16 @@ def company_public_response(db: Session, company: CompanyProfile, include_hidden
         ).all()
     )
     jobs = [attach_job_trust(db, job) for job in jobs]
+    testimonial_statement = (
+        select(CompanyTestimonial)
+        .where(CompanyTestimonial.company_id == company.id)
+        .order_by(CompanyTestimonial.created_at.desc(), CompanyTestimonial.id.desc())
+    )
+    if not include_hidden_reviews:
+        testimonial_statement = testimonial_statement.where(CompanyTestimonial.status == CompanyTestimonialStatus.APPROVED.value).where(
+            CompanyTestimonial.visibility == CompanyTestimonialVisibility.PUBLIC.value
+        )
+    testimonials = list(db.scalars(testimonial_statement).all())
 
     return CompanyPublicRead(
         id=company.id,
@@ -116,11 +141,26 @@ def company_public_response(db: Session, company: CompanyProfile, include_hidden
         industry=company.industry,
         location=company.location,
         website=company.website,
+        career_page_url=company.career_page_url,
+        linkedin_url=company.linkedin_url,
+        glassdoor_url=company.glassdoor_url,
+        ambitionbox_url=company.ambitionbox_url,
+        company_size=company.company_size,
+        employee_count_estimate=company.employee_count_estimate,
+        headquarters=company.headquarters,
+        founded_year=company.founded_year,
         description=company.description,
+        about_company=company.about_company,
+        culture_summary=company.culture_summary,
+        benefits=company.benefits,
+        hiring_process=company.hiring_process,
+        work_mode=company.work_mode,
+        rating_source=company.rating_source,
         verification_status=company.verification_status,
         average_rating=average_rating,
         review_count=len(visible_reviews),
         visible_reviews=[review_response(review) for review in reviews],
+        company_testimonials=[testimonial_response(testimonial) for testimonial in testimonials],
         verified_recruiter_count=len(verified_members),
         verified_recruiters=[member_response(member) for member in verified_members],
         active_jobs=[JobRead.model_validate(job) for job in jobs],

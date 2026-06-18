@@ -11,6 +11,10 @@ export type RecruiterVerificationStatus = "PENDING" | "VERIFIED" | "REJECTED" | 
 export type CompanyJoinStatus = "PENDING" | "APPROVED" | "REJECTED";
 export type CompanyType = "STARTUP" | "MNC" | "CONSULTANCY" | "AGENCY" | "COLLEGE" | "OTHER";
 export type ReviewModerationStatus = "VISIBLE" | "HIDDEN" | "FLAGGED" | "REMOVED";
+export type JobSourceType = "COMPANY_PORTAL" | "INTERNAL_RECRUITER" | "OTHER_OFFICIAL";
+export type JobCareerLinkStatus = "LINK_NOT_CHECKED" | "LINK_MATCHED_COMPANY_DOMAIN" | "LINK_EXTERNAL_ATS" | "LINK_SUSPICIOUS";
+export type CompanyTestimonialVisibility = "PUBLIC" | "PRIVATE";
+export type CompanyTestimonialStatus = "PENDING_ADMIN_REVIEW" | "APPROVED" | "REJECTED";
 export type JobSeekerCategory = "UNDERGRADUATE" | "GRADUATE_FRESHER" | "GRADUATE_EXPERIENCED";
 export type SectionVisibility = "PRIVATE" | "RECRUITERS_ONLY" | "PUBLIC";
 export type StudentVerificationStatus = "STUDENT_UNVERIFIED" | "STUDENT_PENDING" | "STUDENT_VERIFIED" | "STUDENT_REJECTED";
@@ -76,6 +80,11 @@ export type Job = {
   required_experience_level: string;
   description: string;
   eligibility?: string | null;
+  career_page_url?: string | null;
+  official_apply_url?: string | null;
+  source_type?: JobSourceType;
+  career_link_status?: JobCareerLinkStatus;
+  career_link_warning?: string | null;
   deadline: string;
   is_active: boolean;
   has_bond: boolean;
@@ -157,6 +166,8 @@ export type JobSeekerProfile = {
   student_verification_status?: StudentVerificationStatus;
   graduation_verification_status?: GraduationVerificationStatus;
   experience_verification_status?: ExperienceVerificationStatus;
+  profile_completion_percentage?: number;
+  missing_profile_fields?: string[];
   created_at: string;
   updated_at: string;
 };
@@ -172,9 +183,23 @@ export type CompanyProfile = {
   company_logo_url?: string | null;
   website?: string | null;
   industry?: string | null;
+  company_size?: string | null;
+  employee_count_estimate?: number | null;
+  headquarters?: string | null;
+  founded_year?: number | null;
   company_type: CompanyType;
   description?: string | null;
   location?: string | null;
+  career_page_url?: string | null;
+  linkedin_url?: string | null;
+  glassdoor_url?: string | null;
+  ambitionbox_url?: string | null;
+  about_company?: string | null;
+  culture_summary?: string | null;
+  benefits?: string | null;
+  hiring_process?: string | null;
+  work_mode?: string | null;
+  rating_source?: string | null;
   official_email_domain?: string | null;
   verification_status: CompanyVerificationStatus;
   recruiter_verification_status: RecruiterVerificationStatus;
@@ -182,6 +207,8 @@ export type CompanyProfile = {
   designation?: string | null;
   work_email?: string | null;
   verification_note?: string | null;
+  company_completion_percentage?: number;
+  missing_company_fields?: string[];
   verified_at?: string | null;
   verified_by_admin_id?: number | null;
   created_at: string;
@@ -338,10 +365,27 @@ export type CompanyReview = {
   updated_at: string;
 };
 
+export type CompanyTestimonial = {
+  id: number;
+  company_id: number;
+  title: string;
+  statement: string;
+  reviewer_label?: string | null;
+  rating?: number | null;
+  visibility: CompanyTestimonialVisibility;
+  status: CompanyTestimonialStatus;
+  admin_note?: string | null;
+  reviewed_by?: number | null;
+  reviewed_at?: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export type CompanyPublicProfile = CompanyProfile & {
   average_rating?: number | null;
   review_count: number;
   visible_reviews: CompanyReview[];
+  company_testimonials?: CompanyTestimonial[];
   verified_recruiter_count: number;
   verified_recruiters: RecruiterCompanyMember[];
   active_jobs: Job[];

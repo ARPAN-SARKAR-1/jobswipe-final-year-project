@@ -54,6 +54,12 @@ export default function JobCard({ job, actions, detailsHref }: { job: Job; actio
           <span>This job is {job.moderation_status.toLowerCase()} by admin{job.moderation_reason ? `: ${job.moderation_reason}` : "."}</span>
         </div>
       )}
+      {job.career_link_status === "LINK_SUSPICIOUS" && (
+        <div className="mt-4 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm font-bold text-amber-800">
+          <AlertTriangle className="mt-0.5 shrink-0" size={16} />
+          <span>{job.career_link_warning || "Verify this link before sharing personal information."}</span>
+        </div>
+      )}
 
       <div className="mt-5 grid gap-2 text-sm font-bold text-[#526069] sm:grid-cols-2">
         <span className="flex items-center gap-2">
@@ -87,6 +93,11 @@ export default function JobCard({ job, actions, detailsHref }: { job: Job; actio
 
       <p className="mt-4 text-sm font-medium leading-6 text-[#526069]">{job.description}</p>
       <p className="mt-3 text-sm font-bold text-[#172026]">Experience: {job.required_experience_level}</p>
+      {job.career_page_url && (
+        <a className="mt-3 inline-flex break-all text-sm font-black text-teal-700 transition duration-200 ease-out hover:-translate-y-0.5 hover:text-teal-900" href={job.career_page_url} target="_blank" rel="noreferrer">
+          Official career link
+        </a>
+      )}
       {detailsHref && (
         <Link href={detailsHref} className="mt-4 inline-flex text-sm font-black text-teal-700 transition duration-200 ease-out hover:-translate-y-0.5 hover:text-teal-900">
           View details

@@ -1,6 +1,7 @@
 "use client";
 
 import { Bookmark, Send } from "lucide-react";
+import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
@@ -13,12 +14,13 @@ import ReportModal from "@/components/ReportModal";
 import { apiFetch } from "@/lib/api";
 import { formatDate } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
-import type { Job } from "@/types";
+import type { Job, JobSeekerProfile } from "@/types";
 
 export default function JobDetailsPage() {
   const { loading } = useAuth(["JOB_SEEKER"]);
   const params = useParams<{ id: string }>();
   const [job, setJob] = useState<Job | null>(null);
+  const [profile, setProfile] = useState<JobSeekerProfile | null>(null);
   const [notFound, setNotFound] = useState(false);
   const [applying, setApplying] = useState(false);
 
@@ -27,10 +29,15 @@ export default function JobDetailsPage() {
     apiFetch<Job>(`/jobs/${params.id}`)
       .then(setJob)
       .catch(() => setNotFound(true));
+    apiFetch<JobSeekerProfile>("/jobseeker/profile").then(setProfile).catch(() => setProfile(null));
   }, [loading, params.id]);
 
   const apply = async () => {
     if (!job) return;
+    if (profile && profile.profile_completion_percentage !== undefined && profile.profile_completion_percentage < 100) {
+      toast.error("Complete your profile before applying to jobs.");
+      return;
+    }
     setApplying(true);
     try {
       await apiFetch("/applications", { method: "POST", body: JSON.stringify({ job_id: job.id }) });
@@ -56,10 +63,24 @@ export default function JobDetailsPage() {
   if (loading) return <main className="page-shell">Loading job details...</main>;
   if (notFound) return <main className="page-shell"><EmptyState title="Job unavailable" text="This job may be inactive, paused, removed, or no longer accepting applications." /></main>;
   if (!job) return <main className="page-shell">Loading job details...</main>;
+  const profileIncomplete = profile && profile.profile_completion_percentage !== undefined && profile.profile_completion_percentage < 100;
 
   return (
     <main className="page-shell">
       <PageHeader title="Job Details" eyebrow="Opportunity" />
+      {profileIncomplete && (
+        <div className="panel mb-5 flex flex-col gap-3 border-amber-200 bg-amber-50 p-4 text-amber-900 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="font-black">Complete your profile before applying to jobs.</p>
+            <p className="mt-1 text-sm font-bold">
+              Missing: {(profile.missing_profile_fields || []).slice(0, 5).join(", ") || "required profile details"}.
+            </p>
+          </div>
+          <Link className="btn-primary shrink-0 !py-2" href="/jobseeker/settings/profile">
+            Complete profile
+          </Link>
+        </div>
+      )}
       <div className="grid gap-5 lg:grid-cols-[1fr_340px]">
         <JobCard
           job={job}
@@ -71,9 +92,9 @@ export default function JobDetailsPage() {
                 <Bookmark size={16} />
                 Save
               </button>
-              <button className="btn-primary !py-2" onClick={apply} type="button" disabled={Boolean(job.existing_application_status) || applying}>
+              <button className="btn-primary !py-2" onClick={apply} type="button" disabled={Boolean(job.existing_application_status) || applying || Boolean(profileIncomplete)}>
                 <Send size={16} />
-                {job.existing_application_status ? `Already Applied: ${job.existing_application_status}` : "Apply"}
+                {job.existing_application_status ? `Already Applied: ${job.existing_application_status}` : profileIncomplete ? "Complete Profile" : "Apply"}
               </button>
             </>
           }
@@ -84,6 +105,22 @@ export default function JobDetailsPage() {
             <p>Deadline: {formatDate(job.deadline)}</p>
             <p>Work mode: {job.work_mode}</p>
             <p>Experience: {job.required_experience_level}</p>
+            {job.career_page_url && (
+              <div className="rounded-lg border border-teal-100 bg-teal-50 p-3 text-teal-900">
+                <p className="font-black">Official career link</p>
+                <a className="mt-1 inline-flex break-all text-sm font-black text-teal-700 underline" href={job.career_page_url} target="_blank" rel="noreferrer">
+                  {job.career_page_url}
+                </a>
+                <p className="mt-2 text-xs font-bold text-teal-800">
+                  Always verify the official career link before sharing sensitive personal information.
+                </p>
+              </div>
+            )}
+            {job.career_link_status === "LINK_SUSPICIOUS" && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm font-bold text-amber-800">
+                {job.career_link_warning || "Verify this link before sharing personal information."}
+              </div>
+            )}
             <BondBadge job={job} />
             {job.has_bond && job.bond_details && (
               <div className="rounded-lg bg-amber-50 p-3 text-amber-800">

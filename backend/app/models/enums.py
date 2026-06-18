@@ -19,6 +19,19 @@ class JobModerationStatus(str, Enum):
     REMOVED = "REMOVED"
 
 
+class JobSourceType(str, Enum):
+    COMPANY_PORTAL = "COMPANY_PORTAL"
+    INTERNAL_RECRUITER = "INTERNAL_RECRUITER"
+    OTHER_OFFICIAL = "OTHER_OFFICIAL"
+
+
+class JobCareerLinkStatus(str, Enum):
+    LINK_NOT_CHECKED = "LINK_NOT_CHECKED"
+    LINK_MATCHED_COMPANY_DOMAIN = "LINK_MATCHED_COMPANY_DOMAIN"
+    LINK_EXTERNAL_ATS = "LINK_EXTERNAL_ATS"
+    LINK_SUSPICIOUS = "LINK_SUSPICIOUS"
+
+
 class ApplicationAdminStatus(str, Enum):
     ACTIVE = "ACTIVE"
     PAUSED = "PAUSED"
@@ -109,6 +122,17 @@ class ReviewModerationStatus(str, Enum):
     HIDDEN = "HIDDEN"
     FLAGGED = "FLAGGED"
     REMOVED = "REMOVED"
+
+
+class CompanyTestimonialVisibility(str, Enum):
+    PUBLIC = "PUBLIC"
+    PRIVATE = "PRIVATE"
+
+
+class CompanyTestimonialStatus(str, Enum):
+    PENDING_ADMIN_REVIEW = "PENDING_ADMIN_REVIEW"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
 
 
 class ChatThreadStatus(str, Enum):

@@ -3,7 +3,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator, model_validator
 
-from app.models.enums import JobModerationStatus
+from app.models.enums import JobCareerLinkStatus, JobModerationStatus, JobSourceType
 from app.utils.skills import normalize_skills, split_skills
 
 
@@ -19,6 +19,9 @@ class JobBase(BaseModel):
     required_experience_level: str = Field(min_length=2, max_length=40)
     description: str = Field(min_length=10)
     eligibility: str | None = None
+    career_page_url: str | None = Field(default=None, min_length=8, max_length=500)
+    official_apply_url: str | None = Field(default=None, max_length=500)
+    source_type: JobSourceType = JobSourceType.COMPANY_PORTAL
     deadline: date
     is_active: bool = True
     has_bond: bool = False
@@ -29,6 +32,16 @@ class JobBase(BaseModel):
     @classmethod
     def normalize_required_skills(cls, value: Any) -> str:
         return normalize_skills(value)
+
+    @field_validator("career_page_url", "official_apply_url")
+    @classmethod
+    def validate_url(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        stripped = value.strip()
+        if not (stripped.startswith("http://") or stripped.startswith("https://")):
+            raise ValueError("URL must start with http:// or https://")
+        return stripped
 
     @model_validator(mode="after")
     def validate_bond(self) -> "JobBase":
@@ -46,7 +59,7 @@ class JobBase(BaseModel):
 
 
 class JobCreate(JobBase):
-    pass
+    career_page_url: str = Field(min_length=8, max_length=500)
 
 
 class JobUpdate(BaseModel):
@@ -61,6 +74,9 @@ class JobUpdate(BaseModel):
     required_experience_level: str | None = Field(default=None, min_length=2, max_length=40)
     description: str | None = Field(default=None, min_length=10)
     eligibility: str | None = None
+    career_page_url: str | None = Field(default=None, min_length=8, max_length=500)
+    official_apply_url: str | None = Field(default=None, max_length=500)
+    source_type: JobSourceType | None = None
     deadline: date | None = None
     is_active: bool | None = None
     has_bond: bool | None = None
@@ -73,6 +89,16 @@ class JobUpdate(BaseModel):
         if value is None:
             return None
         return normalize_skills(value)
+
+    @field_validator("career_page_url", "official_apply_url")
+    @classmethod
+    def validate_url(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        stripped = value.strip()
+        if not (stripped.startswith("http://") or stripped.startswith("https://")):
+            raise ValueError("URL must start with http:// or https://")
+        return stripped
 
     @model_validator(mode="after")
     def validate_bond(self) -> "JobUpdate":
@@ -93,6 +119,8 @@ class JobRead(JobBase):
     company_slug: str | None = None
     moderation_status: JobModerationStatus = JobModerationStatus.ACTIVE
     moderation_reason: str | None = None
+    career_link_status: JobCareerLinkStatus = JobCareerLinkStatus.LINK_NOT_CHECKED
+    career_link_warning: str | None = None
     risk_score: int = 0
     risk_flags: str | None = None
     company_verified: bool = False

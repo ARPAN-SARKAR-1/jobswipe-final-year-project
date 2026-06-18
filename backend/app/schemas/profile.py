@@ -94,6 +94,8 @@ class JobSeekerProfileRead(JobSeekerProfileUpdate):
     graduation_verification_status: str = "GRADUATION_UNVERIFIED"
     experience_verification_status: str = "EXPERIENCE_UNVERIFIED"
     certificates_public: bool = False
+    profile_completion_percentage: int = 0
+    missing_profile_fields: list[str] = []
     created_at: datetime
     updated_at: datetime
 
@@ -104,9 +106,23 @@ class CompanyProfileUpdate(BaseModel):
     company_name: str | None = Field(default=None, max_length=160)
     website: str | None = Field(default=None, max_length=255)
     industry: str | None = Field(default=None, max_length=120)
+    company_size: str | None = Field(default=None, max_length=30)
+    employee_count_estimate: int | None = Field(default=None, ge=0)
+    headquarters: str | None = Field(default=None, max_length=160)
+    founded_year: int | None = Field(default=None, ge=1800, le=2100)
     company_type: CompanyType | None = None
     description: str | None = None
     location: str | None = Field(default=None, max_length=160)
+    career_page_url: str | None = Field(default=None, max_length=500)
+    linkedin_url: str | None = Field(default=None, max_length=500)
+    glassdoor_url: str | None = Field(default=None, max_length=500)
+    ambitionbox_url: str | None = Field(default=None, max_length=500)
+    about_company: str | None = None
+    culture_summary: str | None = None
+    benefits: str | None = None
+    hiring_process: str | None = None
+    work_mode: str | None = Field(default=None, max_length=40)
+    rating_source: str | None = Field(default=None, max_length=40)
     official_email_domain: str | None = Field(default=None, max_length=160)
     designation: str | None = Field(default=None, max_length=120)
     work_email: str | None = Field(default=None, max_length=255)
@@ -132,6 +148,8 @@ class CompanyProfileRead(CompanyProfileUpdate):
     designation: str | None = None
     work_email: str | None = None
     verification_note: str | None = None
+    company_completion_percentage: int = 0
+    missing_company_fields: list[str] = []
     verified_at: datetime | None = None
     verified_by_admin_id: int | None = None
     created_at: datetime

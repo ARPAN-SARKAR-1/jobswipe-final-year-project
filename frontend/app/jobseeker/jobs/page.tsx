@@ -1,6 +1,7 @@
 "use client";
 
 import { Bookmark, Send } from "lucide-react";
+import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 
@@ -15,11 +16,12 @@ import { apiFetch } from "@/lib/api";
 import { paginateItems, textMatches } from "@/lib/listing";
 import { experienceLevels, jobTypes, workModes } from "@/lib/options";
 import { useAuth } from "@/hooks/useAuth";
-import type { Job } from "@/types";
+import type { Job, JobSeekerProfile } from "@/types";
 
 export default function JobsListPage() {
   const { loading } = useAuth(["JOB_SEEKER"]);
   const [jobs, setJobs] = useState<Job[]>([]);
+  const [profile, setProfile] = useState<JobSeekerProfile | null>(null);
   const [applyingJobId, setApplyingJobId] = useState<number | null>(null);
   const [query, setQuery] = useState("");
   const [trustFilter, setTrustFilter] = useState("");
@@ -46,6 +48,7 @@ export default function JobsListPage() {
     apiFetch<Job[]>(`/jobs?${params.toString()}`)
       .then(setJobs)
       .catch((error) => toast.error(error instanceof Error ? error.message : "Jobs failed"));
+    apiFetch<JobSeekerProfile>("/jobseeker/profile").then(setProfile).catch(() => setProfile(null));
   };
 
   useEffect(() => {
@@ -95,6 +98,10 @@ export default function JobsListPage() {
   };
 
   const apply = async (jobId: number) => {
+    if (profile && profile.profile_completion_percentage !== undefined && profile.profile_completion_percentage < 100) {
+      toast.error("Complete your profile before applying to jobs.");
+      return;
+    }
     setApplyingJobId(jobId);
     try {
       await apiFetch("/applications", { method: "POST", body: JSON.stringify({ job_id: jobId }) });
@@ -117,10 +124,24 @@ export default function JobsListPage() {
   };
 
   if (loading) return <main className="page-shell">Loading jobs...</main>;
+  const profileIncomplete = profile && profile.profile_completion_percentage !== undefined && profile.profile_completion_percentage < 100;
 
   return (
     <main className="page-shell">
       <PageHeader title="Jobs List" eyebrow="Explore" />
+      {profileIncomplete && (
+        <div className="panel mb-5 flex flex-col gap-3 border-amber-200 bg-amber-50 p-4 text-amber-900 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="font-black">Complete your profile before applying to jobs.</p>
+            <p className="mt-1 text-sm font-bold">
+              Missing: {(profile.missing_profile_fields || []).slice(0, 5).join(", ") || "required profile details"}.
+            </p>
+          </div>
+          <Link className="btn-primary shrink-0 !py-2" href="/jobseeker/settings/profile">
+            Complete profile
+          </Link>
+        </div>
+      )}
       <form onSubmit={submit} className="panel mb-6 grid gap-3 p-4 md:grid-cols-3 lg:grid-cols-6">
         <select className="field" value={filters.jobType} onChange={(event) => setFilters({ ...filters, jobType: event.target.value })}>
           <option value="">Job type</option>
@@ -211,9 +232,9 @@ export default function JobsListPage() {
                     <Bookmark size={16} />
                     Save
                   </button>
-                  <button className="btn-primary !py-2" onClick={() => apply(job.id)} type="button" disabled={alreadyApplied || applyingJobId === job.id}>
+                  <button className="btn-primary !py-2" onClick={() => apply(job.id)} type="button" disabled={alreadyApplied || applyingJobId === job.id || Boolean(profileIncomplete)}>
                     <Send size={16} />
-                    {alreadyApplied ? "Already Applied" : "Apply"}
+                    {alreadyApplied ? "Already Applied" : profileIncomplete ? "Complete Profile" : "Apply"}
                   </button>
                 </>
               }

@@ -12,11 +12,13 @@ from app.models.application import Application
 from app.models.chat_thread import ChatThread
 from app.models.company_profile import CompanyProfile
 from app.models.company_review import CompanyReview
+from app.models.company_testimonial import CompanyTestimonial
 from app.models.enums import (
     AccountStatus,
     ApplicationAdminStatus,
     ChatThreadStatus,
     CompanyJoinStatus,
+    CompanyTestimonialStatus,
     CompanyVerificationStatus,
     DocumentVerificationStatus,
     ExperienceVerificationStatus,
@@ -40,7 +42,13 @@ from app.schemas.admin import AdminActionLogRead, AdminCreateRequest, AdminNoteR
 from app.schemas.application import ApplicationRead
 from app.schemas.chat import ChatThreadRead
 from app.schemas.auth import UserRead
-from app.schemas.company import CompanyReviewModerationRequest, CompanyReviewRead, RecruiterCompanyMemberRead
+from app.schemas.company import (
+    CompanyReviewModerationRequest,
+    CompanyReviewRead,
+    CompanyTestimonialModerationRequest,
+    CompanyTestimonialRead,
+    RecruiterCompanyMemberRead,
+)
 from app.schemas.job import JobRead
 from app.schemas.profile import AdminRecruiterVerificationRead
 from app.schemas.public_profile import AdminUserDocumentRead, DocumentReviewRequest
@@ -691,7 +699,11 @@ def suspicious_jobs(
     _current_user: Annotated[User, Depends(require_admin_or_owner)],
     db: Annotated[Session, Depends(get_db)],
 ) -> list[Job]:
-    jobs = db.scalars(select(Job).where(Job.risk_score > 0).order_by(Job.updated_at.desc())).all()
+    jobs = db.scalars(
+        select(Job)
+        .where((Job.risk_score > 0) | (Job.career_link_status == "LINK_SUSPICIOUS"))
+        .order_by(Job.updated_at.desc())
+    ).all()
     return [attach_job_trust(db, job) for job in jobs]
 
 
@@ -727,6 +739,43 @@ def moderate_company_review(
     db.commit()
     db.refresh(review)
     return review_response(review)
+
+
+def testimonial_response(testimonial: CompanyTestimonial) -> CompanyTestimonialRead:
+    return CompanyTestimonialRead.model_validate(testimonial)
+
+
+@router.get("/company-testimonials", response_model=list[CompanyTestimonialRead])
+def company_testimonials(
+    _current_user: Annotated[User, Depends(require_admin_or_owner)],
+    db: Annotated[Session, Depends(get_db)],
+    status_filter: CompanyTestimonialStatus | None = Query(default=None, alias="status"),
+) -> list[CompanyTestimonialRead]:
+    statement = select(CompanyTestimonial).order_by(CompanyTestimonial.created_at.desc(), CompanyTestimonial.id.desc())
+    if status_filter:
+        statement = statement.where(CompanyTestimonial.status == status_filter.value)
+    testimonials = db.scalars(statement).all()
+    return [testimonial_response(testimonial) for testimonial in testimonials]
+
+
+@router.put("/company-testimonials/{testimonial_id}/moderate", response_model=CompanyTestimonialRead)
+def moderate_company_testimonial(
+    testimonial_id: int,
+    payload: CompanyTestimonialModerationRequest,
+    current_user: Annotated[User, Depends(require_admin_or_owner)],
+    db: Annotated[Session, Depends(get_db)],
+) -> CompanyTestimonialRead:
+    testimonial = db.get(CompanyTestimonial, testimonial_id)
+    if testimonial is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Company testimonial not found")
+    testimonial.status = payload.status.value
+    testimonial.admin_note = payload.admin_note
+    testimonial.reviewed_by = current_user.id
+    testimonial.reviewed_at = datetime.now(timezone.utc).replace(tzinfo=None)
+    log_action(db, current_user, f"TESTIMONIAL_{payload.status.value}", "COMPANY_TESTIMONIAL", testimonial.id, payload.admin_note)
+    db.commit()
+    db.refresh(testimonial)
+    return testimonial_response(testimonial)
 
 
 def user_document_response(document: UserDocument) -> AdminUserDocumentRead:
