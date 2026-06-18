@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Toaster } from "react-hot-toast";
 
 import Footer from "@/components/Footer";
+import HelpAssistant from "@/components/HelpAssistant";
 import Navbar from "@/components/Navbar";
 import "./globals.css";
 
@@ -25,6 +26,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <Navbar />
         {children}
         <Footer />
+        <HelpAssistant />
         <Toaster position="top-right" toastOptions={{ duration: 3200 }} />
       </body>
     </html>
