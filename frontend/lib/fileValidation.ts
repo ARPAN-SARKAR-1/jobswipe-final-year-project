@@ -64,18 +64,33 @@ export function ruleForDocumentType(documentType: string): FileValidationRule {
   return studentProofDocumentTypes.has(documentType) ? uploadRules.studentProof : uploadRules.verificationDocument;
 }
 
+export function allowedFormatLabel(rule: FileValidationRule): string {
+  const labels = rule.extensions
+    .map((extension) => extension.replace(".", "").toUpperCase())
+    .filter((extension) => extension !== "JPEG");
+  return Array.from(new Set(labels)).join(", ");
+}
+
 export function validateFile(file: File | undefined, rule: FileValidationRule): string | null {
   if (!file) return null;
   const extension = file.name.includes(".") ? `.${file.name.split(".").pop()?.toLowerCase()}` : "";
   if (!rule.extensions.includes(extension) || !rule.mimeTypes.includes(file.type)) {
-    return rule.typeMessage;
+    return `Unsupported file type. Allowed: ${allowedFormatLabel(rule)}.`;
   }
   if (file.size > rule.maxMb * MB) {
-    return `${rule.label} must be under ${rule.maxMb} MB.`;
+    return `File too large. ${rule.label} must be under ${rule.maxMb} MB.`;
   }
   return null;
 }
 
 export function fileGuidance(rule: FileValidationRule): string {
-  return `${rule.typeMessage.replace("Only ", "").replace(" files are allowed.", "")} under ${rule.maxMb} MB`;
+  return `Allowed: ${allowedFormatLabel(rule)}. Max: ${rule.maxMb} MB.`;
+}
+
+export function fileExample(rule: FileValidationRule): string {
+  if (rule === uploadRules.profilePhoto) return "Example: profile-photo.jpg or profile-photo.webp";
+  if (rule === uploadRules.companyLogo) return "Example: company-logo.png or company-logo.webp";
+  if (rule === uploadRules.resume) return "Example: resume.pdf or resume.docx";
+  if (rule === uploadRules.studentProof) return "Example: college-id.pdf or bonafide.png";
+  return "Example: certificate.pdf or proof.jpg";
 }

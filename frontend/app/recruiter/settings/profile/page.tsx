@@ -1,14 +1,15 @@
 "use client";
 
-import { FileText, Loader2, Settings } from "lucide-react";
+import { Loader2, Settings } from "lucide-react";
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import toast from "react-hot-toast";
 
+import FileUploadField from "@/components/FileUploadField";
 import PageHeader from "@/components/PageHeader";
 import VerificationStatusBadge from "@/components/VerificationStatusBadge";
 import { apiFetch } from "@/lib/api";
-import { fileGuidance, uploadRules, validateFile } from "@/lib/fileValidation";
+import { uploadRules, validateFile } from "@/lib/fileValidation";
 import { useAuth } from "@/hooks/useAuth";
 import type { PublicProfile, UserDocument } from "@/types";
 
@@ -128,20 +129,13 @@ export default function RecruiterProfileSettingsPage() {
                 <option key={item} value={item}>{item.replaceAll("_", " ")}</option>
               ))}
             </select>
-            <label className="btn-secondary cursor-pointer">
-              <FileText size={17} />
-              Upload private document
-              <input
-                className="hidden"
-                type="file"
-                accept={uploadRules.verificationDocument.accept}
-                onChange={(event) => {
-                  void uploadDocument(event.target.files?.[0]);
-                  event.currentTarget.value = "";
-                }}
-              />
-            </label>
-            <p className="text-xs font-bold text-[#8a949a]">{fileGuidance(uploadRules.verificationDocument)}</p>
+            <FileUploadField
+              label="Private verification file"
+              buttonLabel="Upload private document"
+              rule={uploadRules.verificationDocument}
+              helper="These files are visible only to authorized reviewers."
+              onValidFile={uploadDocument}
+            />
           </div>
           <div className="mt-4 grid gap-2">
             {documents.map((document) => (

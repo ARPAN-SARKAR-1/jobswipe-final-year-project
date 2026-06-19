@@ -97,7 +97,7 @@ export default function SwipeJobsPage() {
   const profileIncomplete = profile && profile.profile_completion_percentage !== undefined && profile.profile_completion_percentage < 100;
 
   return (
-    <main className="page-shell pb-24 sm:pb-8">
+    <main className="page-shell pb-32 sm:pb-8">
       <PageHeader title="Swipe Jobs" eyebrow="Discover">
         <div className="rounded-lg bg-white px-4 py-2 text-sm font-black text-[#526069]">
           {jobs.length ? `${Math.min(index + 1, jobs.length)} of ${jobs.length} jobs viewed` : "0 jobs viewed"}

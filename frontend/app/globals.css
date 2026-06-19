@@ -70,11 +70,13 @@ a:focus-visible,
 }
 
 .field {
+  min-width: 0;
   width: 100%;
   border-radius: 8px;
   border: 1px solid rgba(23, 32, 38, 0.12);
   background: rgba(255, 255, 255, 0.88);
   padding: 0.78rem 0.9rem;
+  font-size: 1rem;
   color: #172026;
   outline: none;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
@@ -99,6 +101,15 @@ a:focus-visible,
 .field:disabled {
   cursor: not-allowed;
   opacity: 0.65;
+}
+
+select.field {
+  min-height: 48px;
+  text-overflow: ellipsis;
+}
+
+textarea.field {
+  resize: vertical;
 }
 
 .label {
@@ -171,6 +182,7 @@ a:focus-visible,
 }
 
 .panel {
+  min-width: 0;
   border: 1px solid rgba(23, 32, 38, 0.1);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.82);
@@ -306,7 +318,18 @@ a:focus-visible,
 @media (max-width: 640px) {
   .page-shell {
     width: min(100% - 24px, 1180px);
-    padding: 26px 0 54px;
+    padding: 26px 0 104px;
+  }
+
+  .btn-primary,
+  .btn-secondary {
+    min-height: 48px;
+  }
+
+  input,
+  textarea,
+  select {
+    font-size: 16px;
   }
 }
 

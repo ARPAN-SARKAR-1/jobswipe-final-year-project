@@ -4,10 +4,11 @@ import { Loader2, Upload } from "lucide-react";
 import { FormEvent, useEffect, useState } from "react";
 import toast from "react-hot-toast";
 
+import FileUploadField from "@/components/FileUploadField";
 import PageHeader from "@/components/PageHeader";
 import VerificationStatusBadge from "@/components/VerificationStatusBadge";
 import { apiFetch, assetUrl } from "@/lib/api";
-import { fileGuidance, uploadRules, validateFile } from "@/lib/fileValidation";
+import { uploadRules, validateFile } from "@/lib/fileValidation";
 import { companyTypes } from "@/lib/options";
 import { useAuth } from "@/hooks/useAuth";
 import type { CompanyProfile, CompanyTestimonial, CompanyType } from "@/types";
@@ -180,19 +181,13 @@ export default function CompanyProfilePage() {
               </p>
             )}
           </div>
-          <label className="btn-secondary mt-5 w-full cursor-pointer">
-            Upload company logo
-            <input
-              className="hidden"
-              type="file"
-              accept={uploadRules.companyLogo.accept}
-              onChange={(event) => {
-                void uploadLogo(event.target.files?.[0]);
-                event.currentTarget.value = "";
-              }}
-            />
-          </label>
-          <p className="mt-2 text-xs font-bold text-[#8a949a]">{fileGuidance(uploadRules.companyLogo)}</p>
+          <FileUploadField
+            className="mt-5 text-left"
+            label="Company logo"
+            buttonLabel="Upload company logo"
+            rule={uploadRules.companyLogo}
+            onValidFile={uploadLogo}
+          />
         </aside>
 
         <form onSubmit={submit} className="panel grid gap-4 p-5">

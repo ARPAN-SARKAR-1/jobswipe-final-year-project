@@ -1,14 +1,15 @@
 "use client";
 
-import { FileText, Loader2, Trash2, Upload } from "lucide-react";
+import { Loader2, Trash2, Upload } from "lucide-react";
 import { FormEvent, useEffect, useState } from "react";
 import toast from "react-hot-toast";
 
+import FileUploadField from "@/components/FileUploadField";
 import PageHeader from "@/components/PageHeader";
 import SkillMultiSelect from "@/components/SkillMultiSelect";
 import VerificationStatusBadge from "@/components/VerificationStatusBadge";
 import { apiFetch, assetUrl } from "@/lib/api";
-import { fileGuidance, ruleForDocumentType, uploadRules, validateFile, type FileValidationRule } from "@/lib/fileValidation";
+import { ruleForDocumentType, uploadRules, validateFile, type FileValidationRule } from "@/lib/fileValidation";
 import { experienceLevels, jobTypes } from "@/lib/options";
 import { splitSkills } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -488,34 +489,21 @@ export default function JobSeekerProfileSettingsPage() {
             )}
           </div>
 
-          <label className="btn-secondary mt-5 w-full cursor-pointer">
-            Upload picture
-            <input
-              className="hidden"
-              type="file"
-              accept={uploadRules.profilePhoto.accept}
-              onChange={(event) => {
-                void upload(event.target.files?.[0], "/jobseeker/profile-picture", uploadRules.profilePhoto);
-                event.currentTarget.value = "";
-              }}
-            />
-          </label>
-          <p className="mt-2 text-xs font-bold text-[#8a949a]">{fileGuidance(uploadRules.profilePhoto)}</p>
+          <FileUploadField
+            className="mt-5"
+            label="Profile photo"
+            buttonLabel="Upload picture"
+            rule={uploadRules.profilePhoto}
+            onValidFile={(file) => upload(file, "/jobseeker/profile-picture", uploadRules.profilePhoto)}
+          />
 
-          <label className="btn-secondary mt-3 w-full cursor-pointer">
-            <FileText size={17} />
-            Upload resume
-            <input
-              className="hidden"
-              type="file"
-              accept={uploadRules.resume.accept}
-              onChange={(event) => {
-                void upload(event.target.files?.[0], "/jobseeker/resume", uploadRules.resume);
-                event.currentTarget.value = "";
-              }}
-            />
-          </label>
-          <p className="mt-2 text-xs font-bold text-[#8a949a]">{fileGuidance(uploadRules.resume)}</p>
+          <FileUploadField
+            className="mt-4"
+            label="Resume"
+            buttonLabel="Upload resume"
+            rule={uploadRules.resume}
+            onValidFile={(file) => upload(file, "/jobseeker/resume", uploadRules.resume)}
+          />
           <p className="mt-3 rounded-lg border border-teal-100 bg-teal-50 p-3 text-xs font-bold leading-6 text-teal-800">
             Student ID documents are private and used only for verification. Public profile documents list titles only.
           </p>
@@ -562,7 +550,7 @@ export default function JobSeekerProfileSettingsPage() {
             <section className="panel grid gap-4 p-5 md:grid-cols-2">
               <div className="md:col-span-2 flex flex-wrap items-center justify-between gap-3">
                 <h2 className="text-xl font-black">Education and Category Details</h2>
-                <select className="field max-w-xs" value={form.education_visibility} onChange={(event) => setForm({ ...form, education_visibility: event.target.value as SectionVisibility })}>
+                <select className="field w-full sm:max-w-xs" value={form.education_visibility} onChange={(event) => setForm({ ...form, education_visibility: event.target.value as SectionVisibility })}>
                   {visibilityOptions.map((item) => <option key={item.value} value={item.value}>Education: {item.label}</option>)}
                 </select>
               </div>
@@ -628,7 +616,7 @@ export default function JobSeekerProfileSettingsPage() {
             <section className="panel grid gap-4 p-5 md:grid-cols-2">
               <div className="md:col-span-2 flex flex-wrap items-center justify-between gap-3">
                 <h2 className="text-xl font-black">Experience</h2>
-                <select className="field max-w-xs" value={form.experience_visibility} onChange={(event) => setForm({ ...form, experience_visibility: event.target.value as SectionVisibility })}>
+                <select className="field w-full sm:max-w-xs" value={form.experience_visibility} onChange={(event) => setForm({ ...form, experience_visibility: event.target.value as SectionVisibility })}>
                   {visibilityOptions.map((item) => <option key={item.value} value={item.value}>Experience: {item.label}</option>)}
                 </select>
               </div>
@@ -680,7 +668,7 @@ export default function JobSeekerProfileSettingsPage() {
             <p className="mt-2 text-sm font-bold leading-6 text-[#6b767d]">
               Upload college proof, graduation proof, experience documents, certificates, or recommendation letters. Private proof files are visible only to authorized reviewers.
             </p>
-            <div className="mt-4 grid gap-3 md:grid-cols-[1fr_1fr_auto]">
+            <div className="mt-4 grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(220px,auto)]">
               <select className="field" value={documentType} onChange={(event) => setDocumentType(event.target.value)}>
                 {documentTypes.map((item) => (
                   <option key={item} value={item}>{fieldLabel(item)}</option>
@@ -689,20 +677,14 @@ export default function JobSeekerProfileSettingsPage() {
               <select className="field" value={documentVisibility} onChange={(event) => setDocumentVisibility(event.target.value as SectionVisibility)} disabled={privateOnlyDocumentTypes.has(documentType)}>
                 {visibilityOptions.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
               </select>
-              <label className="btn-secondary cursor-pointer">
-                Upload
-                <input
-                  className="hidden"
-                  type="file"
-                  accept={ruleForDocumentType(documentType).accept}
-                  onChange={(event) => {
-                    void uploadDocument(event.target.files?.[0]);
-                    event.currentTarget.value = "";
-                  }}
-                />
-              </label>
+              <FileUploadField
+                key={documentType}
+                label="Document file"
+                buttonLabel="Upload document"
+                rule={ruleForDocumentType(documentType)}
+                onValidFile={uploadDocument}
+              />
             </div>
-            <p className="mt-2 text-xs font-bold text-[#8a949a]">{fileGuidance(ruleForDocumentType(documentType))}</p>
             {privateOnlyDocumentTypes.has(documentType) && (
               <p className="mt-2 text-xs font-bold text-[#8a949a]">This document type is forced private for safety.</p>
             )}

@@ -76,8 +76,8 @@ export default function HelpAssistant() {
   return (
     <div
       className={cx(
-        "fixed right-4 z-[55] sm:right-5",
-        isSwipePage ? "bottom-24 sm:bottom-5" : "bottom-5"
+        "fixed right-3 z-[55] sm:right-5",
+        isSwipePage ? "bottom-28 sm:bottom-5" : "bottom-4 sm:bottom-5"
       )}
     >
       {introVisible && !open && (
@@ -103,8 +103,8 @@ export default function HelpAssistant() {
       {open && (
         <section
           className={cx(
-            "fade-in-up fixed left-4 right-4 bottom-24 mb-0 flex max-h-[min(680px,calc(100vh-128px))] w-auto max-w-none flex-col overflow-hidden rounded-lg border border-black/10 bg-white shadow-[0_24px_80px_rgba(23,32,38,0.2)] sm:static sm:mb-3 sm:w-[calc(100vw-32px)] sm:max-w-[400px]",
-            isSwipePage && "bottom-32 max-h-[min(620px,calc(100vh-176px))] sm:bottom-auto"
+            "fade-in-up fixed left-3 right-3 bottom-20 mb-0 flex max-h-[min(680px,calc(100vh-112px))] w-auto max-w-[calc(100vw-24px)] flex-col overflow-hidden rounded-lg border border-black/10 bg-white shadow-[0_24px_80px_rgba(23,32,38,0.2)] sm:static sm:mb-3 sm:w-[calc(100vw-32px)] sm:max-w-[400px]",
+            isSwipePage && "bottom-36 max-h-[min(620px,calc(100vh-180px))] sm:bottom-auto"
           )}
           aria-labelledby="help-assistant-title"
         >
@@ -218,7 +218,7 @@ export default function HelpAssistant() {
       )}
 
       <button
-        className="smooth-button scale-tap grid h-14 w-14 place-items-center rounded-full bg-[#172026] text-white shadow-[0_18px_48px_rgba(23,32,38,0.26)] hover:-translate-y-1 hover:bg-[#0f171c] focus-visible:outline-white"
+        className="smooth-button scale-tap grid h-12 w-12 place-items-center rounded-full bg-[#172026] text-white shadow-[0_18px_48px_rgba(23,32,38,0.26)] hover:-translate-y-1 hover:bg-[#0f171c] focus-visible:outline-white sm:h-14 sm:w-14"
         type="button"
         aria-label={open ? "Close help assistant" : "Open help assistant"}
         onClick={() => {
