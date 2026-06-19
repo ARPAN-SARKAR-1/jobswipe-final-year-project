@@ -132,6 +132,8 @@ class JobRead(JobBase):
     matched_skills: list[str] = []
     missing_skills: list[str] = []
     match_note: str | None = None
+    recommendation_score: float | None = None
+    recommendation_reason: str | None = None
     existing_application_status: str | None = None
     created_at: datetime
     updated_at: datetime

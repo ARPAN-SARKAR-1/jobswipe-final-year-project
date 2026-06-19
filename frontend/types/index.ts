@@ -76,6 +76,8 @@ export type Job = {
   matched_skills?: string[];
   missing_skills?: string[];
   match_note?: string | null;
+  recommendation_score?: number | null;
+  recommendation_reason?: string | null;
   existing_application_status?: Application["status"] | null;
   required_experience_level: string;
   description: string;

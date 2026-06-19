@@ -19,6 +19,15 @@ import type { Job, JobSeekerProfile } from "@/types";
 
 type SwipeAction = "LIKE" | "REJECT" | "SAVE";
 
+function uniqueJobs(items: Job[]) {
+  const seen = new Set<number>();
+  return items.filter((job) => {
+    if (seen.has(job.id)) return false;
+    seen.add(job.id);
+    return true;
+  });
+}
+
 export default function SwipeJobsPage() {
   const { loading } = useAuth(["JOB_SEEKER"]);
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -27,32 +36,48 @@ export default function SwipeJobsPage() {
   const [direction, setDirection] = useState(0);
   const [feedbackAction, setFeedbackAction] = useState<SwipeAction | null>(null);
   const [filterSkills, setFilterSkills] = useState<string[]>([]);
+  const [swipesSinceRefresh, setSwipesSinceRefresh] = useState(0);
+  const [refreshingRecommendations, setRefreshingRecommendations] = useState(false);
+  const [recommendationNotice, setRecommendationNotice] = useState("");
   const feedbackTimer = useRef<number | null>(null);
+  const noticeTimer = useRef<number | null>(null);
   const reduceMotion = useReducedMotion();
   const current = jobs[index];
 
-  const loadFeed = () => {
+  const loadFeed = async (options: { silent?: boolean; showUpdatedNotice?: boolean } = {}) => {
     const params = new URLSearchParams({ activeOnly: "true" });
     filterSkills.forEach((skill) => params.append("skills", skill));
-    apiFetch<Job[]>((`/jobs/feed?${params.toString()}`))
-      .then((data) => {
-        setJobs(data);
-        setIndex(0);
-      })
-      .catch((error) => toast.error(error instanceof Error ? error.message : "Feed failed"));
+    if (options.silent) setRefreshingRecommendations(true);
+    try {
+      const data = await apiFetch<Job[]>(`/jobs/feed?${params.toString()}`);
+      setJobs(uniqueJobs(data));
+      setIndex(0);
+      if (options.showUpdatedNotice) setRecommendationNotice("Recommendations updated based on your activity.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Feed failed");
+    } finally {
+      if (options.silent) setRefreshingRecommendations(false);
+    }
     apiFetch<JobSeekerProfile>("/jobseeker/profile").then(setProfile).catch(() => setProfile(null));
   };
 
   useEffect(() => {
     if (loading) return;
-    loadFeed();
+    void loadFeed();
   }, [loading]);
 
   useEffect(() => {
     return () => {
       if (feedbackTimer.current) window.clearTimeout(feedbackTimer.current);
+      if (noticeTimer.current) window.clearTimeout(noticeTimer.current);
     };
   }, []);
+
+  useEffect(() => {
+    if (!recommendationNotice) return;
+    if (noticeTimer.current) window.clearTimeout(noticeTimer.current);
+    noticeTimer.current = window.setTimeout(() => setRecommendationNotice(""), 3500);
+  }, [recommendationNotice]);
 
   const move = async (action: SwipeAction) => {
     if (!current) return;
@@ -69,6 +94,13 @@ export default function SwipeJobsPage() {
       setDirection(action === "REJECT" ? -1 : 1);
       setIndex((value) => value + 1);
       toast.success(action === "LIKE" ? "Applied successfully" : action === "SAVE" ? "Saved for later" : "Skipped");
+      const nextSwipeCount = swipesSinceRefresh + 1;
+      if (nextSwipeCount >= 3) {
+        setSwipesSinceRefresh(0);
+        await loadFeed({ silent: true, showUpdatedNotice: true });
+      } else {
+        setSwipesSinceRefresh(nextSwipeCount);
+      }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Swipe failed");
     } finally {
@@ -149,6 +181,11 @@ export default function SwipeJobsPage() {
                 <p className="mt-2 break-words text-base font-black text-[#6b767d]">{current.company_name}</p>
                 <div className="mt-3 flex flex-wrap gap-2">
                   <MatchScoreBadge job={current} />
+                  {current.recommendation_reason && (
+                    <span className="rounded-lg bg-violet-50 px-2.5 py-1 text-xs font-black text-violet-700">
+                      {current.recommendation_reason}
+                    </span>
+                  )}
                   {current.existing_application_status && (
                     <span className="rounded-lg bg-sky-50 px-2.5 py-1 text-xs font-black text-sky-700">
                       Already Applied: {current.existing_application_status}
@@ -251,11 +288,16 @@ export default function SwipeJobsPage() {
             </div>
           )}
           <div className="mt-6">
-            <SkillMultiSelect label="Skill filters" selected={filterSkills} onChange={setFilterSkills} />
-            <button className="btn-secondary scale-tap mt-3 w-full" type="button" onClick={loadFeed}>
-              Apply skills
+          <SkillMultiSelect label="Skill filters" selected={filterSkills} onChange={setFilterSkills} />
+            <button className="btn-secondary scale-tap mt-3 w-full" type="button" onClick={() => void loadFeed()} disabled={refreshingRecommendations}>
+              {refreshingRecommendations ? "Updating..." : "Apply skills"}
             </button>
           </div>
+          {(recommendationNotice || refreshingRecommendations) && (
+            <p className="mt-3 rounded-lg bg-teal-50 p-3 text-xs font-black leading-5 text-teal-800">
+              {refreshingRecommendations ? "Updating recommendations..." : recommendationNotice}
+            </p>
+          )}
           <div className="mt-6 h-2 rounded-lg bg-stone-200">
             <div
               className="h-2 rounded-lg bg-teal-600 transition-[width] duration-300 ease-out"

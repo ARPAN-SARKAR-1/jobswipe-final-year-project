@@ -3,7 +3,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import and_, or_, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.core.database import get_db
 from app.core.security import get_optional_current_user, require_roles
@@ -16,6 +16,7 @@ from app.models.recruiter_company_member import RecruiterCompanyMember
 from app.models.swipe import Swipe
 from app.models.user import User
 from app.schemas.job import JobCreate, JobRead, JobUpdate
+from app.services.recommendation_service import get_behavior_ranked_jobs
 from app.services.notifications import notify_admins
 from app.services.profile_requirements import ensure_company_ready_to_post, validate_job_career_link
 from app.services.public_identity import ensure_job_public_identity
@@ -138,32 +139,15 @@ def job_feed(
     applied_job_ids = select(Application.job_id).where(Application.job_seeker_id == current_user.id)
     base_statement = (
         select(Job)
+        .options(selectinload(Job.company))
         .where(Job.id.not_in(swiped_job_ids))
         .where(Job.id.not_in(applied_job_ids))
         .order_by(Job.created_at.desc())
-        .limit(50)
+        .limit(120)
     )
     statement = apply_job_filters(base_statement, job_type, experience_level, location, skill, skills, work_mode, active_only)
-
-    if not skill and not skills:
-        profile = db.scalar(select(JobSeekerProfile).where(JobSeekerProfile.user_id == current_user.id))
-        profile_skills = split_skills(profile.skills if profile else None)
-        if profile_skills:
-            profile_statement = apply_job_filters(
-                base_statement,
-                job_type,
-                experience_level,
-                location,
-                None,
-                profile_skills,
-                work_mode,
-                active_only,
-            )
-            matched_jobs = list(db.scalars(profile_statement).all())
-            if matched_jobs:
-                return apply_job_context(matched_jobs, db, current_user)
-
-    return apply_job_context(list(db.scalars(statement).all()), db, current_user)
+    jobs = apply_job_context(list(db.scalars(statement).all()), db, current_user)
+    return get_behavior_ranked_jobs(db, current_user.id, jobs, limit=50)
 
 
 @router.get("/{job_id}", response_model=JobRead)
