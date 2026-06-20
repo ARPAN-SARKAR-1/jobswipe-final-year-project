@@ -66,6 +66,10 @@ class JobSeekerProfileUpdate(BaseModel):
     recommendation_visibility: SectionVisibility = SectionVisibility.PRIVATE
     reference_visibility: SectionVisibility = SectionVisibility.PRIVATE
     certificate_visibility: SectionVisibility = SectionVisibility.PUBLIC
+    has_accessibility_needs: bool = False
+    accessibility_needs: str | None = None
+    accessibility_notes: str | None = Field(default=None, max_length=1200)
+    accessibility_visibility: SectionVisibility = SectionVisibility.PRIVATE
 
     @field_validator("skills", mode="before")
     @classmethod
@@ -74,10 +78,22 @@ class JobSeekerProfileUpdate(BaseModel):
             return None
         return normalize_skills(value)
 
+    @field_validator("accessibility_needs", mode="before")
+    @classmethod
+    def normalize_accessibility_needs(cls, value: Any) -> str | None:
+        if value is None:
+            return None
+        return normalize_skills(value)
+
     @computed_field
     @property
     def skills_list(self) -> list[str]:
         return split_skills(self.skills)
+
+    @computed_field
+    @property
+    def accessibility_needs_list(self) -> list[str]:
+        return split_skills(self.accessibility_needs)
 
 
 class JobSeekerProfileRead(JobSeekerProfileUpdate):

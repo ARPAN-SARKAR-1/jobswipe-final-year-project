@@ -105,6 +105,19 @@ export default function PublicProfileCard({ profile, shareHref }: { profile: Pub
                   ))}
                 </div>
               )}
+              {profile.has_accessibility_needs && (profile.accessibility_needs_list?.length || profile.accessibility_notes) && (
+                <div className="mt-4 rounded-lg border border-sky-100 bg-sky-50 p-3">
+                  <p className="text-xs font-black uppercase text-sky-700">Accessibility preferences shared by the candidate</p>
+                  {profile.accessibility_needs_list && profile.accessibility_needs_list.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {profile.accessibility_needs_list.map((item) => (
+                        <span key={item} className="rounded-lg bg-white px-2.5 py-1 text-xs font-black text-sky-800">{item}</span>
+                      ))}
+                    </div>
+                  )}
+                  {profile.accessibility_notes && <p className="mt-2 text-sm font-bold leading-6 text-sky-900">{profile.accessibility_notes}</p>}
+                </div>
+              )}
               <div className="mt-4 flex flex-wrap gap-2">
                 <VerifiedBadge label="Verified student" verified={profile.student_verification_status === "STUDENT_VERIFIED"} />
                 <VerifiedBadge label="Verified graduation" verified={profile.graduation_verification_status === "GRADUATION_VERIFIED"} />

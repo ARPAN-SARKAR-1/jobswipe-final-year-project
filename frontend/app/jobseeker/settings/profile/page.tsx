@@ -1,7 +1,7 @@
 "use client";
 
 import { Loader2, Trash2, Upload } from "lucide-react";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 
 import FileUploadField from "@/components/FileUploadField";
@@ -11,6 +11,7 @@ import VerificationStatusBadge from "@/components/VerificationStatusBadge";
 import { apiFetch, assetUrl } from "@/lib/api";
 import { ruleForDocumentType, uploadRules, validateFile, type FileValidationRule } from "@/lib/fileValidation";
 import { experienceLevels, jobTypes } from "@/lib/options";
+import { clearProfileDraft, loadProfileDraft, saveProfileDraft, type JobSeekerProfileDraft } from "@/lib/profileDraft";
 import { splitSkills } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import type {
@@ -72,6 +73,10 @@ type ProfileForm = {
   recommendation_visibility: SectionVisibility;
   reference_visibility: SectionVisibility;
   certificate_visibility: SectionVisibility;
+  has_accessibility_needs: boolean;
+  accessibility_needs: string[];
+  accessibility_notes: string;
+  accessibility_visibility: SectionVisibility;
 };
 
 const emptyProfile: ProfileForm = {
@@ -122,7 +127,11 @@ const emptyProfile: ProfileForm = {
   experience_visibility: "PUBLIC",
   recommendation_visibility: "PRIVATE",
   reference_visibility: "PRIVATE",
-  certificate_visibility: "PUBLIC"
+  certificate_visibility: "PUBLIC",
+  has_accessibility_needs: false,
+  accessibility_needs: [],
+  accessibility_notes: "",
+  accessibility_visibility: "PRIVATE"
 };
 
 const categoryOptions: { label: string; value: JobSeekerCategory }[] = [
@@ -184,6 +193,18 @@ const visibilityOptions: { label: string; value: SectionVisibility }[] = [
   { label: "Public", value: "PUBLIC" }
 ];
 
+const accessibilityOptions = [
+  "Color blindness / color vision deficiency",
+  "Low vision",
+  "Hearing impairment",
+  "Mobility limitation",
+  "Screen reader support needed",
+  "Neurodiversity / focus support",
+  "Chronic health condition accommodation",
+  "Other",
+  "Prefer not to specify"
+];
+
 function toForm(profileData: JobSeekerProfile, publicData: PublicProfile): ProfileForm {
   return {
     ...emptyProfile,
@@ -234,7 +255,11 @@ function toForm(profileData: JobSeekerProfile, publicData: PublicProfile): Profi
     experience_visibility: profileData.experience_visibility || "PUBLIC",
     recommendation_visibility: profileData.recommendation_visibility || "PRIVATE",
     reference_visibility: profileData.reference_visibility || "PRIVATE",
-    certificate_visibility: profileData.certificate_visibility || "PUBLIC"
+    certificate_visibility: profileData.certificate_visibility || "PUBLIC",
+    has_accessibility_needs: Boolean(profileData.has_accessibility_needs),
+    accessibility_needs: profileData.accessibility_needs_list?.length ? profileData.accessibility_needs_list : splitSkills(profileData.accessibility_needs),
+    accessibility_notes: profileData.accessibility_notes || "",
+    accessibility_visibility: profileData.accessibility_visibility || "PRIVATE"
   };
 }
 
@@ -246,8 +271,12 @@ function fieldLabel(value: string) {
   return value.replaceAll("_", " ").toLowerCase();
 }
 
+function profileSnapshot(form: ProfileForm, username: string, visibility: "PUBLIC" | "PRIVATE") {
+  return JSON.stringify({ form, username, visibility });
+}
+
 export default function JobSeekerProfileSettingsPage() {
-  const { loading } = useAuth(["JOB_SEEKER"]);
+  const { user, loading } = useAuth(["JOB_SEEKER"]);
   const [profile, setProfile] = useState<JobSeekerProfile | null>(null);
   const [publicProfile, setPublicProfile] = useState<PublicProfile | null>(null);
   const [documents, setDocuments] = useState<UserDocument[]>([]);
@@ -257,6 +286,9 @@ export default function JobSeekerProfileSettingsPage() {
   const [username, setUsername] = useState("");
   const [visibility, setVisibility] = useState<"PUBLIC" | "PRIVATE">("PUBLIC");
   const [saving, setSaving] = useState(false);
+  const [profileLoaded, setProfileLoaded] = useState(false);
+  const [initialSnapshot, setInitialSnapshot] = useState("");
+  const [draft, setDraft] = useState<JobSeekerProfileDraft<ProfileForm> | null>(null);
   const [documentType, setDocumentType] = useState("certificate");
   const [documentVisibility, setDocumentVisibility] = useState<SectionVisibility>("PRIVATE");
   const [recommendationForm, setRecommendationForm] = useState({
@@ -277,6 +309,13 @@ export default function JobSeekerProfileSettingsPage() {
     note: ""
   });
 
+  const draftUserKey = useMemo(
+    () => publicProfile?.public_user_id || profile?.public_user_id || user?.public_user_id || user?.email || profile?.email,
+    [profile?.email, profile?.public_user_id, publicProfile?.public_user_id, user?.email, user?.public_user_id]
+  );
+  const currentSnapshot = profileSnapshot(form, username, visibility);
+  const isDirty = Boolean(profileLoaded && initialSnapshot && currentSnapshot !== initialSnapshot);
+
   const load = () => {
     Promise.all([
       apiFetch<JobSeekerProfile>("/jobseeker/profile"),
@@ -286,14 +325,27 @@ export default function JobSeekerProfileSettingsPage() {
       apiFetch<JobSeekerReference[]>("/jobseeker/references")
     ])
       .then(([profileData, publicData, documentRows, recommendationRows, referenceRows]) => {
+        const nextForm = toForm(profileData, publicData);
+        const nextUsername = publicData.username || "";
+        const nextVisibility = publicData.profile_visibility;
         setProfile(profileData);
         setPublicProfile(publicData);
         setDocuments(documentRows);
         setRecommendations(recommendationRows);
         setReferences(referenceRows);
-        setUsername(publicData.username || "");
-        setVisibility(publicData.profile_visibility);
-        setForm(toForm(profileData, publicData));
+        setUsername(nextUsername);
+        setVisibility(nextVisibility);
+        setForm(nextForm);
+        setInitialSnapshot(profileSnapshot(nextForm, nextUsername, nextVisibility));
+        setProfileLoaded(true);
+        const userKey = publicData.public_user_id || profileData.public_user_id || profileData.email;
+        const savedDraft = loadProfileDraft<ProfileForm>(userKey);
+        const isIncomplete = (profileData.profile_completion_percentage || 0) < 100;
+        if (savedDraft && isIncomplete && profileSnapshot(savedDraft.form, savedDraft.username, savedDraft.visibility) !== profileSnapshot(nextForm, nextUsername, nextVisibility)) {
+          setDraft(savedDraft);
+        } else {
+          setDraft(null);
+        }
       })
       .catch((error) => toast.error(error instanceof Error ? error.message : "Profile failed"));
   };
@@ -301,6 +353,53 @@ export default function JobSeekerProfileSettingsPage() {
   useEffect(() => {
     if (!loading) load();
   }, [loading]);
+
+  useEffect(() => {
+    if (!draftUserKey || !profileLoaded || !isDirty || (profile?.profile_completion_percentage ?? 0) >= 100) return;
+    const timer = window.setTimeout(() => {
+      saveProfileDraft(draftUserKey, {
+        form,
+        username,
+        visibility,
+        savedAt: new Date().toISOString()
+      });
+    }, 1000);
+    return () => window.clearTimeout(timer);
+  }, [draftUserKey, form, isDirty, profile?.profile_completion_percentage, profileLoaded, username, visibility]);
+
+  useEffect(() => {
+    if (!isDirty) return;
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [isDirty]);
+
+  const restoreDraft = () => {
+    if (!draft) return;
+    setForm(draft.form);
+    setUsername(draft.username);
+    setVisibility(draft.visibility);
+    setDraft(null);
+    toast.success("Profile draft restored");
+  };
+
+  const discardDraft = () => {
+    clearProfileDraft(draftUserKey);
+    setDraft(null);
+    toast.success("Profile draft discarded");
+  };
+
+  const toggleAccessibilityNeed = (need: string) => {
+    setForm((current) => ({
+      ...current,
+      accessibility_needs: current.accessibility_needs.includes(need)
+        ? current.accessibility_needs.filter((item) => item !== need)
+        : [...current.accessibility_needs, need]
+    }));
+  };
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -312,7 +411,11 @@ export default function JobSeekerProfileSettingsPage() {
         passing_year: numberOrNull(form.passing_year),
         expected_passing_year: numberOrNull(form.expected_passing_year),
         graduation_year: numberOrNull(form.graduation_year),
-        total_experience_years: numberOrNull(form.total_experience_years)
+        total_experience_years: numberOrNull(form.total_experience_years),
+        has_accessibility_needs: form.has_accessibility_needs,
+        accessibility_needs: form.has_accessibility_needs ? form.accessibility_needs : [],
+        accessibility_notes: form.has_accessibility_needs ? form.accessibility_notes : null,
+        accessibility_visibility: form.accessibility_visibility || "PRIVATE"
       };
       const updated = await apiFetch<JobSeekerProfile>("/jobseeker/profile", {
         method: "PUT",
@@ -329,6 +432,9 @@ export default function JobSeekerProfileSettingsPage() {
         body: JSON.stringify({ bio: form.about, profile_visibility: visibility })
       });
       setProfile(updated);
+      setInitialSnapshot(profileSnapshot(form, username.trim() || publicProfile?.username || "", visibility));
+      clearProfileDraft(draftUserKey);
+      setDraft(null);
       toast.success("Profile settings saved");
       load();
     } catch (error) {
@@ -341,7 +447,10 @@ export default function JobSeekerProfileSettingsPage() {
   const upload = async (file: File | undefined, endpoint: string, rule: FileValidationRule) => {
     if (!file) return;
     const validationError = validateFile(file, rule);
-    if (validationError) return toast.error(validationError);
+    if (validationError) {
+      toast.error(validationError);
+      throw new Error(validationError);
+    }
     const body = new FormData();
     body.append("file", file);
     try {
@@ -350,6 +459,7 @@ export default function JobSeekerProfileSettingsPage() {
       load();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Upload failed");
+      throw error;
     }
   };
 
@@ -357,7 +467,10 @@ export default function JobSeekerProfileSettingsPage() {
     if (!file) return;
     const rule = ruleForDocumentType(documentType);
     const validationError = validateFile(file, rule);
-    if (validationError) return toast.error(validationError);
+    if (validationError) {
+      toast.error(validationError);
+      throw new Error(validationError);
+    }
     const body = new FormData();
     body.append("document_type", documentType);
     body.append("visibility", documentVisibility);
@@ -368,6 +481,7 @@ export default function JobSeekerProfileSettingsPage() {
       load();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Document upload failed");
+      throw error;
     }
   };
 
@@ -452,6 +566,20 @@ export default function JobSeekerProfileSettingsPage() {
   return (
     <main className="page-shell">
       <PageHeader title="Profile Settings" eyebrow="Job seeker" />
+      {draft && (
+        <div className="mb-5 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm font-bold leading-6 text-amber-900">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="font-black">We found an unsaved profile draft. Restore it?</p>
+              <p className="text-amber-800">Saved locally {new Date(draft.savedAt).toLocaleString()}.</p>
+            </div>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <button className="btn-primary !py-2" type="button" onClick={restoreDraft}>Restore draft</button>
+              <button className="btn-secondary !py-2" type="button" onClick={discardDraft}>Discard draft</button>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="grid gap-5 lg:grid-cols-[340px_1fr]">
         <aside className="panel p-5">
           <div className="grid place-items-center text-center">
@@ -654,12 +782,73 @@ export default function JobSeekerProfileSettingsPage() {
                   ))}
                 </>
               )}
-              <div className="md:col-span-2">
-                <button className="btn-primary w-full" disabled={saving} type="submit">
-                  {saving && <Loader2 className="animate-spin" size={18} />}
-                  Save settings
-                </button>
+            </section>
+
+            <section className="panel grid gap-4 p-5">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <h2 className="text-xl font-black">Accessibility & Accommodation Needs</h2>
+                  <p className="mt-2 text-sm font-bold leading-6 text-[#6b767d]">
+                    This is optional and used only to help recruiters understand accommodation needs if you choose to share it.
+                  </p>
+                </div>
+                <select
+                  className="field w-full sm:max-w-xs"
+                  value={form.accessibility_visibility}
+                  onChange={(event) => setForm({ ...form, accessibility_visibility: event.target.value as SectionVisibility })}
+                  disabled={!form.has_accessibility_needs}
+                >
+                  {visibilityOptions.map((item) => <option key={item.value} value={item.value}>Accessibility: {item.label}</option>)}
+                </select>
               </div>
+              <label className="flex min-h-[48px] items-start gap-3 rounded-lg border border-black/10 bg-white/70 p-3 text-sm font-bold leading-6 text-[#526069]">
+                <input
+                  className="mt-1 h-4 w-4 shrink-0"
+                  type="checkbox"
+                  checked={form.has_accessibility_needs}
+                  onChange={(event) => setForm({ ...form, has_accessibility_needs: event.target.checked })}
+                />
+                <span>I want to mention accessibility or accommodation needs</span>
+              </label>
+              {form.has_accessibility_needs && (
+                <>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {accessibilityOptions.map((need) => (
+                      <label key={need} className="flex min-h-[48px] items-start gap-3 rounded-lg bg-white/70 p-3 text-sm font-bold leading-6 text-[#526069]">
+                        <input
+                          className="mt-1 h-4 w-4 shrink-0"
+                          type="checkbox"
+                          checked={form.accessibility_needs.includes(need)}
+                          onChange={() => toggleAccessibilityNeed(need)}
+                        />
+                        <span>{need}</span>
+                      </label>
+                    ))}
+                  </div>
+                  <div>
+                    <label className="label" htmlFor="accessibility_notes">Accommodation notes</label>
+                    <textarea
+                      id="accessibility_notes"
+                      className="field min-h-28"
+                      value={form.accessibility_notes}
+                      onChange={(event) => setForm({ ...form, accessibility_notes: event.target.value })}
+                      placeholder="Example: I have color vision deficiency and prefer clear text labels instead of color-only instructions."
+                    />
+                  </div>
+                </>
+              )}
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm font-bold leading-6 text-amber-900">
+                <p>This section is optional. It is not used to reject applications or rank your profile. You control who can see it.</p>
+                <p className="mt-1">Do not include medical documents here. Only share what you are comfortable sharing.</p>
+              </div>
+            </section>
+
+            <section className="panel p-5">
+              <button className="btn-primary w-full" disabled={saving} type="submit">
+                {saving && <Loader2 className="animate-spin" size={18} />}
+                Save settings
+              </button>
+              {isDirty && <p className="mt-3 text-center text-xs font-bold text-[#8a949a]">You have unsaved changes. Press Save settings to update your profile.</p>}
             </section>
           </form>
 

@@ -18,6 +18,11 @@ import { useAuth } from "@/hooks/useAuth";
 import type { Job, JobSeekerProfile } from "@/types";
 
 type SwipeAction = "LIKE" | "REJECT" | "SAVE";
+type GestureStart = { x: number; y: number; startedAt: number } | null;
+
+const HORIZONTAL_SWIPE_THRESHOLD = 80;
+const UP_SWIPE_THRESHOLD = 80;
+const DOMINANCE_RATIO = 1.2;
 
 function uniqueJobs(items: Job[]) {
   const seen = new Set<number>();
@@ -39,8 +44,10 @@ export default function SwipeJobsPage() {
   const [swipesSinceRefresh, setSwipesSinceRefresh] = useState(0);
   const [refreshingRecommendations, setRefreshingRecommendations] = useState(false);
   const [recommendationNotice, setRecommendationNotice] = useState("");
+  const [dragHint, setDragHint] = useState<SwipeAction | null>(null);
   const feedbackTimer = useRef<number | null>(null);
   const noticeTimer = useRef<number | null>(null);
+  const gestureStart = useRef<GestureStart>(null);
   const reduceMotion = useReducedMotion();
   const current = jobs[index];
 
@@ -91,7 +98,7 @@ export default function SwipeJobsPage() {
         method: "POST",
         body: JSON.stringify({ job_id: current.id, action })
       });
-      setDirection(action === "REJECT" ? -1 : 1);
+      setDirection(action === "REJECT" ? -1 : action === "SAVE" ? 0 : 1);
       setIndex((value) => value + 1);
       toast.success(action === "LIKE" ? "Applied successfully" : action === "SAVE" ? "Saved for later" : "Skipped");
       const nextSwipeCount = swipesSinceRefresh + 1;
@@ -121,8 +128,52 @@ export default function SwipeJobsPage() {
   };
 
   const onDragEnd = (_event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
-    if (info.offset.x > 130) void move("LIKE");
-    if (info.offset.x < -130) void move("REJECT");
+    setDragHint(null);
+    if (info.offset.x > HORIZONTAL_SWIPE_THRESHOLD) void move("LIKE");
+    if (info.offset.x < -HORIZONTAL_SWIPE_THRESHOLD) void move("REJECT");
+  };
+
+  const actionFromDelta = (deltaX: number, deltaY: number, threshold: number): SwipeAction | null => {
+    const absX = Math.abs(deltaX);
+    const absY = Math.abs(deltaY);
+    if (deltaY < -threshold && absY > absX * DOMINANCE_RATIO) return "SAVE";
+    if (absX > threshold && absX > absY) return deltaX > 0 ? "LIKE" : "REJECT";
+    return null;
+  };
+
+  const isInteractiveTarget = (target: EventTarget | null) => {
+    if (!(target instanceof HTMLElement)) return false;
+    return Boolean(target.closest("a,button,input,select,textarea,label"));
+  };
+
+  const onPointerDown = (event: React.PointerEvent<HTMLElement>) => {
+    if (isInteractiveTarget(event.target)) {
+      gestureStart.current = null;
+      return;
+    }
+    gestureStart.current = { x: event.clientX, y: event.clientY, startedAt: Date.now() };
+  };
+
+  const onPointerMove = (event: React.PointerEvent<HTMLElement>) => {
+    if (!gestureStart.current) return;
+    const deltaX = event.clientX - gestureStart.current.x;
+    const deltaY = event.clientY - gestureStart.current.y;
+    setDragHint(actionFromDelta(deltaX, deltaY, 40));
+  };
+
+  const onPointerUp = (event: React.PointerEvent<HTMLElement>) => {
+    if (!gestureStart.current) return;
+    const deltaX = event.clientX - gestureStart.current.x;
+    const deltaY = event.clientY - gestureStart.current.y;
+    const action = actionFromDelta(deltaX, deltaY, UP_SWIPE_THRESHOLD);
+    gestureStart.current = null;
+    setDragHint(null);
+    if (action === "SAVE") void move("SAVE");
+  };
+
+  const onPointerCancel = () => {
+    gestureStart.current = null;
+    setDragHint(null);
   };
 
   if (loading) return <main className="page-shell">Loading swipe feed...</main>;
@@ -159,12 +210,38 @@ export default function SwipeJobsPage() {
                 drag="x"
                 dragConstraints={{ left: 0, right: 0 }}
                 onDragEnd={onDragEnd}
+                onPointerDown={onPointerDown}
+                onPointerMove={onPointerMove}
+                onPointerUp={onPointerUp}
+                onPointerCancel={onPointerCancel}
                 initial={reduceMotion ? { opacity: 1 } : { opacity: 0, y: 24, scale: 0.96 }}
                 animate={reduceMotion ? { opacity: 1, x: 0 } : { opacity: 1, y: 0, x: 0, rotate: 0, scale: 1 }}
                 exit={reduceMotion ? { opacity: 0 } : { opacity: 0, x: direction * 420, rotate: direction * 16, scale: 0.92 }}
                 transition={reduceMotion ? { duration: 0.01 } : { type: "spring", stiffness: 260, damping: 28 }}
                 className="relative z-0 w-full max-w-full touch-pan-y cursor-grab rounded-lg border border-black/10 bg-white p-4 shadow-premium transition-shadow duration-300 ease-out active:cursor-grabbing sm:p-5"
               >
+                <div
+                  className={cx(
+                    "pointer-events-none absolute inset-0 rounded-lg opacity-0 transition-opacity duration-200",
+                    (dragHint || feedbackAction) === "REJECT" && "bg-rose-500/10 opacity-100",
+                    (dragHint || feedbackAction) === "LIKE" && "bg-emerald-500/10 opacity-100",
+                    (dragHint || feedbackAction) === "SAVE" && "bg-amber-400/15 opacity-100"
+                  )}
+                  aria-hidden="true"
+                />
+                {(dragHint || feedbackAction) && (
+                  <div
+                    className={cx(
+                      "pointer-events-none absolute left-1/2 top-4 z-10 -translate-x-1/2 rounded-lg px-3 py-1 text-xs font-black shadow-sm",
+                      (dragHint || feedbackAction) === "REJECT" && "bg-rose-50 text-rose-700",
+                      (dragHint || feedbackAction) === "LIKE" && "bg-emerald-50 text-emerald-700",
+                      (dragHint || feedbackAction) === "SAVE" && "bg-amber-50 text-amber-700"
+                    )}
+                    aria-hidden="true"
+                  >
+                    {(dragHint || feedbackAction) === "REJECT" ? "Skip" : (dragHint || feedbackAction) === "SAVE" ? "Save" : "Apply"}
+                  </div>
+                )}
                 <div className="flex min-w-0 items-start justify-between gap-3">
                   <div className="smooth-hover grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-lg border border-black/10 bg-[#fbfaf7] sm:h-16 sm:w-16">
                     {current.company_logo_url ? (
@@ -251,7 +328,7 @@ export default function SwipeJobsPage() {
               type="button"
             >
               <X size={18} />
-              Reject
+              Skip
             </button>
             <button
               className={cx(
@@ -305,7 +382,7 @@ export default function SwipeJobsPage() {
             />
           </div>
           <p className="mt-4 text-sm font-bold leading-6 text-[#6b767d]">
-            Drag the card left to skip or right to apply. Saved cards move into your saved jobs history for later review.
+            Swipe left to skip, right to apply, up to save. Buttons stay available as a fallback.
           </p>
         </aside>
       </section>

@@ -81,6 +81,12 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}): Prom
   }
 
   let response: Response;
+  const startedAt = Date.now();
+  let slowRequest = false;
+  const slowTimer = window.setTimeout(() => {
+    slowRequest = true;
+    console.info("API request is still pending", { path: normalizedPath });
+  }, 15000);
   try {
     response = await fetch(`${API_BASE_URL}${normalizedPath}`, {
       ...options,
@@ -88,11 +94,20 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}): Prom
       cache: "no-store"
     });
   } catch (error) {
+    const elapsedMs = Date.now() - startedAt;
     console.error("API request failed", {
       path: normalizedPath,
+      elapsedMs,
       message: error instanceof Error ? error.message : "Unknown network error"
     });
-    throw new ApiError("The server is taking longer than expected. Please refresh in a few seconds.", 0);
+    throw new ApiError(
+      slowRequest || elapsedMs >= 15000
+        ? "The server is taking longer than expected. Please refresh in a few seconds."
+        : "Request could not reach the server. Please check your connection and try again.",
+      0
+    );
+  } finally {
+    window.clearTimeout(slowTimer);
   }
 
   const contentType = response.headers.get("content-type") || "";

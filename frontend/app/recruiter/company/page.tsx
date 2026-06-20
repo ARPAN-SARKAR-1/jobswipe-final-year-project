@@ -135,7 +135,10 @@ export default function CompanyProfilePage() {
   const uploadLogo = async (file: File | undefined) => {
     if (!file) return;
     const validationError = validateFile(file, uploadRules.companyLogo);
-    if (validationError) return toast.error(validationError);
+    if (validationError) {
+      toast.error(validationError);
+      throw new Error(validationError);
+    }
     const body = new FormData();
     body.append("file", file);
     try {
@@ -144,6 +147,7 @@ export default function CompanyProfilePage() {
       load();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Upload failed");
+      throw error;
     }
   };
 

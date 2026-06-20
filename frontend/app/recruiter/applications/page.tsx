@@ -15,7 +15,7 @@ import StatusBadge from "@/components/StatusBadge";
 import { apiFetch, assetUrl } from "@/lib/api";
 import { paginateItems, textMatches } from "@/lib/listing";
 import { recruiterStatuses } from "@/lib/options";
-import { formatDate } from "@/lib/utils";
+import { formatDate, splitSkills } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import type { Application, ChatThread } from "@/types";
 
@@ -207,6 +207,19 @@ export default function RecruiterApplicationsPage() {
                 {application.job && application.job.moderation_status !== "ACTIVE" && (
                   <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm font-bold text-amber-800">
                     Job {application.job.moderation_status.toLowerCase()} by admin{application.job.moderation_reason ? `: ${application.job.moderation_reason}` : "."}
+                  </div>
+                )}
+                {application.applicant_has_accessibility_needs && (
+                  <div className="mt-4 rounded-lg border border-sky-100 bg-sky-50 p-3 text-sm font-bold leading-6 text-sky-900">
+                    <p className="font-black text-sky-700">Candidate-shared accommodation information</p>
+                    {splitSkills(application.applicant_accessibility_needs).length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {splitSkills(application.applicant_accessibility_needs).map((item) => (
+                          <span key={item} className="rounded-lg bg-white px-2.5 py-1 text-xs font-black text-sky-800">{item}</span>
+                        ))}
+                      </div>
+                    )}
+                    {application.applicant_accessibility_notes && <p className="mt-2">{application.applicant_accessibility_notes}</p>}
                   </div>
                 )}
                 <div className="mt-4 flex flex-wrap gap-3">

@@ -114,6 +114,11 @@ class PublicProfileRead(BaseModel):
     tools_technologies: str | None = None
     achievements: str | None = None
     preferred_next_roles: str | None = None
+    has_accessibility_needs: bool | None = None
+    accessibility_needs: str | None = None
+    accessibility_needs_list: list[str] = []
+    accessibility_notes: str | None = None
+    accessibility_visibility: SectionVisibility | None = None
     student_verification_status: str | None = None
     graduation_verification_status: str | None = None
     experience_verification_status: str | None = None

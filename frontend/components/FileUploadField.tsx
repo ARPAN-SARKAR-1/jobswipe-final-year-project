@@ -28,6 +28,7 @@ export default function FileUploadField({
   const [selectedName, setSelectedName] = useState("");
   const [error, setError] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [uploaded, setUploaded] = useState(false);
 
   const handleFile = async (file: File | undefined) => {
     if (!file) return;
@@ -35,13 +36,19 @@ export default function FileUploadField({
     if (validationError) {
       setSelectedName("");
       setError(validationError);
+      setUploaded(false);
       return;
     }
     setSelectedName(file.name);
     setError("");
+    setUploaded(false);
     setUploading(true);
     try {
       await onValidFile(file);
+      setUploaded(true);
+    } catch {
+      setUploaded(false);
+      setError("Upload failed. Please try again.");
     } finally {
       setUploading(false);
     }
@@ -75,6 +82,9 @@ export default function FileUploadField({
         {helper && <p>{helper}</p>}
         {selectedName && !error && (
           <p className="break-words rounded-lg bg-teal-50 px-2.5 py-1 text-teal-800">Selected: {selectedName}</p>
+        )}
+        {uploaded && !error && (
+          <p className="break-words rounded-lg bg-emerald-50 px-2.5 py-1 text-emerald-700">Uploaded successfully</p>
         )}
         {error && <p className="break-words rounded-lg bg-rose-50 px-2.5 py-1 text-rose-700">{error}</p>}
       </div>

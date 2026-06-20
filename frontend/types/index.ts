@@ -165,6 +165,11 @@ export type JobSeekerProfile = {
   recommendation_visibility?: SectionVisibility;
   reference_visibility?: SectionVisibility;
   certificate_visibility?: SectionVisibility;
+  has_accessibility_needs?: boolean;
+  accessibility_needs?: string | null;
+  accessibility_needs_list?: string[];
+  accessibility_notes?: string | null;
+  accessibility_visibility?: SectionVisibility;
   student_verification_status?: StudentVerificationStatus;
   graduation_verification_status?: GraduationVerificationStatus;
   experience_verification_status?: ExperienceVerificationStatus;
@@ -339,6 +344,11 @@ export type PublicProfile = {
   tools_technologies?: string | null;
   achievements?: string | null;
   preferred_next_roles?: string | null;
+  has_accessibility_needs?: boolean | null;
+  accessibility_needs?: string | null;
+  accessibility_needs_list?: string[];
+  accessibility_notes?: string | null;
+  accessibility_visibility?: SectionVisibility | null;
   student_verification_status?: StudentVerificationStatus | null;
   graduation_verification_status?: GraduationVerificationStatus | null;
   experience_verification_status?: ExperienceVerificationStatus | null;
@@ -426,6 +436,10 @@ export type Application = {
   applicant_experience_verification_status?: ExperienceVerificationStatus | null;
   applicant_passing_year?: number | null;
   applicant_total_experience_years?: number | null;
+  applicant_has_accessibility_needs?: boolean | null;
+  applicant_accessibility_needs?: string | null;
+  applicant_accessibility_notes?: string | null;
+  applicant_accessibility_visibility?: SectionVisibility | null;
   job_title?: string;
 };
 

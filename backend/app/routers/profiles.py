@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session, joinedload
 from app.core.database import get_db
 from app.core.security import get_current_user, get_optional_current_user
 from app.models.company_profile import CompanyProfile
-from app.models.enums import CompanyJoinStatus, JobSeekerVerificationStatus, ProfileVisibility, RecruiterVerificationStatus, UserRole
+from app.models.enums import CompanyJoinStatus, JobSeekerVerificationStatus, ProfileVisibility, RecruiterVerificationStatus, SectionVisibility, UserRole
 from app.models.job_seeker_profile import JobSeekerProfile
 from app.models.recruiter_company_member import RecruiterCompanyMember
 from app.models.user import User
@@ -196,6 +196,8 @@ def public_profile_response(db: Session, user: User, viewer: User | None) -> Pub
     private_documents = [document_response(document, include_file_url=True) for document in documents] if include_private else []
     education_visible = can_view_section(viewer, user, job_seeker_profile.education_visibility if job_seeker_profile else None)
     experience_visible = can_view_section(viewer, user, job_seeker_profile.experience_visibility if job_seeker_profile else None)
+    accessibility_visible = can_view_section(viewer, user, job_seeker_profile.accessibility_visibility if job_seeker_profile else None)
+    accessibility_shared = bool(job_seeker_profile and job_seeker_profile.has_accessibility_needs and accessibility_visible)
 
     if changed:
         db.flush()
@@ -264,6 +266,11 @@ def public_profile_response(db: Session, user: User, viewer: User | None) -> Pub
         tools_technologies=job_seeker_profile.tools_technologies if job_seeker_profile and experience_visible else None,
         achievements=job_seeker_profile.achievements if job_seeker_profile and experience_visible else None,
         preferred_next_roles=job_seeker_profile.preferred_next_roles if job_seeker_profile and experience_visible else None,
+        has_accessibility_needs=job_seeker_profile.has_accessibility_needs if accessibility_shared else None,
+        accessibility_needs=job_seeker_profile.accessibility_needs if accessibility_shared else None,
+        accessibility_needs_list=split_skills(job_seeker_profile.accessibility_needs if accessibility_shared else None),
+        accessibility_notes=job_seeker_profile.accessibility_notes if accessibility_shared else None,
+        accessibility_visibility=job_seeker_profile.accessibility_visibility if accessibility_shared else None,
         student_verification_status=job_seeker_profile.student_verification_status if job_seeker_profile else None,
         graduation_verification_status=job_seeker_profile.graduation_verification_status if job_seeker_profile else None,
         experience_verification_status=job_seeker_profile.experience_verification_status if job_seeker_profile else None,

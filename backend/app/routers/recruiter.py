@@ -10,7 +10,7 @@ from app.core.security import require_roles
 from app.models.application import Application
 from app.models.company_profile import CompanyProfile
 from app.models.company_testimonial import CompanyTestimonial
-from app.models.enums import ApplicationAdminStatus, ApplicationStatus, CompanyJoinStatus, JobModerationStatus, RecruiterVerificationStatus, UserRole
+from app.models.enums import ApplicationAdminStatus, ApplicationStatus, CompanyJoinStatus, JobModerationStatus, RecruiterVerificationStatus, SectionVisibility, UserRole
 from app.models.job import Job
 from app.models.job_seeker_profile import JobSeekerProfile
 from app.models.user import User
@@ -26,6 +26,29 @@ from app.services.trust import attach_job_trust, get_or_create_recruiter_members
 from app.utils.file_upload import save_company_logo
 
 router = APIRouter(prefix="/recruiter", tags=["Recruiter"])
+
+
+def applicant_accessibility_payload(profile: JobSeekerProfile | None) -> dict[str, str | bool | None]:
+    if not profile or not profile.has_accessibility_needs:
+        return {
+            "applicant_has_accessibility_needs": None,
+            "applicant_accessibility_needs": None,
+            "applicant_accessibility_notes": None,
+            "applicant_accessibility_visibility": None,
+        }
+    if profile.accessibility_visibility not in {SectionVisibility.PUBLIC.value, SectionVisibility.RECRUITERS_ONLY.value}:
+        return {
+            "applicant_has_accessibility_needs": None,
+            "applicant_accessibility_needs": None,
+            "applicant_accessibility_notes": None,
+            "applicant_accessibility_visibility": None,
+        }
+    return {
+        "applicant_has_accessibility_needs": True,
+        "applicant_accessibility_needs": profile.accessibility_needs,
+        "applicant_accessibility_notes": profile.accessibility_notes,
+        "applicant_accessibility_visibility": profile.accessibility_visibility,
+    }
 
 
 def get_or_create_company(db: Session, recruiter_id: int) -> CompanyProfile:
@@ -358,6 +381,7 @@ def applications(
                 applicant_passing_year=(profile.expected_passing_year or profile.graduation_year or profile.passing_year) if profile else None,
                 applicant_total_experience_years=profile.total_experience_years if profile else None,
                 job_title=application.job.title,
+                **applicant_accessibility_payload(profile),
             )
         )
     return result
@@ -445,4 +469,5 @@ def update_application_status(
         applicant_passing_year=(profile.expected_passing_year or profile.graduation_year or profile.passing_year) if profile else None,
         applicant_total_experience_years=profile.total_experience_years if profile else None,
         job_title=application.job.title,
+        **applicant_accessibility_payload(profile),
     )

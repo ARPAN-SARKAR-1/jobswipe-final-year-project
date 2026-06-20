@@ -65,7 +65,10 @@ export default function RecruiterProfileSettingsPage() {
   const uploadDocument = async (file: File | undefined) => {
     if (!file) return;
     const validationError = validateFile(file, uploadRules.verificationDocument);
-    if (validationError) return toast.error(validationError);
+    if (validationError) {
+      toast.error(validationError);
+      throw new Error(validationError);
+    }
     const body = new FormData();
     body.append("document_type", documentType);
     body.append("is_public", "false");
@@ -76,6 +79,7 @@ export default function RecruiterProfileSettingsPage() {
       load();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Document upload failed");
+      throw error;
     }
   };
 

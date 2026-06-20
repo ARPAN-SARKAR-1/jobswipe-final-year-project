@@ -41,6 +41,10 @@ class RecruiterApplicationRead(ApplicationRead):
     applicant_experience_verification_status: str | None = None
     applicant_passing_year: int | None = None
     applicant_total_experience_years: float | None = None
+    applicant_has_accessibility_needs: bool | None = None
+    applicant_accessibility_needs: str | None = None
+    applicant_accessibility_notes: str | None = None
+    applicant_accessibility_visibility: str | None = None
     job_title: str
 
 
