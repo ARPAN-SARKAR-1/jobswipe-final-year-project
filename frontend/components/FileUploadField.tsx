@@ -5,6 +5,7 @@ import { useState } from "react";
 
 import { fileExample, fileGuidance, validateFile, type FileValidationRule } from "@/lib/fileValidation";
 import { cx } from "@/lib/utils";
+import RequiredLabel from "@/components/RequiredLabel";
 
 type FileUploadFieldProps = {
   label: string;
@@ -13,6 +14,7 @@ type FileUploadFieldProps = {
   helper?: string;
   disabled?: boolean;
   className?: string;
+  required?: boolean;
   onValidFile: (file: File) => Promise<unknown> | unknown;
 };
 
@@ -23,6 +25,7 @@ export default function FileUploadField({
   helper,
   disabled,
   className,
+  required,
   onValidFile
 }: FileUploadFieldProps) {
   const [selectedName, setSelectedName] = useState("");
@@ -56,7 +59,7 @@ export default function FileUploadField({
 
   return (
     <div className={cx("min-w-0", className)}>
-      <label className="label">{label}</label>
+      <RequiredLabel label={label} required={required} />
       <label
         className={cx(
           "smooth-button flex min-h-[54px] w-full cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-black/15 bg-white px-4 py-3 text-center text-sm font-black text-[#172026] shadow-sm hover:border-teal-300 hover:bg-teal-50/50",

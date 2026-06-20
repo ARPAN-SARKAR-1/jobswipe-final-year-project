@@ -6,6 +6,7 @@ import toast from "react-hot-toast";
 
 import FileUploadField from "@/components/FileUploadField";
 import PageHeader from "@/components/PageHeader";
+import RequiredLabel from "@/components/RequiredLabel";
 import VerificationStatusBadge from "@/components/VerificationStatusBadge";
 import { apiFetch, assetUrl } from "@/lib/api";
 import { uploadRules, validateFile } from "@/lib/fileValidation";
@@ -195,36 +196,29 @@ export default function CompanyProfilePage() {
         </aside>
 
         <form onSubmit={submit} className="panel grid gap-4 p-5">
+          <div className="rounded-lg border border-teal-100 bg-teal-50 p-3 text-sm font-bold leading-6 text-teal-900">
+            Fields marked with <span className="font-black text-rose-600">*</span> are compulsory before posting jobs.
+          </div>
           <div>
-            <label className="label" htmlFor="company_name">
-              Company name
-            </label>
-            <input id="company_name" className="field" value={form.company_name} onChange={(event) => setForm({ ...form, company_name: event.target.value })} />
+            <RequiredLabel label="Company name" htmlFor="company_name" required />
+            <input id="company_name" className="field" aria-required value={form.company_name} onChange={(event) => setForm({ ...form, company_name: event.target.value })} />
           </div>
           <div className="grid gap-4 md:grid-cols-2">
             <div>
-              <label className="label" htmlFor="website">
-                Website
-              </label>
-              <input id="website" className="field" value={form.website} onChange={(event) => setForm({ ...form, website: event.target.value })} />
+              <RequiredLabel label="Website" htmlFor="website" required />
+              <input id="website" className="field" aria-required value={form.website} onChange={(event) => setForm({ ...form, website: event.target.value })} />
             </div>
             <div>
-              <label className="label" htmlFor="location">
-                Location
-              </label>
-              <input id="location" className="field" value={form.location} onChange={(event) => setForm({ ...form, location: event.target.value })} />
+              <RequiredLabel label="Location" htmlFor="location" required hint="or headquarters" />
+              <input id="location" className="field" aria-required value={form.location} onChange={(event) => setForm({ ...form, location: event.target.value })} />
             </div>
             <div>
-              <label className="label" htmlFor="industry">
-                Industry
-              </label>
-              <input id="industry" className="field" value={form.industry} onChange={(event) => setForm({ ...form, industry: event.target.value })} />
+              <RequiredLabel label="Industry" htmlFor="industry" required />
+              <input id="industry" className="field" aria-required value={form.industry} onChange={(event) => setForm({ ...form, industry: event.target.value })} />
             </div>
             <div>
-              <label className="label" htmlFor="company_size">
-                Company size
-              </label>
-              <select id="company_size" className="field" value={form.company_size} onChange={(event) => setForm({ ...form, company_size: event.target.value })}>
+              <RequiredLabel label="Company size" htmlFor="company_size" required />
+              <select id="company_size" className="field" aria-required value={form.company_size} onChange={(event) => setForm({ ...form, company_size: event.target.value })}>
                 <option value="">Select size</option>
                 {["1-10", "11-50", "51-200", "201-500", "501-1000", "1001-5000", "5000+"].map((size) => (
                   <option key={size}>{size}</option>
@@ -232,16 +226,13 @@ export default function CompanyProfilePage() {
               </select>
             </div>
             <div>
-              <label className="label" htmlFor="headquarters">
-                Headquarters
-              </label>
-              <input id="headquarters" className="field" value={form.headquarters} onChange={(event) => setForm({ ...form, headquarters: event.target.value })} />
+              <RequiredLabel label="Headquarters" htmlFor="headquarters" required hint="or location" />
+              <input id="headquarters" className="field" aria-required value={form.headquarters} onChange={(event) => setForm({ ...form, headquarters: event.target.value })} />
             </div>
             <div>
-              <label className="label" htmlFor="career_page_url">
-                Official career page URL
-              </label>
-              <input id="career_page_url" className="field" type="url" value={form.career_page_url} onChange={(event) => setForm({ ...form, career_page_url: event.target.value })} />
+              <RequiredLabel label="Official career page URL" htmlFor="career_page_url" required />
+              <input id="career_page_url" className="field" aria-required type="url" value={form.career_page_url} onChange={(event) => setForm({ ...form, career_page_url: event.target.value })} />
+              <p className="mt-1 text-xs font-bold leading-5 text-[#6b767d]">Official career links help applicants verify job authenticity.</p>
             </div>
             <div>
               <label className="label" htmlFor="employee_count_estimate">
@@ -280,10 +271,8 @@ export default function CompanyProfilePage() {
               <input id="work_email" className="field" type="email" value={form.work_email} onChange={(event) => setForm({ ...form, work_email: event.target.value })} />
             </div>
             <div>
-              <label className="label" htmlFor="designation">
-                Designation
-              </label>
-              <input id="designation" className="field" value={form.designation} onChange={(event) => setForm({ ...form, designation: event.target.value })} />
+              <RequiredLabel label="Designation" htmlFor="designation" required />
+              <input id="designation" className="field" aria-required value={form.designation} onChange={(event) => setForm({ ...form, designation: event.target.value })} />
             </div>
             <div>
               <label className="label" htmlFor="work_mode">
@@ -297,17 +286,16 @@ export default function CompanyProfilePage() {
               </select>
             </div>
           </div>
+          <p className="rounded-lg border border-amber-100 bg-amber-50 p-3 text-xs font-bold leading-5 text-amber-800">
+            Add either location or headquarters, and either description or about company, to satisfy the compulsory company profile gate.
+          </p>
           <div>
-            <label className="label" htmlFor="description">
-              Description
-            </label>
-            <textarea id="description" className="field min-h-36" value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} />
+            <RequiredLabel label="Description" htmlFor="description" required hint="or about company" />
+            <textarea id="description" className="field min-h-36" aria-required value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} />
           </div>
           <div>
-            <label className="label" htmlFor="about_company">
-              About company
-            </label>
-            <textarea id="about_company" className="field min-h-28" value={form.about_company} onChange={(event) => setForm({ ...form, about_company: event.target.value })} />
+            <RequiredLabel label="About company" htmlFor="about_company" required hint="or description" />
+            <textarea id="about_company" className="field min-h-28" aria-required value={form.about_company} onChange={(event) => setForm({ ...form, about_company: event.target.value })} />
           </div>
           <div className="grid gap-4 md:grid-cols-2">
             <Textarea label="Culture summary" value={form.culture_summary} onChange={(value) => setForm({ ...form, culture_summary: value })} />

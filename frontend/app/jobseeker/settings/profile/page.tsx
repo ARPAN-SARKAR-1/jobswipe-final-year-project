@@ -6,6 +6,7 @@ import toast from "react-hot-toast";
 
 import FileUploadField from "@/components/FileUploadField";
 import PageHeader from "@/components/PageHeader";
+import RequiredLabel from "@/components/RequiredLabel";
 import SkillMultiSelect from "@/components/SkillMultiSelect";
 import VerificationStatusBadge from "@/components/VerificationStatusBadge";
 import { apiFetch, assetUrl } from "@/lib/api";
@@ -185,6 +186,14 @@ const privateOnlyDocumentTypes = new Set([
   "offer_letter",
   "salary_slip",
   "reference_letter"
+]);
+
+const studentProofDocumentTypes = new Set([
+  "college_id_card",
+  "library_card",
+  "bonafide_certificate",
+  "admission_proof",
+  "fee_receipt"
 ]);
 
 const visibilityOptions: { label: string; value: SectionVisibility }[] = [
@@ -630,6 +639,7 @@ export default function JobSeekerProfileSettingsPage() {
             label="Resume"
             buttonLabel="Upload resume"
             rule={uploadRules.resume}
+            required
             onValidFile={(file) => upload(file, "/jobseeker/resume", uploadRules.resume)}
           />
           <p className="mt-3 rounded-lg border border-teal-100 bg-teal-50 p-3 text-xs font-bold leading-6 text-teal-800">
@@ -639,6 +649,9 @@ export default function JobSeekerProfileSettingsPage() {
 
         <div className="grid gap-5">
           <form onSubmit={submit} className="grid gap-5">
+            <div className="rounded-lg border border-teal-100 bg-teal-50 p-3 text-sm font-bold leading-6 text-teal-900">
+              Fields marked with <span className="font-black text-rose-600">*</span> are compulsory for completing your profile and applying to jobs.
+            </div>
             <section className="panel grid gap-4 p-5 md:grid-cols-2">
               <div>
                 <label className="label" htmlFor="username">Username</label>
@@ -652,15 +665,15 @@ export default function JobSeekerProfileSettingsPage() {
                 </select>
               </div>
               <div className="md:col-span-2">
-                <label className="label" htmlFor="job_seeker_category">Job seeker category</label>
-                <select id="job_seeker_category" className="field" value={form.job_seeker_category} onChange={(event) => setForm({ ...form, job_seeker_category: event.target.value as JobSeekerCategory })}>
+                <RequiredLabel label="Job seeker category" htmlFor="job_seeker_category" required />
+                <select id="job_seeker_category" className="field" aria-required value={form.job_seeker_category} onChange={(event) => setForm({ ...form, job_seeker_category: event.target.value as JobSeekerCategory })}>
                   <option value="">Select category</option>
                   {categoryOptions.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
                 </select>
               </div>
               <div>
-                <label className="label" htmlFor="phone">Phone number</label>
-                <input id="phone" className="field" value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value })} />
+                <RequiredLabel label="Phone number" htmlFor="phone" required />
+                <input id="phone" className="field" aria-required value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value })} />
               </div>
               <div>
                 <label className="label" htmlFor="github_url">Portfolio/GitHub/LinkedIn</label>
@@ -698,22 +711,25 @@ export default function JobSeekerProfileSettingsPage() {
               {form.job_seeker_category === "UNDERGRADUATE" && (
                 <>
                   {[
-                    ["College name", "college_name"],
-                    ["University name", "university_name"],
-                    ["Course name", "course_name"],
-                    ["Degree name", "degree_name"],
-                    ["Department or branch", "department_or_branch"],
-                    ["Current year or semester", "current_year_or_semester"],
-                    ["Expected passing year", "expected_passing_year"],
-                    ["College location", "college_location"],
-                    ["Student ID number (private)", "student_id_number"],
-                    ["Preferred internship roles", "preferred_internship_roles"]
-                  ].map(([label, key]) => (
-                    <div key={key}>
-                      <label className="label" htmlFor={key}>{label}</label>
-                      <input id={key} className="field" value={form[key as keyof ProfileForm] as string} onChange={(event) => setForm({ ...form, [key]: event.target.value })} />
+                    ["College name", "college_name", true],
+                    ["University name", "university_name", true],
+                    ["Course name", "course_name", true],
+                    ["Degree name", "degree_name", false],
+                    ["Department or branch", "department_or_branch", true],
+                    ["Current year or semester", "current_year_or_semester", true],
+                    ["Expected passing year", "expected_passing_year", true],
+                    ["College location", "college_location", false],
+                    ["Student ID number (private)", "student_id_number", false],
+                    ["Preferred internship roles", "preferred_internship_roles", false]
+                  ].map(([label, key, required]) => (
+                    <div key={key as string}>
+                      <RequiredLabel label={label as string} htmlFor={key as string} required={Boolean(required)} />
+                      <input id={key as string} className="field" aria-required={Boolean(required) || undefined} value={form[key as keyof ProfileForm] as string} onChange={(event) => setForm({ ...form, [key as keyof ProfileForm]: event.target.value })} />
                     </div>
                   ))}
+                  <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm font-bold leading-6 text-amber-900 md:col-span-2">
+                    Student proof document <span className="font-black text-rose-600">*</span> is required to complete an undergraduate profile. Upload a college ID, library card, admission proof, bonafide certificate, or fee receipt below.
+                  </p>
                   <label className="flex items-center gap-2 text-sm font-bold text-[#526069]">
                     <input type="checkbox" checked={form.internship_interest} onChange={(event) => setForm({ ...form, internship_interest: event.target.checked })} />
                     Interested in internships
@@ -723,20 +739,25 @@ export default function JobSeekerProfileSettingsPage() {
               {form.job_seeker_category === "GRADUATE_FRESHER" && (
                 <>
                   {[
-                    ["Highest degree", "highest_degree"],
-                    ["Graduation year", "graduation_year"],
-                    ["Specialization or branch", "specialization_or_branch"],
-                    ["Fresher skills", "fresher_skills"],
-                    ["Certifications", "certifications"],
-                    ["Project links", "project_links"],
-                    ["Internship experience", "internship_experience"],
-                    ["Preferred job roles", "preferred_job_roles"]
-                  ].map(([label, key]) => (
-                    <div key={key} className={key.includes("links") || key.includes("experience") || key.includes("roles") ? "md:col-span-2" : ""}>
-                      <label className="label" htmlFor={key}>{label}</label>
-                      <textarea id={key} className="field min-h-20" value={form[key as keyof ProfileForm] as string} onChange={(event) => setForm({ ...form, [key]: event.target.value })} />
+                    ["Highest degree", "highest_degree", true],
+                    ["College name", "college_name", true],
+                    ["University name", "university_name", true],
+                    ["Graduation year", "graduation_year", true],
+                    ["Specialization or branch", "specialization_or_branch", true],
+                    ["Fresher skills", "fresher_skills", false],
+                    ["Certifications", "certifications", false],
+                    ["Project links", "project_links", false],
+                    ["Internship experience", "internship_experience", false],
+                    ["Preferred job roles", "preferred_job_roles", false]
+                  ].map(([label, key, required]) => (
+                    <div key={key as string} className={(key as string).includes("links") || (key as string).includes("experience") || (key as string).includes("roles") ? "md:col-span-2" : ""}>
+                      <RequiredLabel label={label as string} htmlFor={key as string} required={Boolean(required)} />
+                      <textarea id={key as string} className="field min-h-20" aria-required={Boolean(required) || undefined} value={form[key as keyof ProfileForm] as string} onChange={(event) => setForm({ ...form, [key as keyof ProfileForm]: event.target.value })} />
                     </div>
                   ))}
+                  <p className="rounded-lg border border-teal-100 bg-teal-50 p-3 text-sm font-bold leading-6 text-teal-900 md:col-span-2">
+                    Projects, certifications, fresher skills, or the common Skills field must describe your fresher readiness.
+                  </p>
                 </>
               )}
             </section>
@@ -763,23 +784,26 @@ export default function JobSeekerProfileSettingsPage() {
               {form.job_seeker_category === "GRADUATE_EXPERIENCED" && (
                 <>
                   {[
-                    ["Total experience years", "total_experience_years"],
-                    ["Current or last company", "current_or_last_company"],
-                    ["Current or last role", "current_or_last_role"],
-                    ["Employment type", "employment_type"],
-                    ["Notice period", "notice_period"],
-                    ["Previous companies", "previous_companies"],
-                    ["Role history", "role_history"],
-                    ["Key responsibilities", "key_responsibilities"],
-                    ["Tools and technologies", "tools_technologies"],
-                    ["Achievements", "achievements"],
-                    ["Preferred next roles", "preferred_next_roles"]
-                  ].map(([label, key]) => (
-                    <div key={key} className={["previous_companies", "role_history", "key_responsibilities", "tools_technologies", "achievements", "preferred_next_roles"].includes(key) ? "md:col-span-2" : ""}>
-                      <label className="label" htmlFor={key}>{label}</label>
-                      <textarea id={key} className="field min-h-20" value={form[key as keyof ProfileForm] as string} onChange={(event) => setForm({ ...form, [key]: event.target.value })} />
+                    ["Total experience years", "total_experience_years", true],
+                    ["Current or last company", "current_or_last_company", true],
+                    ["Current or last role", "current_or_last_role", true],
+                    ["Employment type", "employment_type", false],
+                    ["Notice period", "notice_period", false],
+                    ["Previous companies", "previous_companies", false],
+                    ["Role history", "role_history", false],
+                    ["Key responsibilities", "key_responsibilities", true],
+                    ["Tools and technologies", "tools_technologies", true],
+                    ["Achievements", "achievements", false],
+                    ["Preferred next roles", "preferred_next_roles", false]
+                  ].map(([label, key, required]) => (
+                    <div key={key as string} className={["previous_companies", "role_history", "key_responsibilities", "tools_technologies", "achievements", "preferred_next_roles"].includes(key as string) ? "md:col-span-2" : ""}>
+                      <RequiredLabel label={label as string} htmlFor={key as string} required={Boolean(required)} />
+                      <textarea id={key as string} className="field min-h-20" aria-required={Boolean(required) || undefined} value={form[key as keyof ProfileForm] as string} onChange={(event) => setForm({ ...form, [key as keyof ProfileForm]: event.target.value })} />
                     </div>
                   ))}
+                  <p className="rounded-lg border border-teal-100 bg-teal-50 p-3 text-sm font-bold leading-6 text-teal-900 md:col-span-2">
+                    Add either key responsibilities or tools and technologies to complete experienced profile details.
+                  </p>
                 </>
               )}
             </section>
@@ -871,6 +895,7 @@ export default function JobSeekerProfileSettingsPage() {
                 label="Document file"
                 buttonLabel="Upload document"
                 rule={ruleForDocumentType(documentType)}
+                required={form.job_seeker_category === "UNDERGRADUATE" && studentProofDocumentTypes.has(documentType)}
                 onValidFile={uploadDocument}
               />
             </div>

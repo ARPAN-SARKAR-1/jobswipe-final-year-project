@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import { commonSkillOptions } from "@/lib/options";
 import { cx } from "@/lib/utils";
+import RequiredLabel from "@/components/RequiredLabel";
 
 type SkillMultiSelectProps = {
   label: string;
@@ -83,7 +84,7 @@ export default function SkillMultiSelect({
 
   return (
     <div ref={wrapperRef} className="relative min-w-0 overflow-visible">
-      <label className="label">{label}</label>
+      <RequiredLabel label={label} required={required} />
       <button
         className="field flex min-h-[48px] items-center justify-between gap-3 text-left"
         type="button"

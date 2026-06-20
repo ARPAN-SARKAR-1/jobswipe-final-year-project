@@ -6,6 +6,7 @@ import { FormEvent, useEffect, useState } from "react";
 import toast from "react-hot-toast";
 
 import PageHeader from "@/components/PageHeader";
+import RequiredLabel from "@/components/RequiredLabel";
 import SkillMultiSelect from "@/components/SkillMultiSelect";
 import VerificationStatusBadge from "@/components/VerificationStatusBadge";
 import { apiFetch } from "@/lib/api";
@@ -116,14 +117,17 @@ export default function PostJobPage() {
         )}
       </div>
       <form onSubmit={submit} className="panel grid gap-4 p-5 md:grid-cols-2">
+        <div className="rounded-lg border border-teal-100 bg-teal-50 p-3 text-sm font-bold leading-6 text-teal-900 md:col-span-2">
+          Fields marked with <span className="font-black text-rose-600">*</span> are compulsory for publishing a job.
+        </div>
         <Input label="Job title" name="title" value={form.title} onChange={(value) => setForm({ ...form, title: value })} required />
         <Input label="Company name" name="company_name" value={form.company_name} onChange={(value) => setForm({ ...form, company_name: value })} required />
         <Input label="Company logo URL optional" name="company_logo_url" value={form.company_logo_url} onChange={(value) => setForm({ ...form, company_logo_url: value })} />
         <Input label="Location" name="location" value={form.location} onChange={(value) => setForm({ ...form, location: value })} required />
-        <Select label="Job type" value={form.job_type} options={jobTypes} onChange={(value) => setForm({ ...form, job_type: value })} />
-        <Select label="Work mode" value={form.work_mode} options={workModes} onChange={(value) => setForm({ ...form, work_mode: value })} />
+        <Select label="Job type" value={form.job_type} options={jobTypes} onChange={(value) => setForm({ ...form, job_type: value })} required />
+        <Select label="Work mode" value={form.work_mode} options={workModes} onChange={(value) => setForm({ ...form, work_mode: value })} required />
         <Input label="Salary/stipend" name="salary" value={form.salary} onChange={(value) => setForm({ ...form, salary: value })} />
-        <Select label="Required experience level" value={form.required_experience_level} options={experienceLevels} onChange={(value) => setForm({ ...form, required_experience_level: value })} />
+        <Select label="Required experience level" value={form.required_experience_level} options={experienceLevels} onChange={(value) => setForm({ ...form, required_experience_level: value })} required />
         <div className="md:col-span-2">
           <SkillMultiSelect label="Required skills" selected={form.required_skills} onChange={(skills) => setForm({ ...form, required_skills: skills })} required />
         </div>
@@ -145,10 +149,8 @@ export default function PostJobPage() {
           )}
         </div>
         <div className="md:col-span-2">
-          <label className="label" htmlFor="description">
-            Description
-          </label>
-          <textarea id="description" className="field min-h-36" required value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} />
+          <RequiredLabel label="Description" htmlFor="description" required />
+          <textarea id="description" className="field min-h-36" required aria-required value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} />
         </div>
         <div className="md:col-span-2">
           <label className="label" htmlFor="eligibility">
@@ -159,7 +161,7 @@ export default function PostJobPage() {
         <Input label="Official career page URL" name="career_page_url" value={form.career_page_url} onChange={(value) => setForm({ ...form, career_page_url: value })} required type="url" />
         <Input label="Official apply URL optional" name="official_apply_url" value={form.official_apply_url} onChange={(value) => setForm({ ...form, official_apply_url: value })} type="url" />
         <div className="md:col-span-2 rounded-lg border border-teal-100 bg-teal-50 p-3 text-sm font-bold text-teal-900">
-          Company details and official career links help protect users from fake job posts. If an ATS link differs from your company domain, Admin review may be recommended.
+          Official career links help applicants verify job authenticity. If an ATS link differs from your company domain, Admin review may be recommended.
         </div>
         <Input label="Deadline" name="deadline" value={form.deadline} onChange={(value) => setForm({ ...form, deadline: value })} required type="date" />
         <label className="flex items-center gap-3 rounded-lg border border-black/10 bg-white/70 p-3 text-sm font-black text-[#526069]">
@@ -178,19 +180,17 @@ export default function PostJobPage() {
 function Input({ label, name, value, onChange, required, type = "text" }: { label: string; name: string; value: string; onChange: (value: string) => void; required?: boolean; type?: string }) {
   return (
     <div>
-      <label className="label" htmlFor={name}>
-        {label}
-      </label>
-      <input id={name} className="field" required={required} type={type} value={value} onChange={(event) => onChange(event.target.value)} />
+      <RequiredLabel label={label} htmlFor={name} required={required} />
+      <input id={name} className="field" required={required} aria-required={required || undefined} type={type} value={value} onChange={(event) => onChange(event.target.value)} />
     </div>
   );
 }
 
-function Select({ label, value, options, onChange }: { label: string; value: string; options: string[]; onChange: (value: string) => void }) {
+function Select({ label, value, options, onChange, required }: { label: string; value: string; options: string[]; onChange: (value: string) => void; required?: boolean }) {
   return (
     <div>
-      <label className="label">{label}</label>
-      <select className="field" value={value} onChange={(event) => onChange(event.target.value)}>
+      <RequiredLabel label={label} required={required} />
+      <select className="field" value={value} aria-required={required || undefined} onChange={(event) => onChange(event.target.value)}>
         {options.map((option) => (
           <option key={option}>{option}</option>
         ))}
