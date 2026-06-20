@@ -115,6 +115,44 @@ npm run dev
 
 Frontend URL: `http://localhost:3000`
 
+## Pre-demo QA checklist
+
+Use these checks before deployment or mentor demos. Do not put real passwords in files; pass test credentials through shell-only environment variables when needed.
+
+```powershell
+cd frontend
+npm run build
+npm run test:e2e -- --project=chromium
+npm run test:e2e:mobile
+```
+
+```powershell
+cd backend
+python -m compileall app
+python scripts/check_routes.py
+python scripts/security_sanity_check.py
+```
+
+Optional live/staging checks:
+
+```powershell
+$env:E2E_BASE_URL="https://your-frontend.example"
+$env:E2E_BACKEND_URL="https://your-backend.example"
+$env:API_BASE_URL="https://your-backend.example"
+python scripts/smoke_api.py
+python ..\scripts\demo_readiness_check.py
+```
+
+Protected Job Seeker, Recruiter, and Admin E2E flows intentionally skip unless a local Playwright storage-state file is supplied. This avoids automating CAPTCHA/OTP or storing real credentials.
+
+Final demo checklist:
+
+- Create one job seeker test account with a complete profile.
+- Create one recruiter test account with a verified company and 2-3 safe jobs.
+- Keep one admin account ready for moderation, verification queues, and support-ticket review.
+- Visit backend `/health` two minutes before the demo to handle free-tier cold start.
+- Test CAPTCHA, OTP, login, profile update, swipe save/apply, and contact ticket creation before showing the mentor.
+
 ## Environment Variables
 
 Backend `.env.example`:

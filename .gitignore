@@ -2,6 +2,7 @@
 .env
 .env.*
 !.env.example
+!.env.e2e.example
 frontend/.env.local
 frontend/.env
 backend/.env
@@ -12,6 +13,9 @@ frontend/.next/
 frontend/out/
 frontend/dist/
 frontend/.turbo/
+frontend/playwright-report/
+frontend/test-results/
+frontend/tests/.auth/
 node_modules/
 .next/
 out/
