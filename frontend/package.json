@@ -8,6 +8,9 @@
     "start": "next start",
     "test:build": "next build",
     "test:e2e": "playwright test",
+    "test:e2e:setup-auth": "playwright test --config=playwright.auth.config.ts --headed",
+    "test:e2e:auth": "playwright test tests/e2e/jobseeker-flow.spec.ts tests/e2e/recruiter-flow.spec.ts tests/e2e/admin-flow.spec.ts --project=chromium",
+    "test:e2e:public": "playwright test tests/e2e/public-pages.spec.ts tests/e2e/auth-ui.spec.ts tests/e2e/contact-ticket.spec.ts --project=chromium",
     "test:e2e:mobile": "playwright test --project=mobile-chrome-360 --project=mobile-chrome-375 --project=mobile-chrome-390 --project=mobile-chrome-430 --project=tablet-768",
     "test:e2e:headed": "playwright test --headed"
   },

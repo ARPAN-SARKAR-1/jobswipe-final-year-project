@@ -1,3 +1,6 @@
+import { existsSync } from "node:fs";
+import path from "node:path";
+
 import { expect, type Page, type Request, type TestInfo } from "@playwright/test";
 
 export type Diagnostics = {
@@ -31,7 +34,11 @@ export function backendConfigured() {
 
 export function storageStateFor(role: "jobseeker" | "recruiter" | "admin") {
   const key = `E2E_${role.toUpperCase()}_STORAGE_STATE`;
-  return process.env[key] || "";
+  const configuredPath = process.env[key];
+  if (configuredPath) return configuredPath;
+
+  const defaultPath = path.join(process.cwd(), "tests", ".auth", `${role}.json`);
+  return existsSync(defaultPath) ? defaultPath : "";
 }
 
 export function credentialsFor(role: "jobseeker" | "recruiter" | "admin") {

@@ -16,6 +16,8 @@ frontend/.turbo/
 frontend/playwright-report/
 frontend/test-results/
 frontend/tests/.auth/
+frontend/tests/.auth/*.json
+frontend/tests/.auth/**/*.json
 node_modules/
 .next/
 out/
