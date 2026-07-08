@@ -23,6 +23,7 @@ from app.models.job_seeker_profile import JobSeekerProfile
 from app.models.user import User
 from app.schemas.application import ApplicationCreate, ApplicationRead, ApplicationTimelineRead
 from app.services.profile_requirements import ensure_job_seeker_can_apply
+from app.services.screening import dump_screening_answers, load_screening_questions
 from app.services.timeline import add_timeline_event
 from app.utils.match_score import calculate_match_score
 
@@ -37,6 +38,10 @@ def create_or_reactivate_application(db: Session, user: User, job: Job, payload:
     profile = db.scalar(select(JobSeekerProfile).where(JobSeekerProfile.user_id == user.id))
     resume_url = payload.resume_pdf_url if payload and payload.resume_pdf_url else (profile.resume_pdf_url if profile else None)
     github_url = payload.github_url if payload and payload.github_url else (profile.github_url if profile else None)
+    try:
+        screening_answers = dump_screening_answers(load_screening_questions(job.screening_questions), payload.screening_answers if payload else None)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
     if existing:
         raise HTTPException(
@@ -49,6 +54,7 @@ def create_or_reactivate_application(db: Session, user: User, job: Job, payload:
         job_id=job.id,
         resume_pdf_url=resume_url,
         github_url=github_url,
+        screening_answers=screening_answers,
         status=ApplicationStatus.APPLIED.value,
     )
     db.add(application)

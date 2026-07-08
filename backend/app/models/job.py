@@ -26,6 +26,7 @@ class Job(TimestampMixin, Base):
     required_experience_level: Mapped[str] = mapped_column(String(40), nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False)
     eligibility: Mapped[str | None] = mapped_column(Text, nullable=True)
+    screening_questions: Mapped[str | None] = mapped_column(Text, nullable=True)
     career_page_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     official_apply_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     source_type: Mapped[str] = mapped_column(String(40), default=JobSourceType.COMPANY_PORTAL.value, nullable=False)

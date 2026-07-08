@@ -4,6 +4,7 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator, model_validator
 
 from app.models.enums import JobCareerLinkStatus, JobModerationStatus, JobSourceType
+from app.services.screening import normalize_screening_questions
 from app.utils.skills import normalize_skills, split_skills
 
 
@@ -19,6 +20,7 @@ class JobBase(BaseModel):
     required_experience_level: str = Field(min_length=2, max_length=40)
     description: str = Field(min_length=10)
     eligibility: str | None = None
+    screening_questions: list[str] = Field(default_factory=list)
     career_page_url: str | None = Field(default=None, min_length=8, max_length=500)
     official_apply_url: str | None = Field(default=None, max_length=500)
     source_type: JobSourceType = JobSourceType.COMPANY_PORTAL
@@ -42,6 +44,11 @@ class JobBase(BaseModel):
         if not (stripped.startswith("http://") or stripped.startswith("https://")):
             raise ValueError("URL must start with http:// or https://")
         return stripped
+
+    @field_validator("screening_questions", mode="before")
+    @classmethod
+    def validate_screening_questions(cls, value: Any) -> list[str]:
+        return normalize_screening_questions(value)
 
     @model_validator(mode="after")
     def validate_bond(self) -> "JobBase":
@@ -74,6 +81,7 @@ class JobUpdate(BaseModel):
     required_experience_level: str | None = Field(default=None, min_length=2, max_length=40)
     description: str | None = Field(default=None, min_length=10)
     eligibility: str | None = None
+    screening_questions: list[str] | None = None
     career_page_url: str | None = Field(default=None, min_length=8, max_length=500)
     official_apply_url: str | None = Field(default=None, max_length=500)
     source_type: JobSourceType | None = None
@@ -99,6 +107,13 @@ class JobUpdate(BaseModel):
         if not (stripped.startswith("http://") or stripped.startswith("https://")):
             raise ValueError("URL must start with http:// or https://")
         return stripped
+
+    @field_validator("screening_questions", mode="before")
+    @classmethod
+    def validate_screening_questions(cls, value: Any) -> list[str] | None:
+        if value is None:
+            return None
+        return normalize_screening_questions(value)
 
     @model_validator(mode="after")
     def validate_bond(self) -> "JobUpdate":

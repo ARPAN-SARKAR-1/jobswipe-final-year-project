@@ -14,6 +14,7 @@ class Application(TimestampMixin, Base):
     job_id: Mapped[int] = mapped_column(ForeignKey("jobs.id", ondelete="CASCADE"), nullable=False)
     resume_pdf_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     github_url: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    screening_answers: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(String(30), nullable=False)
     admin_status: Mapped[str] = mapped_column(String(30), default="ACTIVE", nullable=False)
     admin_note: Mapped[str | None] = mapped_column(Text, nullable=True)

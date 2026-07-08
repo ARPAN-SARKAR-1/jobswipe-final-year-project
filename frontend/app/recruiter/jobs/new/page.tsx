@@ -26,6 +26,7 @@ const initial = {
   required_experience_level: "Fresher",
   description: "",
   eligibility: "",
+  screening_questions: [""] as string[],
   career_page_url: "",
   official_apply_url: "",
   source_type: "COMPANY_PORTAL",
@@ -44,6 +45,7 @@ export default function PostJobPage() {
   const [saving, setSaving] = useState(false);
   const companyComplete = company?.company_completion_percentage === undefined || company.company_completion_percentage >= 100;
   const canPost = company?.verification_status === "VERIFIED" && company?.recruiter_verification_status === "VERIFIED" && company?.company_join_status === "APPROVED" && companyComplete;
+  const validScreeningQuestions = form.screening_questions.map((question) => question.trim()).filter(Boolean);
 
   useEffect(() => {
     if (loading) return;
@@ -78,6 +80,7 @@ export default function PostJobPage() {
           ...form,
           company_logo_url: form.company_logo_url || null,
           eligibility: form.eligibility || null,
+          screening_questions: validScreeningQuestions,
           career_page_url: form.career_page_url,
           official_apply_url: form.official_apply_url || null,
           source_type: form.source_type,
@@ -157,6 +160,49 @@ export default function PostJobPage() {
             Eligibility
           </label>
           <textarea id="eligibility" className="field min-h-28" value={form.eligibility} onChange={(event) => setForm({ ...form, eligibility: event.target.value })} />
+        </div>
+        <div className="md:col-span-2 rounded-lg border border-violet-100 bg-violet-50/60 p-4">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <p className="text-sm font-black text-[#172026]">Screening questions</p>
+              <p className="mt-1 text-xs font-bold leading-5 text-[#6b767d]">
+                Optional. Add up to five quick questions that applicants answer before applying.
+              </p>
+            </div>
+            <button
+              className="btn-secondary !py-2"
+              type="button"
+              onClick={() => setForm({ ...form, screening_questions: [...form.screening_questions, ""] })}
+              disabled={form.screening_questions.length >= 5}
+            >
+              Add question
+            </button>
+          </div>
+          <div className="mt-4 grid gap-3">
+            {form.screening_questions.map((question, index) => (
+              <div key={index} className="grid gap-2 sm:grid-cols-[1fr_auto]">
+                <input
+                  className="field"
+                  maxLength={240}
+                  placeholder={`Screening question ${index + 1}`}
+                  value={question}
+                  onChange={(event) => {
+                    const next = [...form.screening_questions];
+                    next[index] = event.target.value;
+                    setForm({ ...form, screening_questions: next });
+                  }}
+                />
+                <button
+                  className="btn-secondary !py-2"
+                  type="button"
+                  onClick={() => setForm({ ...form, screening_questions: form.screening_questions.filter((_, itemIndex) => itemIndex !== index) })}
+                  disabled={form.screening_questions.length === 1}
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+          </div>
         </div>
         <Input label="Official career page URL" name="career_page_url" value={form.career_page_url} onChange={(value) => setForm({ ...form, career_page_url: value })} required type="url" />
         <Input label="Official apply URL optional" name="official_apply_url" value={form.official_apply_url} onChange={(value) => setForm({ ...form, official_apply_url: value })} type="url" />

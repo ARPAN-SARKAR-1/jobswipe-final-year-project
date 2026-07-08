@@ -11,7 +11,9 @@ import EmptyState from "@/components/EmptyState";
 import JobCard from "@/components/JobCard";
 import PageHeader from "@/components/PageHeader";
 import ReportModal from "@/components/ReportModal";
+import ScreeningQuestionsModal, { getScreeningQuestions } from "@/components/ScreeningQuestionsModal";
 import { apiFetch } from "@/lib/api";
+import { getJobTrustSignal, jobTrustClass } from "@/lib/jobTrust";
 import { formatDate } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import type { Job, JobSeekerProfile } from "@/types";
@@ -23,6 +25,7 @@ export default function JobDetailsPage() {
   const [profile, setProfile] = useState<JobSeekerProfile | null>(null);
   const [notFound, setNotFound] = useState(false);
   const [applying, setApplying] = useState(false);
+  const [screeningOpen, setScreeningOpen] = useState(false);
 
   useEffect(() => {
     if (loading || !params.id) return;
@@ -32,16 +35,29 @@ export default function JobDetailsPage() {
     apiFetch<JobSeekerProfile>("/jobseeker/profile").then(setProfile).catch(() => setProfile(null));
   }, [loading, params.id]);
 
-  const apply = async () => {
+  const beginApply = () => {
     if (!job) return;
     if (profile && profile.profile_completion_percentage !== undefined && profile.profile_completion_percentage < 100) {
       toast.error("Complete your profile before applying to jobs.");
       return;
     }
+    if (getScreeningQuestions(job).length > 0) {
+      setScreeningOpen(true);
+      return;
+    }
+    void apply([]);
+  };
+
+  const apply = async (screeningAnswers: string[] = []) => {
+    if (!job) return;
     setApplying(true);
     try {
-      await apiFetch("/applications", { method: "POST", body: JSON.stringify({ job_id: job.id }) });
+      await apiFetch("/applications", {
+        method: "POST",
+        body: JSON.stringify({ job_id: job.id, screening_answers: screeningAnswers })
+      });
       toast.success("Application submitted");
+      setScreeningOpen(false);
       setJob({ ...job, existing_application_status: "APPLIED" });
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Apply failed");
@@ -64,6 +80,7 @@ export default function JobDetailsPage() {
   if (notFound) return <main className="page-shell"><EmptyState title="Job unavailable" text="This job may be inactive, paused, removed, or no longer accepting applications." /></main>;
   if (!job) return <main className="page-shell">Loading job details...</main>;
   const profileIncomplete = profile && profile.profile_completion_percentage !== undefined && profile.profile_completion_percentage < 100;
+  const trustSignal = getJobTrustSignal(job);
 
   return (
     <main className="page-shell">
@@ -92,7 +109,7 @@ export default function JobDetailsPage() {
                 <Bookmark size={16} />
                 Save
               </button>
-              <button className="btn-primary !py-2" onClick={apply} type="button" disabled={Boolean(job.existing_application_status) || applying || Boolean(profileIncomplete)}>
+              <button className="btn-primary !py-2" onClick={beginApply} type="button" disabled={Boolean(job.existing_application_status) || applying || Boolean(profileIncomplete)}>
                 <Send size={16} />
                 {job.existing_application_status ? `Already Applied: ${job.existing_application_status}` : profileIncomplete ? "Complete Profile" : "Apply"}
               </button>
@@ -102,6 +119,17 @@ export default function JobDetailsPage() {
         <aside className="panel p-5">
           <h2 className="text-xl font-black">Hiring details</h2>
           <div className="mt-4 grid gap-3 text-sm font-bold text-[#526069]">
+            <div className={`rounded-lg p-3 ${jobTrustClass(trustSignal.level)}`}>
+              <p className="font-black">Job trust score: {trustSignal.label}</p>
+              <p className="mt-1 text-xs font-bold leading-5">
+                {trustSignal.reasons.length ? `Based on ${trustSignal.reasons.join(", ")}.` : "Some trust signals are still missing."}
+              </p>
+            </div>
+            {trustSignal.salaryWarning && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm font-bold text-amber-800">
+                Salary transparency warning: {trustSignal.salaryWarning}. Confirm compensation details before sharing sensitive information.
+              </div>
+            )}
             <p>Deadline: {formatDate(job.deadline)}</p>
             <p>Work mode: {job.work_mode}</p>
             <p>Experience: {job.required_experience_level}</p>
@@ -131,6 +159,13 @@ export default function JobDetailsPage() {
           </div>
         </aside>
       </div>
+      <ScreeningQuestionsModal
+        job={job}
+        open={screeningOpen}
+        submitting={applying}
+        onCancel={() => setScreeningOpen(false)}
+        onSubmit={(answers) => void apply(answers)}
+      />
     </main>
   );
 }

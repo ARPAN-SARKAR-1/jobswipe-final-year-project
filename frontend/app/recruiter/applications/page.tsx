@@ -19,11 +19,14 @@ import { formatDate, splitSkills } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import type { Application, ChatThread } from "@/types";
 
+type ScreeningAnswer = { question: string; answer: string };
+type RecruiterApplication = Application & { screening_answers?: ScreeningAnswer[] };
+
 export default function RecruiterApplicationsPage() {
   const { loading } = useAuth(["RECRUITER"]);
   const router = useRouter();
-  const [applications, setApplications] = useState<Application[]>([]);
-  const [chatApplication, setChatApplication] = useState<Application | null>(null);
+  const [applications, setApplications] = useState<RecruiterApplication[]>([]);
+  const [chatApplication, setChatApplication] = useState<RecruiterApplication | null>(null);
   const [firstMessage, setFirstMessage] = useState("");
   const [chatSubmitting, setChatSubmitting] = useState(false);
   const [query, setQuery] = useState("");
@@ -56,7 +59,9 @@ export default function RecruiterApplicationsPage() {
           (item) => item.applicant_email,
           (item) => item.job_title,
           (item) => item.job?.company_name,
-          (item) => item.job?.required_skills
+          (item) => item.job?.required_skills,
+          (item) => item.job?.location,
+          (item) => item.status
         ])
       )
       .filter((application) => !statusFilter || application.status === statusFilter)
@@ -220,6 +225,20 @@ export default function RecruiterApplicationsPage() {
                       </div>
                     )}
                     {application.applicant_accessibility_notes && <p className="mt-2">{application.applicant_accessibility_notes}</p>}
+                  </div>
+                )}
+                {application.screening_answers && application.screening_answers.length > 0 && (
+                  <div className="mt-4 rounded-lg border border-violet-100 bg-violet-50 p-3 text-sm font-bold leading-6 text-violet-950">
+                    <p className="font-black text-violet-700">Screening answers</p>
+                    <div className="mt-3 grid gap-3">
+                      {application.screening_answers.map((item, index) => (
+                        <div key={`${item.question}-${index}`} className="rounded-lg bg-white p-3">
+                          <p className="text-xs font-black uppercase text-violet-700">Q{index + 1}</p>
+                          <p className="mt-1 text-[#172026]">{item.question}</p>
+                          <p className="mt-2 text-[#526069]">{item.answer}</p>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
                 <div className="mt-4 flex flex-wrap gap-3">

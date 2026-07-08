@@ -21,6 +21,7 @@ from app.schemas.profile import CompanyJoinRequest, CompanyProfileRead, CompanyP
 from app.services.notifications import create_notification, notify_admins
 from app.services.profile_requirements import check_company_profile_completion, validate_http_url
 from app.services.public_identity import ensure_company_public_identity, unique_company_slug
+from app.services.screening import load_screening_answers
 from app.services.timeline import add_timeline_event
 from app.services.trust import attach_job_trust, get_or_create_recruiter_membership, get_recruiter_membership
 from app.utils.file_upload import save_company_logo
@@ -362,6 +363,7 @@ def applications(
                 job_id=application.job_id,
                 resume_pdf_url=application.resume_pdf_url,
                 github_url=application.github_url,
+                screening_answers=load_screening_answers(application.screening_answers),
                 status=application.status,
                 admin_status=application.admin_status,
                 admin_note=application.admin_note,
@@ -451,6 +453,7 @@ def update_application_status(
         job_id=application.job_id,
         resume_pdf_url=application.resume_pdf_url,
         github_url=application.github_url,
+        screening_answers=load_screening_answers(application.screening_answers),
         status=application.status,
         admin_status=application.admin_status,
         admin_note=application.admin_note,

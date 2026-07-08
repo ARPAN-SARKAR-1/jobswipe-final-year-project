@@ -18,6 +18,7 @@ type RecruiterSwipeAction = "SHORTLIST" | "REJECT";
 type GestureStart = { x: number; y: number } | null;
 type CandidateApplication = Application & {
   applicant_skills?: string | null;
+  screening_answers?: Array<{ question: string; answer: string }>;
 };
 
 const HORIZONTAL_SWIPE_THRESHOLD = 80;
@@ -251,6 +252,21 @@ export default function RecruiterCandidateSwipePage() {
                     )}
                     {current.applicant_accessibility_notes && <p className="mt-2">{current.applicant_accessibility_notes}</p>}
                   </div>
+                )}
+
+                {current.screening_answers && current.screening_answers.length > 0 && (
+                  <section className="mt-5 rounded-lg border border-violet-100 bg-violet-50 p-3 text-sm font-bold leading-6 text-violet-950">
+                    <p className="font-black text-violet-700">Screening answers</p>
+                    <div className="mt-3 grid gap-2">
+                      {current.screening_answers.map((item, index) => (
+                        <div key={`${item.question}-${index}`} className="rounded-lg bg-white p-3">
+                          <p className="text-xs font-black uppercase text-violet-700">Q{index + 1}</p>
+                          <p className="mt-1 text-[#172026]">{item.question}</p>
+                          <p className="mt-2 text-[#526069]">{item.answer}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
                 )}
 
                 <div className="mt-5 flex flex-wrap gap-3">

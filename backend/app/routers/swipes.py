@@ -15,6 +15,7 @@ from app.models.job_seeker_profile import JobSeekerProfile
 from app.models.swipe import Swipe
 from app.models.user import User
 from app.routers.applications import create_or_reactivate_application
+from app.schemas.application import ApplicationCreate
 from app.schemas.swipe import SwipeCreate, SwipeRead, UndoSwipeResponse
 from app.utils.match_score import calculate_match_score
 
@@ -42,7 +43,7 @@ def create_swipe(
     db.add(swipe)
     db.flush()
     if payload.action == SwipeAction.LIKE:
-        create_or_reactivate_application(db, current_user, job)
+        create_or_reactivate_application(db, current_user, job, ApplicationCreate(job_id=job.id, screening_answers=payload.screening_answers))
     else:
         db.commit()
     db.refresh(swipe)

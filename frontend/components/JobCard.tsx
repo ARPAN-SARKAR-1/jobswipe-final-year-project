@@ -1,10 +1,12 @@
-import { AlertTriangle, Building2, CalendarClock, IndianRupee, MapPin, MonitorSmartphone } from "lucide-react";
+import { AlertTriangle, Building2, CalendarClock, ClipboardList, IndianRupee, MapPin, MonitorSmartphone } from "lucide-react";
 import Link from "next/link";
 
 import BondBadge from "@/components/BondBadge";
 import MatchScoreBadge from "@/components/MatchScoreBadge";
+import { getScreeningQuestions } from "@/components/ScreeningQuestionsModal";
 import TrustBadge from "@/components/TrustBadge";
 import { assetUrl } from "@/lib/api";
+import { getJobTrustSignal, jobTrustClass } from "@/lib/jobTrust";
 import { formatDate, splitSkills } from "@/lib/utils";
 import type { Job } from "@/types";
 
@@ -12,6 +14,8 @@ export default function JobCard({ job, actions, detailsHref }: { job: Job; actio
   const logo = assetUrl(job.company_logo_url);
   const skills = job.required_skills_list?.length ? job.required_skills_list : splitSkills(job.required_skills);
   const companyRef = job.company_slug || job.company_public_id || job.company_id;
+  const screeningQuestions = getScreeningQuestions(job);
+  const trustSignal = getJobTrustSignal(job);
 
   return (
     <article className="panel smooth-card overflow-hidden p-5">
@@ -39,6 +43,15 @@ export default function JobCard({ job, actions, detailsHref }: { job: Job; actio
           </div>
           <div className="mt-2 flex flex-wrap gap-2">
             <MatchScoreBadge job={job} />
+            <span className={`rounded-lg px-2.5 py-1 text-xs font-black ${jobTrustClass(trustSignal.level)}`}>
+              {trustSignal.label}
+            </span>
+            {screeningQuestions.length > 0 && (
+              <span className="inline-flex items-center gap-1 rounded-lg bg-violet-50 px-2.5 py-1 text-xs font-black text-violet-700">
+                <ClipboardList size={13} />
+                {screeningQuestions.length} screening {screeningQuestions.length === 1 ? "question" : "questions"}
+              </span>
+            )}
             {job.existing_application_status && (
               <span className="rounded-lg bg-sky-50 px-2.5 py-1 text-xs font-black text-sky-700">
                 Already Applied: {job.existing_application_status}
@@ -75,6 +88,11 @@ export default function JobCard({ job, actions, detailsHref }: { job: Job; actio
           <CalendarClock size={16} /> Apply by {formatDate(job.deadline)}
         </span>
       </div>
+      {trustSignal.salaryWarning && (
+        <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs font-bold text-amber-800">
+          Salary transparency warning: {trustSignal.salaryWarning}. Confirm compensation details with the recruiter before sharing sensitive information.
+        </p>
+      )}
 
       <div className="mt-4">
         <BondBadge job={job} />

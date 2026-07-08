@@ -9,6 +9,7 @@ from app.schemas.job import JobRead
 class SwipeCreate(BaseModel):
     job_id: int
     action: SwipeAction
+    screening_answers: list[str] | None = None
 
 
 class SwipeRead(BaseModel):

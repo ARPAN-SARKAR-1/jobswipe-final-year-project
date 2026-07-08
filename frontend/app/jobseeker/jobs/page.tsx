@@ -11,6 +11,7 @@ import ListToolbar from "@/components/ListToolbar";
 import PageHeader from "@/components/PageHeader";
 import PaginationControls from "@/components/PaginationControls";
 import ReportModal from "@/components/ReportModal";
+import ScreeningQuestionsModal, { getScreeningQuestions } from "@/components/ScreeningQuestionsModal";
 import SkillMultiSelect from "@/components/SkillMultiSelect";
 import { apiFetch } from "@/lib/api";
 import { paginateItems, textMatches } from "@/lib/listing";
@@ -23,6 +24,7 @@ export default function JobsListPage() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [profile, setProfile] = useState<JobSeekerProfile | null>(null);
   const [applyingJobId, setApplyingJobId] = useState<number | null>(null);
+  const [screeningJob, setScreeningJob] = useState<Job | null>(null);
   const [query, setQuery] = useState("");
   const [trustFilter, setTrustFilter] = useState("");
   const [roleStageFilter, setRoleStageFilter] = useState("");
@@ -97,15 +99,33 @@ export default function JobsListPage() {
     load();
   };
 
-  const apply = async (jobId: number) => {
+  const beginApply = (job: Job) => {
     if (profile && profile.profile_completion_percentage !== undefined && profile.profile_completion_percentage < 100) {
       toast.error("Complete your profile before applying to jobs.");
       return;
     }
+    if (getScreeningQuestions(job).length > 0) {
+      setScreeningJob(job);
+      return;
+    }
+    void apply(job);
+  };
+
+  const apply = async (job: Job, screeningAnswers: string[] = []) => {
+    const questions = getScreeningQuestions(job);
+    if (questions.length > 0 && screeningAnswers.length < questions.length) {
+      setScreeningJob(job);
+      return;
+    }
+    const jobId = job.id;
     setApplyingJobId(jobId);
     try {
-      await apiFetch("/applications", { method: "POST", body: JSON.stringify({ job_id: jobId }) });
+      await apiFetch("/applications", {
+        method: "POST",
+        body: JSON.stringify({ job_id: jobId, screening_answers: screeningAnswers })
+      });
       toast.success("Application submitted");
+      setScreeningJob(null);
       load();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Apply failed");
@@ -232,7 +252,7 @@ export default function JobsListPage() {
                     <Bookmark size={16} />
                     Save
                   </button>
-                  <button className="btn-primary !py-2" onClick={() => apply(job.id)} type="button" disabled={alreadyApplied || applyingJobId === job.id || Boolean(profileIncomplete)}>
+                  <button className="btn-primary !py-2" onClick={() => beginApply(job)} type="button" disabled={alreadyApplied || applyingJobId === job.id || Boolean(profileIncomplete)}>
                     <Send size={16} />
                     {alreadyApplied ? "Already Applied" : profileIncomplete ? "Complete Profile" : "Apply"}
                   </button>
@@ -246,6 +266,15 @@ export default function JobsListPage() {
           <PaginationControls page={page} pageSize={pageSize} total={filteredJobs.length} onPageChange={setPage} onPageSizeChange={setPageSize} />
         </div>
       )}
+      <ScreeningQuestionsModal
+        job={screeningJob}
+        open={Boolean(screeningJob)}
+        submitting={Boolean(screeningJob && applyingJobId === screeningJob.id)}
+        onCancel={() => setScreeningJob(null)}
+        onSubmit={(answers) => {
+          if (screeningJob) void apply(screeningJob, answers);
+        }}
+      />
     </main>
   );
 }

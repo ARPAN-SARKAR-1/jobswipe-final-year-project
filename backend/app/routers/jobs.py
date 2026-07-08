@@ -20,6 +20,7 @@ from app.services.recommendation_service import get_behavior_ranked_jobs
 from app.services.notifications import notify_admins
 from app.services.profile_requirements import ensure_company_ready_to_post, validate_job_career_link
 from app.services.public_identity import ensure_job_public_identity
+from app.services.screening import dump_screening_questions
 from app.services.trust import apply_job_risk, attach_job_trust, get_recruiter_membership, recruiter_can_post_public_job
 from app.utils.match_score import calculate_match_score
 from app.utils.skills import split_skills
@@ -184,6 +185,7 @@ def create_job(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Suspended recruiters cannot post new jobs")
     company = ensure_verified_recruiter(db, current_user.id)
     job_data = payload.model_dump(exclude={"required_skills_list"}, mode="json")
+    job_data["screening_questions"] = dump_screening_questions(job_data.get("screening_questions"))
     link_result = validate_job_career_link(company, job_data["career_page_url"])
     job_data["career_link_status"] = link_result.status
     job_data["career_link_warning"] = link_result.warning
@@ -234,6 +236,8 @@ def update_job(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
 
     update_data = payload.model_dump(exclude_unset=True, mode="json")
+    if "screening_questions" in update_data:
+        update_data["screening_questions"] = dump_screening_questions(update_data.get("screening_questions"))
     if update_data.get("is_active") is True:
         ensure_verified_recruiter(db, current_user.id)
     if update_data.get("has_bond") is False:

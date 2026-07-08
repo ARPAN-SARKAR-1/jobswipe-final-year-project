@@ -31,6 +31,7 @@ test.describe("authenticated recruiter flow", () => {
     await expect(page.locator("body")).toContainText(/fields marked with \*/i);
     await expect(page.getByLabel(/official career page url/i)).toBeVisible();
     await expect(page.getByLabel(/job title/i)).toBeVisible();
+    await expect(page.locator("body")).toContainText(/screening questions/i);
     await expect(page.getByRole("button", { name: /post job/i })).toBeVisible();
     await expectNoHorizontalOverflow(page);
   });
@@ -45,7 +46,7 @@ test.describe("authenticated recruiter flow", () => {
   test("candidate swipe page keeps review controls visible", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/recruiter/swipe");
-    await expect(page.locator("body")).toContainText(/swipe right to shortlist|no candidates available|shortlist/i);
+    await expect(page.locator("body")).toContainText(/swipe right to shortlist|no candidates available|shortlist|screening answers/i);
     await expectNoHorizontalOverflow(page);
   });
 });

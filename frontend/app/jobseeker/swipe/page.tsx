@@ -11,8 +11,10 @@ import BondBadge from "@/components/BondBadge";
 import MatchScoreBadge from "@/components/MatchScoreBadge";
 import PageHeader from "@/components/PageHeader";
 import ReportModal from "@/components/ReportModal";
+import ScreeningQuestionsModal, { getScreeningQuestions } from "@/components/ScreeningQuestionsModal";
 import SkillMultiSelect from "@/components/SkillMultiSelect";
 import { apiFetch, assetUrl } from "@/lib/api";
+import { getJobTrustSignal, jobTrustClass } from "@/lib/jobTrust";
 import { cx, formatDate, splitSkills } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import type { Job, JobSeekerProfile } from "@/types";
@@ -45,6 +47,7 @@ export default function SwipeJobsPage() {
   const [refreshingRecommendations, setRefreshingRecommendations] = useState(false);
   const [recommendationNotice, setRecommendationNotice] = useState("");
   const [dragHint, setDragHint] = useState<SwipeAction | null>(null);
+  const [screeningJob, setScreeningJob] = useState<Job | null>(null);
   const feedbackTimer = useRef<number | null>(null);
   const noticeTimer = useRef<number | null>(null);
   const gestureStart = useRef<GestureStart>(null);
@@ -86,20 +89,25 @@ export default function SwipeJobsPage() {
     noticeTimer.current = window.setTimeout(() => setRecommendationNotice(""), 3500);
   }, [recommendationNotice]);
 
-  const move = async (action: SwipeAction) => {
+  const move = async (action: SwipeAction, screeningAnswers: string[] = []) => {
     if (!current) return;
     if (action === "LIKE" && profile && profile.profile_completion_percentage !== undefined && profile.profile_completion_percentage < 100) {
       toast.error("Complete your profile before applying to jobs.");
+      return;
+    }
+    if (action === "LIKE" && getScreeningQuestions(current).length > 0 && screeningAnswers.length < getScreeningQuestions(current).length) {
+      setScreeningJob(current);
       return;
     }
     setFeedbackAction(action);
     try {
       await apiFetch("/swipes", {
         method: "POST",
-        body: JSON.stringify({ job_id: current.id, action })
+        body: JSON.stringify({ job_id: current.id, action, screening_answers: screeningAnswers })
       });
       setDirection(action === "REJECT" ? -1 : action === "SAVE" ? 0 : 1);
       setIndex((value) => value + 1);
+      setScreeningJob(null);
       toast.success(action === "LIKE" ? "Applied successfully" : action === "SAVE" ? "Saved for later" : "Skipped");
       const nextSwipeCount = swipesSinceRefresh + 1;
       if (nextSwipeCount >= 3) {
@@ -178,6 +186,7 @@ export default function SwipeJobsPage() {
 
   if (loading) return <main className="page-shell">Loading swipe feed...</main>;
   const profileIncomplete = profile && profile.profile_completion_percentage !== undefined && profile.profile_completion_percentage < 100;
+  const currentTrustSignal = current ? getJobTrustSignal(current) : null;
 
   return (
     <main className="page-shell pb-32 sm:pb-8">
@@ -263,6 +272,16 @@ export default function SwipeJobsPage() {
                       {current.recommendation_reason}
                     </span>
                   )}
+                  {currentTrustSignal && (
+                    <span className={`rounded-lg px-2.5 py-1 text-xs font-black ${jobTrustClass(currentTrustSignal.level)}`}>
+                      {currentTrustSignal.label}
+                    </span>
+                  )}
+                  {getScreeningQuestions(current).length > 0 && (
+                    <span className="rounded-lg bg-violet-50 px-2.5 py-1 text-xs font-black text-violet-700">
+                      {getScreeningQuestions(current).length} screening {getScreeningQuestions(current).length === 1 ? "question" : "questions"}
+                    </span>
+                  )}
                   {current.existing_application_status && (
                     <span className="rounded-lg bg-sky-50 px-2.5 py-1 text-xs font-black text-sky-700">
                       Already Applied: {current.existing_application_status}
@@ -280,6 +299,11 @@ export default function SwipeJobsPage() {
                 <div className="mt-5 rounded-lg bg-[#fbfaf7] p-4">
                   <p className="text-sm font-black text-[#172026]">Salary/stipend</p>
                   <p className="mt-1 text-sm font-bold text-[#6b767d]">{current.salary || "Not disclosed"}</p>
+                  {currentTrustSignal?.salaryWarning && (
+                    <p className="mt-2 text-xs font-bold leading-5 text-amber-700">
+                      Salary transparency warning: {currentTrustSignal.salaryWarning}.
+                    </p>
+                  )}
                 </div>
 
                 <div className="mt-4">
@@ -386,6 +410,13 @@ export default function SwipeJobsPage() {
           </p>
         </aside>
       </section>
+      <ScreeningQuestionsModal
+        job={screeningJob}
+        open={Boolean(screeningJob)}
+        submitting={feedbackAction === "LIKE"}
+        onCancel={() => setScreeningJob(null)}
+        onSubmit={(answers) => void move("LIKE", answers)}
+      />
     </main>
   );
 }

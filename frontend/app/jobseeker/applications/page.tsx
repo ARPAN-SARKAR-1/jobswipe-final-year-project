@@ -11,6 +11,7 @@ import ListToolbar from "@/components/ListToolbar";
 import PageHeader from "@/components/PageHeader";
 import PaginationControls from "@/components/PaginationControls";
 import ApplicationTimeline from "@/components/ApplicationTimeline";
+import ApplicationStatusTracker from "@/components/ApplicationStatusTracker";
 import StatusBadge from "@/components/StatusBadge";
 import { apiFetch } from "@/lib/api";
 import { paginateItems, textMatches } from "@/lib/listing";
@@ -129,6 +130,9 @@ export default function MyApplicationsPage() {
                     Resume shared with recruiter for this application.
                   </p>
                 )}
+                <div className="mt-4">
+                  <ApplicationStatusTracker application={application} />
+                </div>
                 <div className="mt-4 rounded-lg border border-black/5 bg-white p-3">
                   {application.chat_thread_id ? (
                     <button className="btn-primary w-full !py-2" type="button" onClick={() => router.push(`/messages/${application.chat_thread_id}`)}>
