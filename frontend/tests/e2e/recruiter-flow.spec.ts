@@ -8,6 +8,9 @@ test("recruiter protected routes redirect safely without auth", async ({ page })
   await page.goto("/recruiter/company");
   await expect(page.locator("body")).toContainText(/login|continue|recruiter/i);
   await expectNoHorizontalOverflow(page);
+  await page.goto("/recruiter/swipe");
+  await expect(page.locator("body")).toContainText(/login|continue|recruiter/i);
+  await expectNoHorizontalOverflow(page);
 });
 
 test.describe("authenticated recruiter flow", () => {
@@ -37,6 +40,13 @@ test.describe("authenticated recruiter flow", () => {
     await page.goto("/recruiter/applications");
     await expectNoHorizontalOverflow(page);
     await expect(page.locator("body")).toContainText(/application|filter|search|status/i);
+  });
+
+  test("candidate swipe page keeps review controls visible", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/recruiter/swipe");
+    await expect(page.locator("body")).toContainText(/swipe right to shortlist|no candidates available|shortlist/i);
+    await expectNoHorizontalOverflow(page);
   });
 });
 

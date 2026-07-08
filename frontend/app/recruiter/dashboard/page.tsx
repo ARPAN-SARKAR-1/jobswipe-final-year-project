@@ -1,6 +1,6 @@
 "use client";
 
-import { BriefcaseBusiness, CalendarX, ClipboardList, PlusCircle, Radio } from "lucide-react";
+import { BriefcaseBusiness, CalendarX, ClipboardList, PlusCircle, Radio, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
@@ -87,6 +87,23 @@ export default function RecruiterDashboardPage() {
         <StatCard label="Applications received" value={data.applications_received} icon={ClipboardList} />
         <StatCard label="Active jobs" value={data.active_jobs} icon={Radio} />
         <StatCard label="Expired jobs" value={data.expired_jobs} icon={CalendarX} />
+      </section>
+
+      <section className="panel mt-6 flex flex-col justify-between gap-4 p-5 sm:flex-row sm:items-center">
+        <div className="flex min-w-0 gap-3">
+          <div className="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-teal-50 text-teal-700">
+            <Sparkles size={20} />
+          </div>
+          <div className="min-w-0">
+            <h2 className="text-xl font-black">Review candidates with swipe</h2>
+            <p className="mt-1 text-sm font-bold leading-6 text-[#6b767d]">
+              Quickly shortlist or reject active applicants while keeping the existing chat and application status workflow.
+            </p>
+          </div>
+        </div>
+        <Link href="/recruiter/swipe" className="btn-primary shrink-0 !py-2">
+          Swipe Candidates
+        </Link>
       </section>
 
       <section className="mt-7">

@@ -9,6 +9,7 @@ const pages = [
   "/contact",
   "/jobseeker/swipe",
   "/jobseeker/settings/profile",
+  "/recruiter/swipe",
   "/recruiter/company",
   "/admin/dashboard"
 ];

@@ -23,6 +23,7 @@ const seekerLinks = [
 
 const recruiterLinks = [
   ["Dashboard", "/recruiter/dashboard"],
+  ["Swipe", "/recruiter/swipe"],
   ["Post Job", "/recruiter/jobs/new"],
   ["Applications", "/recruiter/applications"],
   ["Messages", "/messages"],
